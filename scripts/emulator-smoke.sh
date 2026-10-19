@@ -107,6 +107,32 @@ open_drawer() {
   see "Change home app" exact || fail "swipe up didn't open the app drawer"
 }
 
+locked() { adb shell dumpsys window | grep -qiE "keyguardShowing=true|mShowingLockscreen=true"; }
+
+lock_screen() {
+  adb shell input keyevent KEYCODE_SLEEP
+  sleep 2
+  adb shell input keyevent KEYCODE_WAKEUP
+  sleep 2
+  adb shell dumpsys window | grep -iE "keyguard.*showing|showinglockscreen" | head -3 >> "$OUT/steps.log"
+  locked || fail "lock screen didn't appear after sleep"
+  pass "system lock screen appears"
+}
+
+# Bring up the PIN pad and enter the PIN, retrying while the bouncer settles.
+unlock_with_pin() {
+  for _ in 1 2 3; do
+    adb shell wm dismiss-keyguard
+    sleep 2
+    adb shell input text 1234
+    sleep 1
+    adb shell input keyevent KEYCODE_ENTER
+    sleep 3
+    locked || { pass "PIN unlocks the phone"; return; }
+  done
+  fail "PIN didn't unlock the phone"
+}
+
 crash_check() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash > "$OUT/crash.txt"
@@ -224,17 +250,10 @@ adb shell locksettings set-pin 1234 > /dev/null || fail "couldn't set a test PIN
 adb shell locksettings verify --old 1234 > /dev/null 2>&1 && pass "test PIN set"
 adb shell am start -a android.settings.SETTINGS > /dev/null
 sleep 2
-adb shell input keyevent KEYCODE_SLEEP
-sleep 2
-adb shell input keyevent KEYCODE_WAKEUP
-sleep 2
+lock_screen
 shot lock-screen
-adb shell input swipe 540 1800 540 500 250
-sleep 1
-adb shell input text 1234
-adb shell input keyevent KEYCODE_ENTER
-sleep 3
-expect_front $PKG "PIN unlock works and lands on the board"
+unlock_with_pin
+expect_front $PKG "Unlock lands on the board"
 adb logcat -d -s Initiative:V | tail -4 | tee -a "$OUT/steps.log"
 shot after-unlock
 
@@ -248,15 +267,8 @@ shot switch-off
 home
 adb shell am start -a android.settings.SETTINGS > /dev/null
 sleep 2
-adb shell input keyevent KEYCODE_SLEEP
-sleep 2
-adb shell input keyevent KEYCODE_WAKEUP
-sleep 2
-adb shell input swipe 540 1800 540 500 250
-sleep 1
-adb shell input text 1234
-adb shell input keyevent KEYCODE_ENTER
-sleep 3
+lock_screen
+unlock_with_pin
 expect_front com.android.settings "With the switch off, unlock returns to the last app"
 adb shell locksettings clear --old 1234 > /dev/null
 home
