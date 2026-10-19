@@ -144,14 +144,14 @@ interface ItemDao {
     suspend fun putAlarm(row: AlarmRow)
 }
 
-@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 2, exportSchema = false)
+@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 2, exportSchema = true)
 abstract class InitiativeDb : RoomDatabase() {
     abstract fun items(): ItemDao
 
     companion object {
         @Volatile private var instance: InitiativeDb? = null
 
-        private val ADD_ALARMS = object : Migration(1, 2) {
+        internal val ADD_ALARMS = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `alarms` (`itemId` INTEGER NOT NULL, `ackedAt` TEXT, " +

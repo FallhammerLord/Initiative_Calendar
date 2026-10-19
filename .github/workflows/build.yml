@@ -23,8 +23,28 @@ jobs:
       - name: Test the scheduling engine
         run: ./gradlew -p core test
 
+      - name: Test the app (database migration)
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew :app:lintRelease
+
       - name: Build the APK
         run: ./gradlew :app:assembleRelease
+
+      # Each database version's layout is kept in git. A changed saved layout
+      # fails; a new one is printed so it can be committed.
+      - name: Check the database schema is saved
+        run: |
+          if ! git diff --quiet -- app/schemas; then
+            git diff -- app/schemas
+            echo "::error::A saved database layout changed. Raise the version and add a migration instead."
+            exit 1
+          fi
+          for f in $(git ls-files --others --exclude-standard app/schemas); do
+            echo "::warning::New database layout $f. Commit it."
+            cat "$f"
+          done
 
       - name: Name the APK
         run: cp app/build/outputs/apk/release/app-release.apk initiative-${{ github.run_number }}.apk

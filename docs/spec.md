@@ -264,7 +264,7 @@ The app requests no location, contacts, or storage-wide access.
 
 ## Standards
 
-Three rule sets every change follows. Under each, the checklist names where the code falls short today. The standards pass in the build plan closes those gaps.
+Three rule sets every change follows. Under each, the checklist names the gaps found in the October audit; ticked items are closed. Where the pieces live: tokens and components in `app/.../ui/Design.kt`, colors and font in `Theme.kt`, formatters in `core/.../Formats.kt`, wording in `res/values/strings.xml`, services in `AppGraph.kt`, versions in `gradle/libs.versions.toml`.
 
 ### Android engineering
 
@@ -273,21 +273,21 @@ Three rule sets every change follows. Under each, the checklist names where the 
 - **Main thread for the screen only.** Database work, app-list queries, and file work run in the background.
 - **Survive being closed by Android.** What you typed or opened comes back after the system reclaims the app.
 - **Schema history.** The database layout is saved in the repo, and every migration has a test.
-- **Words in resources.** On-screen text lives in `strings.xml`, with plural forms where counts appear.
-- **Lint in CI.** Android's code checker runs on every push with the engine tests and emulator check. New warnings fail the build.
+- **Words in resources.** On-screen text lives in `strings.xml`, with plural forms where counts appear. One exception: the engine in `core/` writes the reason line ("Due tomorrow, fits before pickup") in English, since it has no Android resources. Moving reasons to structured codes is a later step if translation is ever wanted.
+- **Lint in CI.** Android's code checker runs on every push with the engine tests and emulator check. Errors fail the build; warnings go to the report.
 - **Small release build.** Code shrinking is on for releases. The APK is 19 MB today, mostly unused library code.
 - **One version list.** Library versions live in one Gradle version catalog.
 - **Least privilege.** Every permission maps to a feature in the permissions table, receivers stay private unless the system must reach them, and pending intents are immutable. This already holds.
 
 Gaps today:
 
-- [ ] The repository and placement engine are built twice, in the ViewModel and the scheduler, each with its own day window. A settings change would need making in both.
-- [ ] The installed-apps list is read on the main thread every time you return home. That stalls on phones with many apps.
-- [ ] Database schema export is off, and the version 1 to 2 migration has no test.
-- [ ] 18 on-screen strings are written into Kotlin; `strings.xml` holds only the app name. "Snooze 5 min (1 left)" needs a plural.
-- [ ] Nothing is saved for process restarts. An expanded ledger or half-typed quick-add is lost if Android reclaims the app.
-- [ ] No lint in CI, code shrinking is off, and there's no version catalog.
-- [ ] The notification permission sends you to Settings. Android 13 and newer have a one-tap system prompt.
+- [x] The repository and placement engine are built twice, in the ViewModel and the scheduler, each with its own day window. A settings change would need making in both.
+- [x] The installed-apps list is read on the main thread every time you return home. That stalls on phones with many apps.
+- [x] Database schema export is off, and the version 1 to 2 migration has no test.
+- [x] 18 on-screen strings are written into Kotlin; `strings.xml` holds only the app name. "Snooze 5 min (1 left)" needs a plural.
+- [x] Nothing is saved for process restarts. An expanded ledger or half-typed quick-add is lost if Android reclaims the app.
+- [x] No lint in CI, code shrinking is off, and there's no version catalog.
+- [x] The notification permission sends you to Settings. Android 13 and newer have a one-tap system prompt.
 
 ### UI and UX
 
@@ -303,12 +303,12 @@ Gaps today:
 
 Gaps today:
 
-- [ ] The "NOW" labels on the board and alarm screen are all caps with wide letter spacing, the hardest form for dyslexic readers. They become "Now".
-- [ ] Button labels are set never to wrap, so they'll clip at large font sizes.
-- [ ] No Undo after Done, Skip, or Tomorrow. A mis-tap is permanent.
-- [ ] The board shows "Free time" for a moment while the database loads, before the real Now card appears.
-- [ ] No accessibility labels anywhere. TalkBack can't read the ledger line.
-- [ ] A swipe up from the very bottom edge can trigger the system's home gesture instead of the app drawer.
+- [x] The "NOW" labels on the board and alarm screen are all caps with wide letter spacing, the hardest form for dyslexic readers. They become "Now".
+- [x] Button labels are set never to wrap, so they'll clip at large font sizes.
+- [x] No Undo after Done, Skip, or Tomorrow. A mis-tap is permanent.
+- [x] The board shows "Free time" for a moment while the database loads, before the real Now card appears.
+- [x] No accessibility labels anywhere. TalkBack can't read the ledger line.
+- [x] A swipe up from the very bottom edge can trigger the system's home gesture instead of the app drawer. Android owns that edge, so the board's swipe area sits above it, and the Apps button stays visible as the sure way in.
 
 ### Design system and templates
 
@@ -323,11 +323,11 @@ One source for every look, phrase, and format, so new screens are assembled from
 
 Gaps today:
 
-- [ ] 34 hand-set font sizes across 3 files, in 9 different values from 14 to 48 sp, with no named scale.
-- [ ] Clock formatting is defined 4 times: board, notifications, alarm screen, and engine. The engine writes "3:30" where the app writes "3:30 PM".
-- [ ] Wall labels (Soft, Firm, Hard) are defined twice.
-- [ ] Button and switch styles live inside single screens. The alarm screen copies the board's button style by hand.
-- [ ] Each screen sets its own padding and background.
+- [x] 34 hand-set font sizes across 3 files, in 9 different values from 14 to 48 sp, with no named scale.
+- [x] Clock formatting is defined 4 times: board, notifications, alarm screen, and engine. The engine writes "3:30" where the app writes "3:30 PM".
+- [x] Wall labels (Soft, Firm, Hard) are defined twice.
+- [x] Button and switch styles live inside single screens. The alarm screen copies the board's button style by hand.
+- [x] Each screen sets its own padding and background.
 
 ## Build plan
 

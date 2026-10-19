@@ -8,12 +8,14 @@ import android.content.IntentFilter
 import android.media.AudioManager
 import android.util.Log
 import androidx.core.content.ContextCompat
-import net.fallhammer.initiative.data.Prefs
 
 class InitiativeApp : Application() {
+    lateinit var graph: AppGraph
+        private set
 
     override fun onCreate() {
         super.onCreate()
+        graph = AppGraph(this)
         // Screen-off and unlock can't be caught from the manifest on Android 8+, so
         // the receiver lives as long as the app's process. Android keeps the home
         // app's process around, so this holds in practice. Both actions are
@@ -37,7 +39,7 @@ const val TAG = "Initiative"
 class UnlockReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        val prefs = Prefs(context)
+        val prefs = context.graph.prefs
         when {
             !prefs.boardOnUnlock -> Log.i(TAG, "$action: board after unlock is off")
             !prefs.canJumpToBoard() -> Log.i(TAG, "$action: no permission to come forward")

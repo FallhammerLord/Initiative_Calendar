@@ -11,8 +11,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.fallhammer.initiative.TAG
+import net.fallhammer.initiative.graph
 import net.fallhammer.initiative.data.EventRow
-import net.fallhammer.initiative.data.InitiativeDb
 import net.fallhammer.initiative.data.toItem
 import net.fallhammer.initiative.data.toRow
 import net.fallhammer.initiative.data.toState
@@ -76,7 +76,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
 object AlarmActions {
 
     suspend fun onIt(context: Context, id: Long) {
-        val dao = InitiativeDb.get(context).items()
+        val dao = context.graph.dao
         val item = dao.byId(id)?.toItem() ?: return
         val now = LocalDateTime.now()
         val state = dao.alarm(id)?.toState() ?: AlarmState()
@@ -89,7 +89,7 @@ object AlarmActions {
 
     /** Returns false when no snoozes are left. */
     suspend fun snooze(context: Context, id: Long): Boolean {
-        val dao = InitiativeDb.get(context).items()
+        val dao = context.graph.dao
         val item = dao.byId(id)?.toItem() ?: return false
         val now = LocalDateTime.now()
         val state = dao.alarm(id)?.toState() ?: AlarmState()

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Play Store policy check. This is a calendar app installed directly, and
+         anchors must fire on the minute, so USE_EXACT_ALARM is the right choice. -->
+    <issue id="ExactAlarm" severity="ignore" />
+</lint>

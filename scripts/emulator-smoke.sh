@@ -190,6 +190,7 @@ home
 expect_front $PKG "Home opens the board"
 expect_text "Free time"
 expect_text "Setup:"
+expect_text "Today's line"
 shot board-first-run
 
 # Grant what a person grants through the setup line.
@@ -215,6 +216,12 @@ expect_text "Back at"
 expect_text "call landlord"
 shot after-skip
 
+tap Done exact
+expect_text "Undo"
+tap Undo exact
+expect_text "Put back"
+expect_text "call landlord"
+pass "Undo puts the item back"
 tap Done exact
 expect_text "Free time"
 shot after-done
@@ -338,6 +345,22 @@ set_clock 1311
 if notifications | grep -q "dentist"; then fail "dentist notifications linger after it ended"; fi
 pass "ended anchor clears"
 adb logcat -d -s Initiative:V | tail -12 | tee -a "$OUT/steps.log"
+crash_check
+
+# --- Large text -----------------------------------------------------------------
+
+adb shell settings put system font_scale 2.0
+home
+sleep 2
+shot large-font
+for label in Done Skip Tomorrow; do
+  xy=$(find_node "$label" exact) || fail "'$label' button missing at 200% font"
+  y=${xy#* }
+  [ "$y" -lt 2400 ] || fail "'$label' button off screen at 200% font"
+done
+pass "buttons fit at 200% font"
+adb shell settings put system font_scale 1.0
+home
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"

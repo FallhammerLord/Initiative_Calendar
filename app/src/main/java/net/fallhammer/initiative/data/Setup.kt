@@ -8,15 +8,17 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationManagerCompat
+import net.fallhammer.initiative.R
 
 /** One-time permissions, shown on the board one at a time until done. */
-enum class SetupStep(val text: String) {
-    NOTIFICATIONS("Setup: tap to allow notifications, for alarms and the lock-screen card."),
-    EXACT_ALARMS("Setup: tap to let alarms fire on the minute."),
-    FULL_SCREEN("Setup: tap to allow full-screen alarms for Firm and Hard walls."),
-    BATTERY("Setup: tap so battery saving can't delay alarms. Choose Allow."),
-    OVERLAY("Setup: tap to let the board appear after you unlock. Allow “Display over other apps”."),
+enum class SetupStep(@StringRes val text: Int) {
+    NOTIFICATIONS(R.string.setup_notifications),
+    EXACT_ALARMS(R.string.setup_exact_alarms),
+    FULL_SCREEN(R.string.setup_full_screen),
+    BATTERY(R.string.setup_battery),
+    OVERLAY(R.string.setup_overlay),
 }
 
 class Setup(private val context: Context) {

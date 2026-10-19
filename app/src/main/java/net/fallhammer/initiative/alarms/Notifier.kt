@@ -15,16 +15,15 @@ import androidx.core.app.NotificationManagerCompat
 import initiative.core.AlarmState
 import initiative.core.Board
 import initiative.core.Escalation
+import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.Rung
-import initiative.core.WallStrength
 import net.fallhammer.initiative.MainActivity
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.TAG
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /** The lock-screen card and the rung notifications. No badges anywhere. */
 object Notifier {
@@ -33,7 +32,6 @@ object Notifier {
     private const val CH_NUDGE = "nudge"
     private const val CH_ALARM = "alarm"
     private const val CARD_ID = 1
-    private val CLOCK = DateTimeFormatter.ofPattern("h:mm a")
 
     fun rungId(itemId: Long): Int = 1000 + (itemId % 1_000_000).toInt()
 
@@ -51,18 +49,18 @@ object Notifier {
             }
         nm.createNotificationChannels(
             listOf(
-                channel(CH_CARD, "Lock-screen card", NotificationManager.IMPORTANCE_LOW) {
-                    description = "The Now card, silent, on the lock screen."
+                channel(CH_CARD, context.getString(R.string.channel_card), NotificationManager.IMPORTANCE_LOW) {
+                    description = context.getString(R.string.channel_card_about)
                 },
-                channel(CH_NOTICE, "Rung 1: quiet notice", NotificationManager.IMPORTANCE_LOW) {
-                    description = "Silent heads-up at an anchor's lead time."
+                channel(CH_NOTICE, context.getString(R.string.channel_notice), NotificationManager.IMPORTANCE_LOW) {
+                    description = context.getString(R.string.channel_notice_about)
                 },
-                channel(CH_NUDGE, "Rung 2: nudge", NotificationManager.IMPORTANCE_HIGH) {
-                    description = "Sound and vibration 5 minutes before an anchor."
+                channel(CH_NUDGE, context.getString(R.string.channel_nudge), NotificationManager.IMPORTANCE_HIGH) {
+                    description = context.getString(R.string.channel_nudge_about)
                     enableVibration(true)
                 },
-                channel(CH_ALARM, "Rung 3: alarm", NotificationManager.IMPORTANCE_HIGH) {
-                    description = "Full alarm when a Firm or Hard anchor starts."
+                channel(CH_ALARM, context.getString(R.string.channel_alarm), NotificationManager.IMPORTANCE_HIGH) {
+                    description = context.getString(R.string.channel_alarm_about)
                     enableVibration(true)
                     setSound(
                         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
@@ -87,8 +85,8 @@ object Notifier {
         val next = board.next
         val b = NotificationCompat.Builder(context, CH_CARD)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle(now?.let { "Now: ${it.title}" } ?: "Free time")
-            .setContentText(next?.let { "Next: ${it.title}" } ?: board.now.reason)
+            .setContentTitle(now?.let { context.getString(R.string.card_now, it.title) } ?: context.getString(R.string.free_time))
+            .setContentText(next?.let { context.getString(R.string.next_float, it.title) } ?: board.now.reason)
             .setOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)
@@ -119,22 +117,22 @@ object Notifier {
         val start = anchor.start ?: return
         val mins = Duration.between(now, start).toMinutes().coerceAtLeast(0)
         val (channel, title) = when (rung) {
-            Rung.NOTICE -> CH_NOTICE to "${anchor.title} in $mins min"
-            Rung.NUDGE -> CH_NUDGE to "${anchor.title} in $mins min. Time to move."
-            Rung.ALARM -> CH_ALARM to "${anchor.title} now"
+            Rung.NOTICE -> CH_NOTICE to context.getString(R.string.rung_notice, anchor.title, mins.toInt())
+            Rung.NUDGE -> CH_NUDGE to context.getString(R.string.rung_nudge, anchor.title, mins.toInt())
+            Rung.ALARM -> CH_ALARM to context.getString(R.string.rung_alarm, anchor.title)
         }
         val b = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle(title)
-            .setContentText("${start.format(CLOCK)} · ${wallLabel(anchor.wall)}")
+            .setContentText(Formats.anchorLine(anchor))
             .setCategory(if (rung == Rung.ALARM) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(if (rung == Rung.NOTICE) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openBoard(context))
             .setOngoing(rung == Rung.ALARM)
-            .addAction(0, "On it", AlarmActionReceiver.pending(context, anchor.id, AlarmActionReceiver.ON_IT))
+            .addAction(0, context.getString(R.string.alarm_on_it), AlarmActionReceiver.pending(context, anchor.id, AlarmActionReceiver.ON_IT))
         if (Escalation.snoozesLeft(anchor, state) > 0) {
-            b.addAction(0, "Snooze 5 min", AlarmActionReceiver.pending(context, anchor.id, AlarmActionReceiver.SNOOZE))
+            b.addAction(0, context.getString(R.string.notify_snooze), AlarmActionReceiver.pending(context, anchor.id, AlarmActionReceiver.SNOOZE))
         }
         if (rung == Rung.ALARM) b.setFullScreenIntent(AlarmActivity.pending(context, anchor.id), true)
         val n = b.build()
@@ -162,10 +160,4 @@ object Notifier {
     )
 
     fun millis(t: LocalDateTime): Long = t.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-
-    fun wallLabel(w: WallStrength) = when (w) {
-        WallStrength.SOFT -> "Soft"
-        WallStrength.FIRM -> "Firm"
-        WallStrength.HARD -> "Hard"
-    }
 }

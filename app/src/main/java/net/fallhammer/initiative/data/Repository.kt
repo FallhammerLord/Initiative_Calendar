@@ -55,11 +55,11 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         dao.setDuration(item.titleKey, estimate)
     }
 
-    /** Returns where the item landed, for the card to show. */
-    suspend fun skip(item: Item, all: List<Item>, now: LocalDateTime): String {
+    /** Returns where the item landed, for the card to show; null for an anchor, which leaves today's board. */
+    suspend fun skip(item: Item, all: List<Item>, now: LocalDateTime): String? {
         if (item.isAnchor) {
             update(item, item.copy(status = Status.DROPPED), note = "skipped")
-            return "Off today's board"
+            return null
         }
         val moved = placement.skip(item, all, now)
         update(item, moved.item, note = moved.message)
@@ -70,6 +70,15 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         val moved = placement.tomorrow(item, now)
         update(item, moved.item, note = moved.message)
         return moved.message
+    }
+
+    /**
+     * Undo: puts an item back exactly as it was before Done, Skip, or Tomorrow.
+     * A duration already learned from a Done stays learned.
+     */
+    suspend fun restore(before: Item) {
+        val current = dao.byId(before.id)?.toItem() ?: return
+        update(current, before, note = "undo")
     }
 
     /** First time a float becomes Now, start its clock. */

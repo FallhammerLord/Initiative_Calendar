@@ -19,6 +19,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(LOCK_CARD, true)
         set(value) = prefs.edit().putBoolean(LOCK_CARD, value).apply()
 
+    /** Whether the one-tap notification prompt has been shown; after that, Settings is the only way. */
+    var askedNotifications: Boolean
+        get() = prefs.getBoolean(ASKED_NOTIFICATIONS, false)
+        set(value) = prefs.edit().putBoolean(ASKED_NOTIFICATIONS, value).apply()
+
     /**
      * Android blocks background apps from opening a screen. "Display over other
      * apps" is the permission that lifts that block for the board-on-unlock jump.
@@ -34,5 +39,6 @@ class Prefs(private val context: Context) {
     private companion object {
         const val BOARD_ON_UNLOCK = "boardOnUnlock"
         const val LOCK_CARD = "lockCard"
+        const val ASKED_NOTIFICATIONS = "askedNotifications"
     }
 }

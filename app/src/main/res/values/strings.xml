@@ -1,4 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Every word the app shows, grouped by screen. Sentence case, plain words, no blame. -->
 <resources>
     <string name="app_name">Initiative</string>
+
+    <!-- Board -->
+    <string name="now_label">Now</string>
+    <string name="free_time">Free time</string>
+    <string name="action_done">Done</string>
+    <string name="action_skip">Skip</string>
+    <string name="action_tomorrow">Tomorrow</string>
+    <string name="action_undo">Undo</string>
+    <string name="next_anchor">Next: %1$s in %2$s</string>
+    <string name="next_float">Next: %1$s</string>
+    <string name="ledger_hint">Today · tap for the queue</string>
+    <string name="ledger_description">Today\'s line. %1$s %2$s Tap for the queue.</string>
+    <string name="ledger_walls">Walls: %1$s.</string>
+    <string name="ledger_no_walls">No walls left today.</string>
+    <string name="ledger_wall">%1$s at %2$s, %3$s</string>
+    <plurals name="ledger_done">
+        <item quantity="one">1 done.</item>
+        <item quantity="other">%d done.</item>
+    </plurals>
+    <string name="queue_empty">Nothing else today.</string>
+    <string name="ask_kind">“%1$s”: anchor or float?</string>
+    <string name="ask_float">Float</string>
+    <string name="ask_anchor">Anchor…</string>
+    <string name="ask_cancel">Cancel</string>
+    <string name="quick_add_hint">Add anything: dentist thu 3pm</string>
+    <string name="apps_button">Apps ⌃</string>
+    <string name="flash_done">Done</string>
+    <string name="flash_added">Added: %1$s</string>
+    <string name="flash_anchor_skipped">Off today\'s board</string>
+    <string name="flash_restored">Put back</string>
+
+    <!-- Setup line -->
+    <string name="setup_notifications">Setup: tap to allow notifications, for alarms and the lock-screen card.</string>
+    <string name="setup_exact_alarms">Setup: tap to let alarms fire on the minute.</string>
+    <string name="setup_full_screen">Setup: tap to allow full-screen alarms for Firm and Hard walls.</string>
+    <string name="setup_battery">Setup: tap so battery saving can\'t delay alarms. Choose Allow.</string>
+    <string name="setup_overlay">Setup: tap to let the board appear after you unlock. Allow “Display over other apps”.</string>
+
+    <!-- App drawer -->
+    <string name="drawer_title">Apps</string>
+    <string name="drawer_close">Close</string>
+    <string name="drawer_search">Search apps</string>
+    <string name="drawer_phone_settings">Phone settings</string>
+    <string name="drawer_change_home">Change home app</string>
+    <string name="drawer_pinned">%1$s, pinned</string>
+    <string name="setting_board_after_unlock">Board after unlock</string>
+    <string name="setting_lock_card">Lock-screen card</string>
+    <string name="drawer_pin_hint">Hold an app to pin it to the board.</string>
+
+    <!-- Alarms -->
+    <string name="alarm_on_it">On it</string>
+    <plurals name="alarm_snooze_left">
+        <item quantity="one">Snooze 5 min (%d left)</item>
+        <item quantity="other">Snooze 5 min (%d left)</item>
+    </plurals>
+    <string name="notify_snooze">Snooze 5 min</string>
+    <string name="rung_notice">%1$s in %2$d min</string>
+    <string name="rung_nudge">%1$s in %2$d min. Time to move.</string>
+    <string name="rung_alarm">%1$s now</string>
+    <string name="card_now">Now: %1$s</string>
+
+    <!-- Notification channels -->
+    <string name="channel_card">Lock-screen card</string>
+    <string name="channel_card_about">The Now card, silent, on the lock screen.</string>
+    <string name="channel_notice">Rung 1: quiet notice</string>
+    <string name="channel_notice_about">Silent heads-up at an anchor\'s lead time.</string>
+    <string name="channel_nudge">Rung 2: nudge</string>
+    <string name="channel_nudge_about">Sound and vibration 5 minutes before an anchor.</string>
+    <string name="channel_alarm">Rung 3: alarm</string>
+    <string name="channel_alarm_about">Full alarm when a Firm or Hard anchor starts.</string>
 </resources>

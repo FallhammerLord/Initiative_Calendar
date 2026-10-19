@@ -6,37 +6,39 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
+import androidx.lifecycle.lifecycleScope
+import initiative.core.AlarmState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
-import initiative.core.AlarmState
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import initiative.core.Escalation
+import initiative.core.Formats
 import initiative.core.Item
 import kotlinx.coroutines.launch
-import net.fallhammer.initiative.data.InitiativeDb
+import net.fallhammer.initiative.graph
 import net.fallhammer.initiative.data.toItem
 import net.fallhammer.initiative.data.toState
-import net.fallhammer.initiative.ui.Ink
+import net.fallhammer.initiative.R
+import net.fallhammer.initiative.ui.Body
 import net.fallhammer.initiative.ui.InitiativeTheme
-import java.time.format.DateTimeFormatter
+import net.fallhammer.initiative.ui.Label
+import net.fallhammer.initiative.ui.PrimaryButton
+import net.fallhammer.initiative.ui.Screen
+import net.fallhammer.initiative.ui.SecondaryButton
+import net.fallhammer.initiative.ui.Space
+import net.fallhammer.initiative.ui.Tap
+import net.fallhammer.initiative.ui.Title
+import net.fallhammer.initiative.ui.Type
 
 /** Rung 3: shown full screen, over the lock screen, when a Firm or Hard anchor starts. */
 class AlarmActivity : ComponentActivity() {
@@ -62,39 +64,36 @@ class AlarmActivity : ComponentActivity() {
     private fun load(intent: Intent) {
         val id = intent.getLongExtra(EXTRA_ID, -1)
         lifecycleScope.launch {
-            val dao = InitiativeDb.get(this@AlarmActivity).items()
+            val dao = graph.dao
             val item = dao.byId(id)?.toItem()
             val state = dao.alarm(id)?.toState() ?: AlarmState()
             if (item == null || !item.isOpen || state.ackedAt != null) finish() else shown = item to state
         }
     }
 
-    @androidx.compose.runtime.Composable
+    @Composable
     private fun AlarmScreen(item: Item, state: AlarmState) {
         val left = Escalation.snoozesLeft(item, state)
-        Column(
-            Modifier.fillMaxSize().background(Ink.bg).systemBarsPadding().padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("NOW", fontSize = 16.sp, color = Ink.dim, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-            Text(item.title, fontSize = 48.sp, lineHeight = 54.sp, fontWeight = FontWeight.Bold, color = Ink.text)
-            Text(
-                "${item.start?.format(CLOCK).orEmpty()} · ${Notifier.wallLabel(item.wall)}",
-                fontSize = 22.sp,
-                color = Ink.dim,
-            )
-            Spacer(Modifier.height(48.dp))
-            Button(
-                onClick = { act { AlarmActions.onIt(this@AlarmActivity, item.id) } },
-                modifier = Modifier.fillMaxWidth().height(88.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.bg),
-            ) { Text("On it", fontSize = 28.sp, fontWeight = FontWeight.Bold) }
-            if (left > 0) {
-                Spacer(Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = { act { AlarmActions.snooze(this@AlarmActivity, item.id) } },
-                    modifier = Modifier.fillMaxWidth().height(72.dp),
-                ) { Text("Snooze 5 min ($left left)", fontSize = 22.sp, color = Ink.text) }
+        Screen {
+            Column(Modifier.weight(1f).padding(horizontal = Space.s), verticalArrangement = Arrangement.Center) {
+                Label(stringResource(R.string.now_label))
+                Title(item.title, style = Type.hero)
+                Body(Formats.anchorLine(item), style = Type.heading)
+                Spacer(Modifier.height(Space.xxl * 1.5f))
+                PrimaryButton(
+                    stringResource(R.string.alarm_on_it),
+                    { act { AlarmActions.onIt(this@AlarmActivity, item.id) } },
+                    Modifier.fillMaxWidth(),
+                    height = Tap.alarm,
+                )
+                if (left > 0) {
+                    Spacer(Modifier.height(Space.l))
+                    SecondaryButton(
+                        pluralStringResource(R.plurals.alarm_snooze_left, left, left),
+                        { act { AlarmActions.snooze(this@AlarmActivity, item.id) } },
+                        Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }
@@ -108,7 +107,6 @@ class AlarmActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_ID = "itemId"
-        private val CLOCK = DateTimeFormatter.ofPattern("h:mm a")
 
         fun pending(context: Context, itemId: Long): PendingIntent = PendingIntent.getActivity(
             context,

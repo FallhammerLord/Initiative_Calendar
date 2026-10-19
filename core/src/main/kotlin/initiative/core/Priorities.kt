@@ -1,10 +1,7 @@
 package initiative.core
 
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
 enum class Level { LOW, NORMAL, HIGH }
 
@@ -42,7 +39,7 @@ fun dueText(due: LocalDate, today: LocalDate): String {
         days < 0 -> "Due date passed"
         days == 0L -> "Due today"
         days == 1L -> "Due tomorrow"
-        days < 7 -> "Due " + due.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-        else -> "Due " + due.format(DateTimeFormatter.ofPattern("MMM d"))
+        days < 7 -> "Due " + Formats.weekday(due)
+        else -> "Due " + Formats.shortDate(due)
     }
 }

@@ -1,42 +1,34 @@
 package net.fallhammer.initiative.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.AppEntry
 
 /**
@@ -58,65 +50,49 @@ fun AppDrawer(
     onHomeChooser: () -> Unit,
     onClose: () -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
     val shown = apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Ink.bg)
-            // Catch taps on empty space so they never reach the board underneath.
-            .pointerInput(Unit) { detectTapGestures { } }
-            .systemBarsPadding()
-            .imePadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
+    // Catch taps on empty space so they never reach the board underneath.
+    Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
         Row(Modifier.fillMaxWidth().onSwipeDown(onClose), verticalAlignment = Alignment.CenterVertically) {
-            Text("Apps", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink.text, modifier = Modifier.weight(1f))
-            TextButton(onClick = onClose) { Text("Close", fontSize = 18.sp, color = Ink.dim) }
+            Title(stringResource(R.string.drawer_title), style = Type.title, modifier = Modifier.weight(1f))
+            QuietButton(stringResource(R.string.drawer_close), onClose)
         }
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
             singleLine = true,
-            placeholder = { Text("Search apps", fontSize = 18.sp, color = Ink.dim) },
-            textStyle = TextStyle(fontSize = 20.sp, color = Ink.text, fontFamily = Atkinson),
+            placeholder = { Text(stringResource(R.string.drawer_search), style = Type.bodySmall, color = Ink.dim) },
+            textStyle = Type.body.copy(color = Ink.text),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { shown.firstOrNull()?.let(onLaunch) }),
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onSettings) { Text("Phone settings", fontSize = 16.sp, color = Ink.text) }
-            OutlinedButton(onClick = onHomeChooser) { Text("Change home app", fontSize = 16.sp, color = Ink.text) }
+        Spacer(Modifier.height(Space.s))
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+            SecondaryButton(stringResource(R.string.drawer_phone_settings), onSettings, height = Tap.min)
+            SecondaryButton(stringResource(R.string.drawer_change_home), onHomeChooser, height = Tap.min)
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
             items(shown, key = { it.key }) { app ->
+                val isPinned = app.key in pinned
+                val spoken = if (isPinned) stringResource(R.string.drawer_pinned, app.label) else app.label
                 Text(
-                    text = if (app.key in pinned) "${app.label}  •" else app.label,
-                    fontSize = 22.sp,
+                    text = if (isPinned) "${app.label}  •" else app.label,
+                    style = Type.heading,
                     color = Ink.text,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = Tap.min)
                         .combinedClickable(onClick = { onLaunch(app) }, onLongClick = { onTogglePin(app) })
-                        .padding(vertical = 12.dp),
+                        .semantics { contentDescription = spoken }
+                        .padding(vertical = Space.m),
                 )
             }
         }
-        SettingSwitch("Board after unlock", unlock.enabled, onBoardOnUnlock)
-        SettingSwitch("Lock-screen card", lockCard, onLockCard)
-        Text("Hold an app to pin it to the board.", fontSize = 14.sp, color = Ink.dim)
-    }
-}
-
-@Composable
-private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 18.sp, color = Ink.text, modifier = Modifier.weight(1f))
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.bg),
-        )
+        SettingSwitch(stringResource(R.string.setting_board_after_unlock), unlock.enabled, onBoardOnUnlock)
+        SettingSwitch(stringResource(R.string.setting_lock_card), lockCard, onLockCard)
+        Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim)
     }
 }

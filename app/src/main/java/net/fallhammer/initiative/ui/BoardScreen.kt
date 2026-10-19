@@ -1,7 +1,11 @@
 package net.fallhammer.initiative.ui
 
+import android.Manifest
 import android.app.TimePickerDialog
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -12,61 +16,55 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import initiative.core.Formats
 import initiative.core.Item
-import initiative.core.LedgerMark
 import initiative.core.MarkKind
 import initiative.core.WallStrength
-import java.time.Duration
+import net.fallhammer.initiative.R
+import net.fallhammer.initiative.data.AppEntry
+import net.fallhammer.initiative.data.SetupStep
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-
-private val CLOCK = DateTimeFormatter.ofPattern("h:mm a")
 
 @Composable
 fun BoardScreen(vm: BoardViewModel) {
@@ -80,7 +78,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val setup by vm.setup.collectAsStateWithLifecycle()
     val lockCard by vm.lockCard.collectAsStateWithLifecycle()
     val opened by vm.opened.collectAsStateWithLifecycle()
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
 
     // Coming back home should show the board, not an open keyboard.
@@ -94,15 +92,19 @@ fun BoardScreen(vm: BoardViewModel) {
         }
     }
 
+    // Android 13+ has a one-tap notification prompt; after it's been asked once,
+    // the setup line opens Settings instead.
+    val notificationPrompt = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refresh() }
+    fun openStep(step: SetupStep) {
+        if (step == SetupStep.NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vm.useNotificationPrompt()) {
+            notificationPrompt.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            vm.openSetup(step)
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Ink.bg)) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .onSwipeUp { vm.setDrawer(true) },
-        ) {
+        Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
             NowCard(
                 ui = ui,
                 flash = flash,
@@ -110,13 +112,14 @@ fun BoardScreen(vm: BoardViewModel) {
                 onDone = vm::done,
                 onSkip = vm::skip,
                 onTomorrow = vm::tomorrow,
+                onUndo = vm::undo,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Space.m))
             NextPeek(ui)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Space.s))
             LedgerLine(ui, onClick = { expanded = !expanded })
             if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp))
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Space.m))
             ask?.let { parsed ->
                 AskChips(
                     title = parsed.item.title,
@@ -126,16 +129,14 @@ fun BoardScreen(vm: BoardViewModel) {
                 )
             }
             // One setup step at a time, until all are done.
-            setup.firstOrNull()?.let { step ->
-                TextButton(onClick = { vm.openSetup(step) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(step.text, fontSize = 16.sp, color = Ink.accent)
-                }
-            }
+            setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
             QuickAdd(onSubmit = vm::submit)
             PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
-            TextButton(onClick = { vm.setDrawer(true) }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("Apps ⌃", fontSize = 16.sp, color = Ink.dim)
-            }
+            QuietButton(
+                stringResource(R.string.apps_button),
+                onClick = { vm.setDrawer(true) },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
         }
 
         AnimatedVisibility(
@@ -163,75 +164,69 @@ fun BoardScreen(vm: BoardViewModel) {
 @Composable
 private fun NowCard(
     ui: BoardUi,
-    flash: String?,
+    flash: Flash?,
     modifier: Modifier,
     onDone: (Item) -> Unit,
     onSkip: (Item) -> Unit,
     onTomorrow: (Item) -> Unit,
+    onUndo: () -> Unit,
 ) {
-    val pick = ui.board?.now
-    val item = pick?.item
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Ink.surface)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("NOW", fontSize = 14.sp, color = Ink.dim, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(item?.title ?: "Free time", fontSize = 40.sp, lineHeight = 46.sp, fontWeight = FontWeight.Bold, color = Ink.text)
-        if (item?.start != null) {
-            Text("${item.start!!.format(CLOCK)} · ${wallLabel(item.wall)}", fontSize = 18.sp, color = Ink.dim)
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(pick?.reason.orEmpty(), fontSize = 20.sp, lineHeight = 26.sp, color = Ink.dim)
-        Spacer(Modifier.weight(1f))
-        flash?.let {
-            Text(it, fontSize = 18.sp, color = Ink.accent)
-            Spacer(Modifier.height(12.dp))
-        }
-        if (item != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                BigButton("Done", primary = true, modifier = Modifier.weight(1f)) { onDone(item) }
-                BigButton("Skip", modifier = Modifier.weight(1f)) { onSkip(item) }
-                if (!item.isAnchor) BigButton("Tomorrow", modifier = Modifier.weight(1.3f)) { onTomorrow(item) }
+    val board = ui.board
+    val item = board?.now?.item
+    // Scrolls when the system font is large, so the buttons are never pushed off the card.
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        Card(
+            Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+            arrangement = Arrangement.SpaceBetween,
+        ) {
+            Column {
+                Label(stringResource(R.string.now_label))
+                Spacer(Modifier.height(Space.s))
+                // Until the database loads, the card stays blank rather than showing a wrong "Free time".
+                if (board != null) {
+                    Title(item?.title ?: stringResource(R.string.free_time))
+                    if (item != null && item.isAnchor) Body(Formats.anchorLine(item), style = Type.bodySmall)
+                    Spacer(Modifier.height(Space.m))
+                    Body(board.now.reason)
+                }
+            }
+            Column(Modifier.padding(top = Space.xl)) {
+                flash?.let {
+                    FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
+                    Spacer(Modifier.height(Space.m))
+                }
+                if (item != null) {
+                    val done = stringResource(R.string.action_done)
+                    val skip = stringResource(R.string.action_skip)
+                    val tomorrow = stringResource(R.string.action_tomorrow)
+                    if (item.isAnchor) {
+                        ActionRow(
+                            Action { PrimaryButton(done, { onDone(item) }, it) },
+                            Action { SecondaryButton(skip, { onSkip(item) }, it) },
+                        )
+                    } else {
+                        ActionRow(
+                            Action { PrimaryButton(done, { onDone(item) }, it) },
+                            Action { SecondaryButton(skip, { onSkip(item) }, it) },
+                            Action(1.3f) { SecondaryButton(tomorrow, { onTomorrow(item) }, it) },
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun BigButton(label: String, primary: Boolean = false, modifier: Modifier, onClick: () -> Unit) {
-    val m = modifier.height(64.dp)
-    val pad = PaddingValues(horizontal = 6.dp)
-    if (primary) {
-        Button(onClick = onClick, modifier = m, contentPadding = pad, colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.bg)) {
-            ButtonLabel(label, FontWeight.Bold)
-        }
-    } else {
-        OutlinedButton(onClick = onClick, modifier = m, contentPadding = pad) {
-            ButtonLabel(label, FontWeight.Normal)
-        }
-    }
-}
-
-// One line, never broken mid-word.
-@Composable
-private fun ButtonLabel(label: String, weight: FontWeight) {
-    Text(label, fontSize = 19.sp, fontWeight = weight, maxLines = 1, softWrap = false, overflow = TextOverflow.Visible)
-}
-
-@Composable
 private fun NextPeek(ui: BoardUi) {
     val next = ui.board?.next ?: return
-    val text = if (next.isAnchor && next.start != null) {
-        "Next: ${next.title} in ${countdown(ui.now, next.start!!)}"
+    val start = next.start
+    val text = if (next.isAnchor && start != null) {
+        stringResource(R.string.next_anchor, next.title, Formats.countdown(ui.now, start))
     } else {
-        "Next: ${next.title}"
+        stringResource(R.string.next_float, next.title)
     }
-    Text(text, fontSize = 20.sp, color = Ink.text, modifier = Modifier.padding(horizontal = 4.dp))
+    Body(text, color = Ink.text, modifier = Modifier.padding(horizontal = Space.xs))
 }
 
 /** The day as one line: done ticks, walls as markers, a bar for now. Tap to expand. */
@@ -241,11 +236,28 @@ private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
     val endMin = ui.window.end.toSecondOfDay() / 60f
     fun frac(t: LocalDateTime): Float = ((t.toLocalTime().toSecondOfDay() / 60f - startMin) / (endMin - startMin)).coerceIn(0f, 1f)
 
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 4.dp)) {
+    // TalkBack can't see a drawing, so the line describes itself.
+    val walls = ui.ledger.filter { it.kind != MarkKind.DONE }.map {
+        stringResource(R.string.ledger_wall, it.item.title, Formats.clock(it.at), Formats.wall(it.item.wall))
+    }
+    val doneCount = ui.ledger.count { it.kind == MarkKind.DONE }
+    val description = stringResource(
+        R.string.ledger_description,
+        pluralStringResource(R.plurals.ledger_done, doneCount, doneCount),
+        if (walls.isEmpty()) stringResource(R.string.ledger_no_walls) else stringResource(R.string.ledger_walls, walls.joinToString("; ")),
+    )
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = description }
+            .padding(horizontal = Space.xs, vertical = Space.xs),
+    ) {
         Canvas(Modifier.fillMaxWidth().height(32.dp)) {
             val mid = size.height / 2
             drawLine(Ink.line, Offset(0f, mid), Offset(size.width, mid), strokeWidth = 2.dp.toPx())
-            ui.ledger.forEach { mark: LedgerMark ->
+            ui.ledger.forEach { mark ->
                 val x = frac(mark.at) * size.width
                 when (mark.kind) {
                     MarkKind.DONE -> drawLine(Ink.dim, Offset(x, mid - 6.dp.toPx()), Offset(x, mid + 6.dp.toPx()), strokeWidth = 2.dp.toPx())
@@ -261,22 +273,26 @@ private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
             val nx = frac(ui.now) * size.width
             drawLine(Ink.accent, Offset(nx, 0f), Offset(nx, size.height), strokeWidth = 3.dp.toPx())
         }
-        Text("Today · tap for the queue", fontSize = 14.sp, color = Ink.dim)
+        Text(stringResource(R.string.ledger_hint), style = Type.caption, color = Ink.dim)
     }
 }
 
 @Composable
 private fun DayQueue(queue: List<Item>, modifier: Modifier) {
     if (queue.isEmpty()) {
-        Text("Nothing else today.", fontSize = 18.sp, color = Ink.dim, modifier = Modifier.padding(8.dp))
+        Body(stringResource(R.string.queue_empty), modifier = Modifier.padding(Space.s))
         return
     }
-    LazyColumn(modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+    LazyColumn(modifier.fillMaxWidth().padding(horizontal = Space.xs)) {
         items(queue, key = { it.id }) { item ->
-            val lead = item.start?.format(CLOCK) ?: "${item.durationMinutes}m"
-            Row(Modifier.padding(vertical = 6.dp)) {
-                Text(lead, fontSize = 18.sp, color = Ink.dim, modifier = Modifier.width(96.dp))
-                Text(item.title, fontSize = 18.sp, color = Ink.text, fontWeight = if (item.wall == WallStrength.HARD && item.isAnchor) FontWeight.Bold else FontWeight.Normal)
+            val lead = item.start?.let(Formats::clock) ?: Formats.countdown(java.time.Duration.ofMinutes(item.durationMinutes.toLong()))
+            Row(Modifier.padding(vertical = Space.xs)) {
+                Text(lead, style = Type.bodySmall, color = Ink.dim, modifier = Modifier.width(104.dp))
+                Text(
+                    item.title,
+                    style = Type.bodySmall.copy(fontWeight = if (item.isAnchor && item.wall == WallStrength.HARD) FontWeight.Bold else FontWeight.Normal),
+                    color = Ink.text,
+                )
             }
         }
     }
@@ -285,27 +301,30 @@ private fun DayQueue(queue: List<Item>, modifier: Modifier) {
 @Composable
 private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
-    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        Text("“$title”: anchor or float?", fontSize = 18.sp, color = Ink.text)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onFloat) { Text("Float", fontSize = 18.sp, color = Ink.text) }
-            OutlinedButton(onClick = {
-                TimePickerDialog(context, { _, h, m -> onAnchor(LocalTime.of(h, m)) }, 9, 0, false).show()
-            }) { Text("Anchor…", fontSize = 18.sp, color = Ink.text) }
-            TextButton(onClick = onCancel) { Text("Cancel", fontSize = 18.sp, color = Ink.dim) }
+    Column(Modifier.fillMaxWidth().padding(bottom = Space.s)) {
+        Body(stringResource(R.string.ask_kind, title), color = Ink.text, style = Type.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalAlignment = Alignment.CenterVertically) {
+            SecondaryButton(stringResource(R.string.ask_float), onFloat, height = Tap.min)
+            SecondaryButton(
+                stringResource(R.string.ask_anchor),
+                { TimePickerDialog(context, { _, h, m -> onAnchor(LocalTime.of(h, m)) }, 9, 0, false).show() },
+                height = Tap.min,
+            )
+            QuietButton(stringResource(R.string.ask_cancel), onCancel)
         }
     }
 }
 
 @Composable
 private fun QuickAdd(onSubmit: (String) -> Boolean) {
-    var text by remember { mutableStateOf("") }
+    // Saved across process restarts, so a half-typed line survives.
+    var text by rememberSaveable { mutableStateOf("") }
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
         singleLine = true,
-        placeholder = { Text("Add anything: dentist thu 3pm", fontSize = 18.sp, color = Ink.dim) },
-        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp, color = Ink.text, fontFamily = Atkinson),
+        placeholder = { Text(stringResource(R.string.quick_add_hint), style = Type.bodySmall, color = Ink.dim) },
+        textStyle = Type.body.copy(color = Ink.text),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { if (onSubmit(text)) text = "" }),
         modifier = Modifier.fillMaxWidth(),
@@ -313,15 +332,21 @@ private fun QuickAdd(onSubmit: (String) -> Boolean) {
 }
 
 @Composable
-private fun PinnedRow(apps: List<net.fallhammer.initiative.data.AppEntry>, onLaunch: (net.fallhammer.initiative.data.AppEntry) -> Unit) {
+private fun PinnedRow(apps: List<AppEntry>, onLaunch: (AppEntry) -> Unit) {
     if (apps.isEmpty()) return
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        apps.forEach { app ->
-            TextButton(onClick = { onLaunch(app) }) { Text(app.label, fontSize = 18.sp, color = Ink.text) }
-        }
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = Space.s),
+        horizontalArrangement = Arrangement.spacedBy(Space.xs),
+    ) {
+        apps.forEach { app -> QuietButton(app.label, { onLaunch(app) }, color = Ink.text) }
     }
 }
 
+/*
+ * Swipe up opens the drawer. The board sits above the system's gesture area, so
+ * a swipe from the very bottom edge goes to Android instead; the Apps button is
+ * the always-visible way in.
+ */
 private fun Modifier.onSwipeUp(action: () -> Unit) = pointerInput(Unit) {
     var total = 0f
     detectVerticalDragGestures(
@@ -339,16 +364,3 @@ internal fun Modifier.onSwipeDown(action: () -> Unit) = pointerInput(Unit) {
 }
 
 private const val SWIPE_PX = 150f
-
-private fun wallLabel(w: WallStrength) = when (w) {
-    WallStrength.SOFT -> "Soft"
-    WallStrength.FIRM -> "Firm"
-    WallStrength.HARD -> "Hard"
-}
-
-private fun countdown(now: LocalDateTime, at: LocalDateTime): String {
-    val mins = Duration.between(now, at).toMinutes().coerceAtLeast(0)
-    val h = mins / 60
-    val m = mins % 60
-    return if (h > 0) "${h}h ${m}m" else "${m}m"
-}

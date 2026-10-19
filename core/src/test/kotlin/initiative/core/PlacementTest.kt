@@ -76,7 +76,7 @@ class PlacementTest {
         val moved = engine.skip(call, listOf(pickup, call), at(13))
         assertEquals(at(15, 30), moved.item.notBefore)
         assertEquals(1, moved.item.skipCount)
-        assertEquals("Back at 3:30, after pickup", moved.message)
+        assertEquals("Back at 3:30 PM, after pickup", moved.message)
         // It stays off the board until then.
         assertNull(engine.board(listOf(pickup, moved.item), at(14)).now.item)
     }
@@ -85,14 +85,14 @@ class PlacementTest {
         val call = float(2, "call")
         val moved = engine.skip(call, listOf(call), at(10, 2))
         assertEquals(at(11, 5), moved.item.notBefore)
-        assertEquals("Back at 11:05", moved.message)
+        assertEquals("Back at 11:05 AM", moved.message)
     }
 
     @Test fun skipLateInTheDayGoesToTomorrow() {
         val call = float(2, "call")
         val moved = engine.skip(call, listOf(call), at(21, 30))
         assertEquals(day.plusDays(1).atTime(8, 0), moved.item.notBefore)
-        assertEquals("Back tomorrow at 8:00", moved.message)
+        assertEquals("Back tomorrow at 8:00 AM", moved.message)
     }
 
     @Test fun twoSkipsRaiseAutoPriority() {

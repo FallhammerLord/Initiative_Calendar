@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // Scheduling logic with no Android dependency, so it builds and tests anywhere.
 plugins {
-    kotlin("jvm") version "2.0.21"
+    alias(libs.plugins.kotlin.jvm)
 }
 
 group = "initiative"

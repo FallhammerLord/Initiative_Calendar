@@ -8,15 +8,12 @@ import android.os.Build
 import android.util.Log
 import initiative.core.AlarmState
 import initiative.core.Escalation
-import initiative.core.Placement
 import initiative.core.Status
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.fallhammer.initiative.TAG
+import net.fallhammer.initiative.graph
 import net.fallhammer.initiative.data.EventRow
-import net.fallhammer.initiative.data.InitiativeDb
-import net.fallhammer.initiative.data.Prefs
-import net.fallhammer.initiative.data.Repository
 import net.fallhammer.initiative.data.toItem
 import net.fallhammer.initiative.data.toRow
 import net.fallhammer.initiative.data.toState
@@ -29,12 +26,13 @@ import java.time.LocalDateTime
  */
 object Scheduler {
     private val lock = Mutex()
-    private val placement = Placement()
 
     suspend fun sync(context: Context) = lock.withLock {
         val app = context.applicationContext
-        val dao = InitiativeDb.get(app).items()
-        val repo = Repository(dao, placement)
+        val graph = app.graph
+        val dao = graph.dao
+        val repo = graph.repo
+        val placement = graph.placement
         val now = LocalDateTime.now()
         Notifier.ensureChannels(app)
 
@@ -68,7 +66,7 @@ object Scheduler {
         }
         states = dao.alarms().associate { it.itemId to it.toState() }
 
-        if (Prefs(app).lockCard) Notifier.showCard(app, placement.board(items, now)) else Notifier.hideCard(app)
+        if (graph.prefs.lockCard) Notifier.showCard(app, placement.board(items, now)) else Notifier.hideCard(app)
 
         // Next wake: the sooner of the next alarm event and the next board change.
         val nextAnchor = items

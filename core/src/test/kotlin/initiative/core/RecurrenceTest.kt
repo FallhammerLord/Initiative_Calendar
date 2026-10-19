@@ -63,3 +63,13 @@ class RecurrenceTest {
         assertEquals(5, Learning.updatedEstimate(30, listOf(1)))
     }
 }
+
+class FormatsTest {
+    @Test fun oneWayToWriteTimes() {
+        assertEquals("3:00 PM", Formats.clock(LocalDateTime.of(2026, 10, 19, 15, 0)))
+        assertEquals("1h 40m", Formats.countdown(LocalDateTime.of(2026, 10, 19, 13, 20), LocalDateTime.of(2026, 10, 19, 15, 0)))
+        assertEquals("25m", Formats.countdown(LocalDateTime.of(2026, 10, 19, 14, 35), LocalDateTime.of(2026, 10, 19, 15, 0)))
+        val pickup = Item(title = "pickup", kind = Kind.ANCHOR, start = LocalDateTime.of(2026, 10, 19, 15, 0), wall = WallStrength.HARD, createdAt = LocalDateTime.of(2026, 10, 19, 8, 0))
+        assertEquals("3:00 PM · Hard", Formats.anchorLine(pickup))
+    }
+}

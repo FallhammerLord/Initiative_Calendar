@@ -3,7 +3,6 @@ package initiative.core
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 /** Free time between two walls. [before] is the anchor that ends it, [after] the one it leads into. */
 data class Gap(
@@ -26,8 +25,6 @@ data class LedgerMark(val at: LocalDateTime, val kind: MarkKind, val item: Item)
 
 /** Result of Skip or Tomorrow: the updated item and where it landed. */
 data class Moved(val item: Item, val message: String)
-
-private val CLOCK = DateTimeFormatter.ofPattern("h:mm")
 
 /**
  * Picks the Now card with a fixed, explainable rule. See docs/spec.md, Placement logic.
@@ -57,7 +54,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         }?.let { return Board(NowPick(it, "Pinned to this slot"), nextAnchor) }
 
         if (now.toLocalTime() !in window) {
-            val why = if (now.toLocalTime().isBefore(window.start)) "Day starts at ${window.start.format(CLOCK)}" else "Day's done"
+            val why = if (now.toLocalTime().isBefore(window.start)) "Day starts at ${Formats.clock(window.start)}" else "Day's done"
             return Board(NowPick(null, why), nextAnchor)
         }
 
@@ -155,7 +152,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         }
         val hourOn = roundUp5(now.plusHours(1))
         if (current != null && !hourOn.plusMinutes(need).isAfter(current.end)) {
-            return Moved(skipped.copy(notBefore = hourOn), "Back at ${hourOn.format(CLOCK)}")
+            return Moved(skipped.copy(notBefore = hourOn), "Back at ${Formats.clock(hourOn)}")
         }
         val tomorrow = today.plusDays(1)
         val next = gaps(tomorrow, items, tomorrow.atStartOfDay()).let { g -> g.firstOrNull { it.minutes >= need } ?: g.firstOrNull() }
@@ -217,7 +214,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
 
     private fun landing(gap: Gap, prefix: String): String {
         val after = gap.before?.let { ", after ${it.title}" } ?: ""
-        return "$prefix ${gap.start.format(CLOCK)}$after"
+        return "$prefix ${Formats.clock(gap.start)}$after"
     }
 
     private fun roundUp5(t: LocalDateTime): LocalDateTime {
