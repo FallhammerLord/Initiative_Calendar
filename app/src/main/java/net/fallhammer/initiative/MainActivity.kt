@@ -11,6 +11,9 @@ import androidx.activity.viewModels
 import net.fallhammer.initiative.ui.BoardScreen
 import net.fallhammer.initiative.ui.BoardViewModel
 import net.fallhammer.initiative.ui.InitiativeTheme
+import net.fallhammer.initiative.ui.Looks
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** The home screen. Every unlock lands here. */
 class MainActivity : ComponentActivity() {
@@ -23,7 +26,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            InitiativeTheme { BoardScreen(vm) }
+            val look by vm.look.collectAsStateWithLifecycle()
+            InitiativeTheme(Looks.byId(look)) { BoardScreen(vm) }
         }
     }
 

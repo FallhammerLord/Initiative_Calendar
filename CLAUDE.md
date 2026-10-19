@@ -10,8 +10,10 @@ sideloaded, no Google services, no internet. The plan and every rule live in
   ladder, recurrence, parser, formatters). No Android code. Test with
   `./gradlew -p core test` (works without the Android SDK).
 - `app/`: the Android launcher. Services in `AppGraph.kt`; design system in
-  `ui/Design.kt` (tokens and components) and `ui/Theme.kt` (colors, font);
-  wording in `res/values/strings.xml`.
+  `ui/Design.kt` (tokens and components) and `ui/Theme.kt` (themes: colors,
+  shapes, outlines, pattern, font); wording in `res/values/strings.xml`.
+  Read colors through `Ink` inside composables; capture them into locals
+  before drawing on a `Canvas`.
 - `app/schemas/`: saved database layouts, one per version, committed.
 - `scripts/design-guard.sh`: fails on code that bypasses the design system.
 - `scripts/emulator-smoke.sh`: the emulator test CI runs before any release.
@@ -19,8 +21,9 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 ## Rules that CI enforces
 
 - Engine tests, the app's migration test, and lint errors.
-- `scripts/design-guard.sh`: no hand-set font sizes, colors, or corner shapes
-  outside `Design.kt`/`Theme.kt`; no wording outside `strings.xml`; no time
+- `ThemeContrastTest`: every theme keeps text at 7:1 and outlines at 3:1.
+- `scripts/design-guard.sh`: no hand-set font sizes outside `Design.kt`, no
+  colors or corner shapes outside `Theme.kt`; no wording outside `strings.xml`; no time
   formatting outside `core/.../Formats.kt`; no service built outside `AppGraph`;
   no all-caps labels. Run it locally before pushing.
 - A changed saved database layout fails. Raise the version, add a `Migration`,

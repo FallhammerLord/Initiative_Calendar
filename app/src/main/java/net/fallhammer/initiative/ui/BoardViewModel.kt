@@ -99,6 +99,10 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val _lockCard = MutableStateFlow(true)
     val lockCard: StateFlow<Boolean> = _lockCard.asStateFlow()
 
+    private val _look = MutableStateFlow<String?>(null)
+    /** The chosen theme's id; null until settings load, which shows the default. */
+    val look: StateFlow<String?> = _look.asStateFlow()
+
     init {
         viewModelScope.launch {
             while (true) {
@@ -133,6 +137,7 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
                 _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
                 _setup.value = graph.setup.missing(prefs)
                 _lockCard.value = prefs.lockCard
+                _look.value = prefs.lookId
                 _apps.value = graph.apps.installed()
             }
         }
@@ -201,6 +206,11 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
         graph.prefs.boardOnUnlock = on
         _unlock.value = _unlock.value.copy(enabled = on)
         _setup.value = graph.setup.missing(graph.prefs)
+    }
+
+    fun setLook(id: String) {
+        graph.prefs.lookId = id
+        _look.value = id
     }
 
     fun setLockCard(on: Boolean) {

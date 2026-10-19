@@ -77,6 +77,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val unlock by vm.unlock.collectAsStateWithLifecycle()
     val setup by vm.setup.collectAsStateWithLifecycle()
     val lockCard by vm.lockCard.collectAsStateWithLifecycle()
+    val look = LocalLook.current
     val opened by vm.opened.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
@@ -151,6 +152,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 onBoardOnUnlock = vm::setBoardOnUnlock,
                 lockCard = lockCard,
                 onLockCard = vm::setLockCard,
+                lookId = look.id,
+                onLook = vm::setLook,
                 onLaunch = vm::launch,
                 onTogglePin = vm::togglePin,
                 onSettings = vm::openSettings,
@@ -247,6 +250,11 @@ private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
         if (walls.isEmpty()) stringResource(R.string.ledger_no_walls) else stringResource(R.string.ledger_walls, walls.joinToString("; ")),
     )
 
+    val lineColor = Ink.line
+    val doneColor = Ink.dim
+    val wallColor = Ink.text
+    val nowColor = Ink.accent
+
     Column(
         Modifier
             .fillMaxWidth()
@@ -256,22 +264,22 @@ private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
     ) {
         Canvas(Modifier.fillMaxWidth().height(32.dp)) {
             val mid = size.height / 2
-            drawLine(Ink.line, Offset(0f, mid), Offset(size.width, mid), strokeWidth = 2.dp.toPx())
+            drawLine(lineColor, Offset(0f, mid), Offset(size.width, mid), strokeWidth = 2.dp.toPx())
             ui.ledger.forEach { mark ->
                 val x = frac(mark.at) * size.width
                 when (mark.kind) {
-                    MarkKind.DONE -> drawLine(Ink.dim, Offset(x, mid - 6.dp.toPx()), Offset(x, mid + 6.dp.toPx()), strokeWidth = 2.dp.toPx())
-                    MarkKind.SOFT -> drawCircle(Ink.text, radius = 5.dp.toPx(), center = Offset(x, mid), style = Stroke(2.dp.toPx()))
-                    MarkKind.FIRM -> drawCircle(Ink.text, radius = 6.dp.toPx(), center = Offset(x, mid))
+                    MarkKind.DONE -> drawLine(doneColor, Offset(x, mid - 6.dp.toPx()), Offset(x, mid + 6.dp.toPx()), strokeWidth = 2.dp.toPx())
+                    MarkKind.SOFT -> drawCircle(wallColor, radius = 5.dp.toPx(), center = Offset(x, mid), style = Stroke(2.dp.toPx()))
+                    MarkKind.FIRM -> drawCircle(wallColor, radius = 6.dp.toPx(), center = Offset(x, mid))
                     MarkKind.HARD -> drawRect(
-                        Ink.text,
+                        wallColor,
                         topLeft = Offset(x - 4.dp.toPx(), mid - 12.dp.toPx()),
                         size = Size(8.dp.toPx(), 24.dp.toPx()),
                     )
                 }
             }
             val nx = frac(ui.now) * size.width
-            drawLine(Ink.accent, Offset(nx, 0f), Offset(nx, size.height), strokeWidth = 3.dp.toPx())
+            drawLine(nowColor, Offset(nx, 0f), Offset(nx, size.height), strokeWidth = 3.dp.toPx())
         }
         Text(stringResource(R.string.ledger_hint), style = Type.caption, color = Ink.dim)
     }

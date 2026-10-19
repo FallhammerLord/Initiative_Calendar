@@ -404,6 +404,24 @@ pass "ended anchor clears"
 adb logcat -d -s Initiative:V | tail -12 | tee -a "$OUT/steps.log"
 crash_check
 
+# --- Themes ---------------------------------------------------------------------
+
+open_drawer
+expect_text "Theme"
+shot scifi-drawer
+tap Classic exact
+shot classic-drawer
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+expect_front $PKG "Back closes the drawer"
+shot classic-board
+open_drawer
+tap Sci-fi exact
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+shot scifi-board
+pass "theme switches both ways"
+
 # --- Large text -----------------------------------------------------------------
 
 adb shell settings put system font_scale 2.0

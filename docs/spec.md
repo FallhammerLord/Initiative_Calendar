@@ -116,6 +116,13 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 
 **Readability.** Large type, high contrast, short labels. Font choice in settings, with Atkinson Hyperlegible as the default. It's an open-licensed font designed for low-vision readers.
 
+**Themes.** Picked in the app drawer. Each theme sets colors, card and button shapes, outlines, and an optional background pattern; layout and type stay the same.
+
+- **Sci-fi** (default), after the Foundry quest log module: navy panels with thin teal frames and cut corners, cyan accents, a faint hexagon grid behind each screen. Section labels keep the quest log's cyan and bold but stay in sentence case.
+- **Classic**: black and amber, rounded.
+
+Every theme keeps all text at 7:1 contrast or better and outlines at 3:1; a CI test checks each one. Atkinson Hyperlegible stays the body font in every theme; a decorative font may only ever be used for titles.
+
 &#91;embedded content: board mockup · first pass\]
 
 The clickable prototype keeps Board A and Board B side by side for comparison by feel. Where the two disagree, Board B wins.
@@ -357,6 +364,8 @@ Standards pass, next, so the remaining screens are built from shared parts inste
 - TalkBack labels, including the ledger line
 - App list read in the background; state kept across process restarts
 - CI: lint, code shrinking, version catalog, database schema export with a migration test, and an emulator run at 200% font size
+- Guards: design check, accessibility sweep, StrictMode, CLAUDE.md
+- Themes: Sci-fi and Classic, with a contrast test
 
 Then:
 
@@ -374,7 +383,7 @@ Then:
 
 **v0.3 — Polish**
 
-- Font and theme options
+- Font choice (themes shipped in v0.1)
 - Share target
 - Parser handles more phrasing
 - Optional per-item sounds

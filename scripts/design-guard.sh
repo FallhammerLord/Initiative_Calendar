@@ -24,10 +24,10 @@ check() {
 
 check "Font sizes and line heights come from Type in Design.kt" \
   '[0-9]+(\.[0-9]+)?\.sp\b|fontSize *=' "$UI_SYSTEM"
-check "Colors come from Ink in Theme.kt" \
-  'Color\(0x|Color\.(Black|White|Red|Gray|Yellow|Blue|Green)' "$UI_SYSTEM"
-check "Corner shapes come from Corner in Design.kt" \
-  'RoundedCornerShape\(' "$UI_SYSTEM"
+check "Colors come from the theme in Theme.kt" \
+  'Color\(0x|Color\.(Black|White|Red|Gray|Yellow|Blue|Green)' "$APP/ui/Theme.kt"
+check "Corner shapes come from the theme in Theme.kt" \
+  '(Rounded|Cut)CornerShape\(' "$APP/ui/Theme.kt"
 check "Wording lives in strings.xml, not in Text(\"...\")" \
   'Text\("[^"$]*[A-Za-z]' ""
 check "Notification and dialog wording lives in strings.xml" \

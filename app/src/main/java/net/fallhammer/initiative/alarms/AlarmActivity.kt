@@ -24,7 +24,9 @@ import androidx.compose.ui.res.stringResource
 import initiative.core.Escalation
 import initiative.core.Formats
 import initiative.core.Item
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.fallhammer.initiative.graph
 import net.fallhammer.initiative.data.toItem
 import net.fallhammer.initiative.data.toState
@@ -32,6 +34,7 @@ import net.fallhammer.initiative.R
 import net.fallhammer.initiative.ui.Body
 import net.fallhammer.initiative.ui.InitiativeTheme
 import net.fallhammer.initiative.ui.Label
+import net.fallhammer.initiative.ui.Looks
 import net.fallhammer.initiative.ui.PrimaryButton
 import net.fallhammer.initiative.ui.Screen
 import net.fallhammer.initiative.ui.SecondaryButton
@@ -43,6 +46,7 @@ import net.fallhammer.initiative.ui.Type
 /** Rung 3: shown full screen, over the lock screen, when a Firm or Hard anchor starts. */
 class AlarmActivity : ComponentActivity() {
     private var shown by mutableStateOf<Pair<Item, AlarmState>?>(null)
+    private var look by mutableStateOf(Looks.SciFi)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +54,7 @@ class AlarmActivity : ComponentActivity() {
         setTurnScreenOn(true)
         load(intent)
         setContent {
-            InitiativeTheme {
+            InitiativeTheme(look) {
                 shown?.let { (item, state) -> AlarmScreen(item, state) }
             }
         }
@@ -65,6 +69,7 @@ class AlarmActivity : ComponentActivity() {
         val id = intent.getLongExtra(EXTRA_ID, -1)
         lifecycleScope.launch {
             val dao = graph.dao
+            look = withContext(Dispatchers.IO) { Looks.byId(graph.prefs.lookId) }
             val item = dao.byId(id)?.toItem()
             val state = dao.alarm(id)?.toState() ?: AlarmState()
             if (item == null || !item.isOpen || state.ackedAt != null) finish() else shown = item to state

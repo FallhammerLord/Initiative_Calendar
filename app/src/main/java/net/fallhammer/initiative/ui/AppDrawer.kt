@@ -44,6 +44,8 @@ fun AppDrawer(
     onBoardOnUnlock: (Boolean) -> Unit,
     lockCard: Boolean,
     onLockCard: (Boolean) -> Unit,
+    lookId: String,
+    onLook: (String) -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onSettings: () -> Unit,
@@ -93,6 +95,11 @@ fun AppDrawer(
         }
         SettingSwitch(stringResource(R.string.setting_board_after_unlock), unlock.enabled, onBoardOnUnlock)
         SettingSwitch(stringResource(R.string.setting_lock_card), lockCard, onLockCard)
+        ChoiceRow(
+            stringResource(R.string.setting_theme),
+            Looks.all.map { stringResource(it.label) },
+            Looks.all.indexOfFirst { it.id == lookId },
+        ) { onLook(Looks.all[it].id) }
         Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim)
     }
 }

@@ -26,7 +26,7 @@ jobs:
       - name: Test the scheduling engine
         run: ./gradlew -p core test
 
-      - name: Test the app (database migration)
+      - name: Test the app (database migration, theme contrast)
         run: ./gradlew :app:testDebugUnitTest
 
       - name: Lint

@@ -25,6 +25,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(LOCK_CARD, true)
         set(value) = prefs.edit().putBoolean(LOCK_CARD, value).apply()
 
+    /** The chosen theme's id; see Looks in ui/Theme.kt. */
+    var lookId: String?
+        get() = prefs.getString(LOOK, null)
+        set(value) = prefs.edit().putString(LOOK, value).apply()
+
     /** Whether the one-tap notification prompt has been shown; after that, Settings is the only way. */
     var askedNotifications: Boolean
         get() = prefs.getBoolean(ASKED_NOTIFICATIONS, false)
@@ -45,6 +50,7 @@ class Prefs(private val context: Context) {
     private companion object {
         const val BOARD_ON_UNLOCK = "boardOnUnlock"
         const val LOCK_CARD = "lockCard"
+        const val LOOK = "look"
         const val ASKED_NOTIFICATIONS = "askedNotifications"
     }
 }

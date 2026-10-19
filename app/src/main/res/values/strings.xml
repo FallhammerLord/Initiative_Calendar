@@ -49,6 +49,9 @@
     <string name="drawer_pinned">%1$s, pinned</string>
     <string name="setting_board_after_unlock">Board after unlock</string>
     <string name="setting_lock_card">Lock-screen card</string>
+    <string name="setting_theme">Theme</string>
+    <string name="look_scifi">Sci-fi</string>
+    <string name="look_classic">Classic</string>
     <string name="drawer_pin_hint">Hold an app to pin it to the board.</string>
 
     <!-- Alarms -->

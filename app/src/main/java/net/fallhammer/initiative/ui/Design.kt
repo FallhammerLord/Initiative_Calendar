@@ -1,6 +1,8 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -12,8 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -25,10 +27,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -36,10 +43,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /*
  * The design system. Screens are assembled from these tokens and components and
- * never set sizes, colors, or spacing by hand. Colors live in Theme.kt (Ink).
+ * never set sizes, colors, or spacing by hand. Colors and shapes live in the
+ * current theme (Theme.kt), read through Ink and LocalLook.
  */
 
 /** Spacing steps. */
@@ -59,10 +70,6 @@ object Tap {
     val alarm = 88.dp
 }
 
-/** Corner shapes. */
-object Corner {
-    val card = RoundedCornerShape(20.dp)
-}
 
 /** The type scale. Body text never goes below 18 sp; captions stay at 16 sp. */
 object Type {
@@ -87,6 +94,7 @@ fun Screen(modifier: Modifier = Modifier, content: @Composable ColumnScope.() ->
         modifier
             .fillMaxSize()
             .background(Ink.bg)
+            .then(if (LocalLook.current.hexGrid) Modifier.hexGrid(Ink.pattern) else Modifier)
             .systemBarsPadding()
             .imePadding()
             .padding(horizontal = Space.l, vertical = Space.m),
@@ -101,17 +109,50 @@ fun Card(
     arrangement: Arrangement.Vertical = Arrangement.Top,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val look = LocalLook.current
     Column(
-        modifier.fillMaxWidth().clip(Corner.card).background(Ink.surface).padding(Space.xl),
+        modifier
+            .fillMaxWidth()
+            .clip(look.cardShape)
+            .background(Ink.surface)
+            .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
+            .padding(Space.xl),
         verticalArrangement = arrangement,
         content = content,
     )
 }
 
+private val Hairline = 1.dp
+
+/** A faint hexagon grid behind a screen, as in the sci-fi quest log. Built once per size. */
+private fun Modifier.hexGrid(color: Color): Modifier = drawWithCache {
+    val r = 22.dp.toPx()
+    val w = r * 1.5f
+    val h = sqrt(3f) * r
+    val path = Path()
+    var col = 0
+    var x = 0f
+    while (x < size.width + r) {
+        var y = if (col % 2 == 0) 0f else h / 2
+        while (y < size.height + h) {
+            for (i in 0..6) {
+                val a = Math.toRadians(60.0 * i).toFloat()
+                val px = x + r * cos(a)
+                val py = y + r * sin(a)
+                if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+            y += h
+        }
+        x += w
+        col++
+    }
+    onDrawBehind { drawPath(path, color, style = Stroke(1.dp.toPx())) }
+}
+
 /** The small "Now" over a card's title. Sentence case: all caps is hard to read. */
 @Composable
 fun Label(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Type.label, color = Ink.dim, modifier = modifier)
+    Text(text, style = Type.label, color = Ink.label, modifier = modifier)
 }
 
 /** A screen or card title, announced as a heading by TalkBack. */
@@ -131,15 +172,22 @@ fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
     Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = height),
+        shape = LocalLook.current.buttonShape,
         contentPadding = ButtonPadding,
-        colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.bg),
+        colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.onAccent),
     ) { ButtonText(label) }
 }
 
 /** Every other action. */
 @Composable
 fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.primary) {
-    OutlinedButton(onClick = onClick, modifier = modifier.heightIn(min = height), contentPadding = ButtonPadding) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = height),
+        shape = LocalLook.current.buttonShape,
+        border = BorderStroke(Hairline, Ink.frame),
+        contentPadding = ButtonPadding,
+    ) {
         ButtonText(label, color = Ink.text, weight = FontWeight.Normal)
     }
 }
@@ -204,8 +252,26 @@ fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
         Switch(
             checked = checked,
             onCheckedChange = null,
-            colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.bg),
+            colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.onAccent),
         )
+    }
+}
+
+/** A labelled pick-one setting, such as the theme. Each option is a radio button for TalkBack. */
+@Composable
+fun ChoiceRow(label: String, options: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
+    Column(Modifier.fillMaxWidth().selectableGroup()) {
+        Text(label, style = Type.bodySmall, color = Ink.text)
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.padding(top = Space.xs)) {
+            options.forEachIndexed { i, option ->
+                val mod = Modifier.semantics { role = Role.RadioButton; selected = i == chosen }
+                if (i == chosen) {
+                    PrimaryButton(option, { onSelect(i) }, mod, height = Tap.min)
+                } else {
+                    SecondaryButton(option, { onSelect(i) }, mod, height = Tap.min)
+                }
+            }
+        }
     }
 }
 
