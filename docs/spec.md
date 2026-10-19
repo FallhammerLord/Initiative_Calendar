@@ -262,21 +262,105 @@ The app requests no location, contacts, or storage-wide access.
 - **Full-screen alerts.** On Android 14 and newer, this needs a one-time grant in system Settings. First-run setup walks you through it, along with the battery exemption.
 - **Licenses.** Private use only, so model licenses are not a constraint. The vendor rule still applies.
 
+## Standards
+
+Three rule sets every change follows. Under each, the checklist names where the code falls short today. The standards pass in the build plan closes those gaps.
+
+### Android engineering
+
+- **Layers.** Screens talk to a ViewModel, the ViewModel to the repository, the repository to the database. Scheduling rules stay in `core/`, with no Android code.
+- **One of each service.** The database, repository, scheduler, and settings come from one app container, created once in `InitiativeApp`.
+- **Main thread for the screen only.** Database work, app-list queries, and file work run in the background.
+- **Survive being closed by Android.** What you typed or opened comes back after the system reclaims the app.
+- **Schema history.** The database layout is saved in the repo, and every migration has a test.
+- **Words in resources.** On-screen text lives in `strings.xml`, with plural forms where counts appear.
+- **Lint in CI.** Android's code checker runs on every push with the engine tests and emulator check. New warnings fail the build.
+- **Small release build.** Code shrinking is on for releases. The APK is 19 MB today, mostly unused library code.
+- **One version list.** Library versions live in one Gradle version catalog.
+- **Least privilege.** Every permission maps to a feature in the permissions table, receivers stay private unless the system must reach them, and pending intents are immutable. This already holds.
+
+Gaps today:
+
+- [ ] The repository and placement engine are built twice, in the ViewModel and the scheduler, each with its own day window. A settings change would need making in both.
+- [ ] The installed-apps list is read on the main thread every time you return home. That stalls on phones with many apps.
+- [ ] Database schema export is off, and the version 1 to 2 migration has no test.
+- [ ] 18 on-screen strings are written into Kotlin; `strings.xml` holds only the app name. "Snooze 5 min (1 left)" needs a plural.
+- [ ] Nothing is saved for process restarts. An expanded ledger or half-typed quick-add is lost if Android reclaims the app.
+- [ ] No lint in CI, code shrinking is off, and there's no version catalog.
+- [ ] The notification permission sends you to Settings. Android 13 and newer have a one-tap system prompt.
+
+### UI and UX
+
+- **Readability first.** Atkinson Hyperlegible, sentence case, left-aligned, no italics, no all caps. Body text 18 sp or larger. Layouts hold at 200% system font size.
+- **One primary action per screen.** It's the filled accent button; the rest are outlined.
+- **Touch targets.** At least 48 dp; primary actions 64 dp.
+- **Forgiving actions.** Done, Skip, and Tomorrow show a short Undo instead of asking first.
+- **Every state designed.** Loading, empty (Free time), error, and permission missing.
+- **TalkBack works.** Every control has a label, and custom drawings like the ledger line describe themselves.
+- **Neutral copy.** Plain words, no blame, no counters. Times read "3:00 PM" and durations "1h 40m", everywhere.
+- **Every gesture has a visible twin.** Swipe up has the Apps button; hold-to-focus has the Focus button.
+- **Short motion.** Animations stay brief and follow the system's reduced-animation setting.
+
+Gaps today:
+
+- [ ] The "NOW" labels on the board and alarm screen are all caps with wide letter spacing, the hardest form for dyslexic readers. They become "Now".
+- [ ] Button labels are set never to wrap, so they'll clip at large font sizes.
+- [ ] No Undo after Done, Skip, or Tomorrow. A mis-tap is permanent.
+- [ ] The board shows "Free time" for a moment while the database loads, before the real Now card appears.
+- [ ] No accessibility labels anywhere. TalkBack can't read the ledger line.
+- [ ] A swipe up from the very bottom edge can trigger the system's home gesture instead of the app drawer.
+
+### Design system and templates
+
+One source for every look, phrase, and format, so new screens are assembled from shared parts instead of styled by hand.
+
+- **Tokens.** Colors (already `Ink`), a named type scale (title, body, label), spacing steps (4, 8, 12, 16, 24, 32 dp), and corner shapes.
+- **Components.** Shared pieces for the primary and secondary buttons, card, setup line, setting switch, list row, and flash message. Screens use these instead of raw styling.
+- **Screen template.** One scaffold handles system bars, keyboard space, margins, and background. The board, drawer, alarm screen, recap, and recopy all use it.
+- **Formatters.** One place formats clock times, countdowns, dates, and wall labels for the board, notifications, and alarm screen alike.
+- **Copy.** All wording in string resources, grouped by screen. The rotating rung phrasings in v0.2 go in the same file.
+- **Notification templates.** One builder per rung, sharing layout and actions. The notifier already works this way.
+
+Gaps today:
+
+- [ ] 34 hand-set font sizes across 3 files, in 9 different values from 14 to 48 sp, with no named scale.
+- [ ] Clock formatting is defined 4 times: board, notifications, alarm screen, and engine. The engine writes "3:30" where the app writes "3:30 PM".
+- [ ] Wall labels (Soft, Firm, Hard) are defined twice.
+- [ ] Button and switch styles live inside single screens. The alarm screen copies the board's button style by hand.
+- [ ] Each screen sets its own padding and background.
+
 ## Build plan
 
 Version 0.1 is the smallest thing you could live on for two weeks and judge.
 
 **v0.1 — Live on it**
 
+Built and passing the emulator check:
+
 - Launcher with the hybrid Board: Now card, Next peek, ledger line, app list
 - Anchors and floats, with daily, weekday, weekly, monthly, and yearly recurrence, including every-other options
 - Placement logic with reason lines, Auto priority, and skip reslot
 - Duration learning with a 30-minute default
 - Escalation rungs 0 to 3, with the lock-screen card on the same scheduler
+- Board after unlock
+- Quick-add with the basic parser
+
+Standards pass, next, so the remaining screens are built from shared parts instead of retrofitted:
+
+- App container: one database, repository, scheduler, and settings
+- Design tokens, shared components, screen template, and one set of formatters
+- All wording moved to string resources
+- Readability fixes: sentence-case labels, wrapping buttons, 200% font check
+- Undo after Done, Skip, and Tomorrow; a loading state for the board
+- TalkBack labels, including the ledger line
+- App list read in the background; state kept across process restarts
+- CI: lint, code shrinking, version catalog, database schema export with a migration test, and an emulator run at 200% font size
+
+Then:
+
 - Focus mode
 - Lapse recap with miss policies
 - Weekly recopy
-- Quick-add with the basic parser
 - Nightly JSON export
 
 **v0.2 — Close the loop**
