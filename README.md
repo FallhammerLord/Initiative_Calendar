@@ -21,6 +21,6 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 - Quick-add with the rule-based parser, including "Anchor or float?" chips
 - Placement, Auto priority, skip reslot, recurrence instances, duration learning
 
-Not yet: alarms and the escalation ladder, focus mode, lapse recap, weekly recopy, editing form, nightly export.
+Not yet (next pass): alarms, the escalation ladder, and the lock-screen card. After that: focus mode, lapse recap, weekly recopy, editing form, nightly export.
 
 Font: Atkinson Hyperlegible, SIL Open Font License ([docs/OFL-AtkinsonHyperlegible.txt](docs/OFL-AtkinsonHyperlegible.txt)).

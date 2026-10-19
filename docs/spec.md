@@ -98,6 +98,8 @@ Top to bottom:
 
 **Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board comes forward after every unlock instead, except during a call. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is at the bottom of the app drawer.
 
+**Lock-screen card.** A silent ongoing notification shows the Now card on the lock screen: "Now: call landlord · Next: pickup in 1h 40m." No sound, no badge, no counter. It refreshes at each gap boundary through the same scheduler as the alarms. Android phones have no lock-screen widgets, so this is the glance before unlocking; board after unlock is the full view after it.
+
 Swipe left for the full queue and a week view. Those views exist for planning and are never required.
 
 When nothing needs doing, the Now card says **Free time**. An empty board is a valid, calm state.
@@ -270,7 +272,7 @@ Version 0.1 is the smallest thing you could live on for two weeks and judge.
 - Anchors and floats, with daily, weekday, weekly, monthly, and yearly recurrence, including every-other options
 - Placement logic with reason lines, Auto priority, and skip reslot
 - Duration learning with a 30-minute default
-- Escalation rungs 0 to 3
+- Escalation rungs 0 to 3, with the lock-screen card on the same scheduler
 - Focus mode
 - Lapse recap with miss policies
 - Weekly recopy
