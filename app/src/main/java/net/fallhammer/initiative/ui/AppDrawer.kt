@@ -3,6 +3,8 @@ package net.fallhammer.initiative.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,6 +65,8 @@ fun AppDrawer(
         Modifier
             .fillMaxSize()
             .background(Ink.bg)
+            // Catch taps on empty space so they never reach the board underneath.
+            .pointerInput(Unit) { detectTapGestures { } }
             .systemBarsPadding()
             .imePadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),

@@ -36,6 +36,7 @@ ui() {
 }
 
 # Prints "x y" for the first node matching $1. Modes: contains (default), exact, class.
+# Class mode takes the last match: the top-most layer, such as the open drawer.
 find_node() {
   ui > "$OUT/ui.xml"
   python3 - "$OUT/ui.xml" "$1" "${2:-contains}" <<'PY'
@@ -45,7 +46,10 @@ try:
     root = ET.parse(path).getroot()
 except Exception:
     sys.exit(1)
-for n in root.iter("node"):
+nodes = list(root.iter("node"))
+if mode == "class":
+    nodes.reverse()
+for n in nodes:
     # Text boxes echo what was typed; never treat them as labels.
     if mode != "class" and n.get("class") == "android.widget.EditText":
         continue
@@ -265,6 +269,14 @@ tap Settings exact
 expect_front com.android.settings "Apps in the drawer launch"
 home
 expect_front $PKG "Home returns to the board"
+ui > "$OUT/ui.xml"
+python3 - "$OUT/ui.xml" <<'PY' || fail "drawer typing leaked into the board's quick-add"
+import sys, xml.etree.ElementTree as ET
+bad = [n for n in ET.parse(sys.argv[1]).getroot().iter("node")
+       if n.get("class") == "android.widget.EditText" and "Settings" in (n.get("text") or "")]
+sys.exit(1 if bad else 0)
+PY
+pass "drawer input stays in the drawer"
 crash_check
 
 # --- Lock screen and board after unlock ----------------------------------------
