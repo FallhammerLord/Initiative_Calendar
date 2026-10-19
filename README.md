@@ -11,7 +11,8 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 | --- | --- |
 | `core/` | The scheduling engine in plain Kotlin: placement, priority, skip, recurrence, the quick-add parser, duration learning. No Android code, so it tests anywhere with `./gradlew -p core test`. |
 | `app/` | The Android launcher: the board, the app drawer, the database. |
-| `.github/workflows/` | The GitHub job that tests the engine and builds the APK on every push. |
+| `.github/workflows/` | The GitHub job that tests the engine, builds the APK, and runs it on an emulator on every push. |
+| `scripts/emulator-smoke.sh` | The emulator checks: Home, drawer, Settings, home-app chooser, PIN unlock, board after unlock. |
 
 ## What works so far (first pass)
 

@@ -29,21 +29,86 @@ jobs:
       - name: Name the APK
         run: cp app/build/outputs/apk/release/app-release.apk initiative-${{ github.run_number }}.apk
 
-      - name: Keep the APK with this run
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: initiative-${{ github.run_number }}
+          name: apk
           path: initiative-${{ github.run_number }}.apk
           retention-days: 30
 
-      # Builds of the main branch also become a release, which is the easy
-      # place to download from on the phone. See docs/BUILDING.md.
-      - name: Publish a release
-        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+  # Installs the APK on an emulator as the home app and checks the phone stays
+  # usable: Home, the drawer, Settings, the home-app chooser, PIN unlock.
+  emulator:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash scripts/emulator-smoke.sh initiative-${{ github.run_number }}.apk emulator-out
+
+      - name: Bundle screenshots
+        if: always()
+        run: cd emulator-out && zip -q ../screens-${{ github.run_number }}.zip *
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator
+          path: screens-${{ github.run_number }}.zip
+          retention-days: 30
+
+      # Failed runs get a pre-release with the screenshots, so they can be read
+      # without signing in. Pre-releases never show up as the latest build.
+      - name: Publish failure screenshots
+        if: failure()
         uses: softprops/action-gh-release@v2
+        with:
+          tag_name: failed-${{ github.run_number }}
+          name: Failed test ${{ github.run_number }} (don't install)
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          body: "The emulator smoke test failed on ${{ github.sha }}. Screenshots only; no APK."
+          files: screens-${{ github.run_number }}.zip
+
+  # Only builds that passed the emulator test become a release. See docs/BUILDING.md.
+  release:
+    needs: [build, emulator]
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: emulator
+
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Initiative build ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          body: "Built from ${{ github.sha }}. Download the .apk below on your phone and install it."
-          files: initiative-${{ github.run_number }}.apk
+          body: "Built from ${{ github.sha }} and passed the emulator smoke test. Download the .apk below on your phone and install it."
+          files: |
+            initiative-${{ github.run_number }}.apk
+            screens-${{ github.run_number }}.zip
