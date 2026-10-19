@@ -7,6 +7,13 @@ on:
 permissions:
   contents: write
 
+# A newer push supersedes any run still in progress on the same branch: the
+# older build would never be the one to install, and a cancelled run sends no
+# failure email.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -118,15 +125,34 @@ jobs:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
+      # Only the newest commit is released. Tagging an older commit fails once a
+      # newer push has changed this workflow file: the Actions token may not
+      # create a ref whose workflow files differ from the branch.
+      - name: Check this is still the newest commit
+        id: newest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/${{ github.repository }}/branches/${{ github.ref_name }}" --jq .commit.sha)
+          if [ "$head" = "${{ github.sha }}" ]; then
+            echo "newest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "newest=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A newer commit ($head) has been pushed; its own run will publish the release."
+          fi
+
       - uses: actions/download-artifact@v4
+        if: steps.newest.outputs.newest == 'true'
         with:
           name: apk
 
       - uses: actions/download-artifact@v4
+        if: steps.newest.outputs.newest == 'true'
         with:
           name: emulator
 
       - uses: softprops/action-gh-release@v2
+        if: steps.newest.outputs.newest == 'true'
         with:
           tag_name: build-${{ github.run_number }}
           name: Initiative build ${{ github.run_number }}
@@ -138,6 +164,7 @@ jobs:
 
       # A passing release supersedes earlier failed-test entries.
       - name: Clear out failed test releases
+        if: steps.newest.outputs.newest == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

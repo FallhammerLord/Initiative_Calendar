@@ -51,7 +51,8 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 - The Android SDK isn't reachable from Claude's cloud container; GitHub Actions
   builds the APK. Fetch emulator screenshots from a release's `screens-N.zip`,
   or a `failed-N` pre-release when the test fails.
-- Every failed CI run emails the owner. Batch fixes into one validated push;
+- A new push cancels any run still going on the branch, and only the newest
+  commit is released. Every failed CI run emails the owner. Batch fixes into one validated push;
   use `[skip ci]` in the commit message for docs-only changes.
 - The owner reads with dyslexia: keep replies and on-screen copy short, plain,
   and direct.
