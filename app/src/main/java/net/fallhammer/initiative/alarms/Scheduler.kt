@@ -61,10 +61,12 @@ object Scheduler {
             if (a == null || !a.isOpen || s.ackedAt != null) Notifier.cancelRung(app, id)
         }
 
-        // Fire due rungs.
+        // Fire due rungs. Quiet hours silence all but Hard; focus silences Soft.
+        val quiet = graph.prefs.quiet.hours
+        val focus = graph.prefs.focus?.takeIf { now.isBefore(it.until) }
         for (a in items) {
             val s = stateOf(a.id)
-            val rung = Escalation.due(a, s, now) ?: continue
+            val rung = Escalation.due(a, s, now, quiet, focusing = focus != null) ?: continue
             Notifier.showRung(app, a, rung, s, now)
             dao.putAlarm(Escalation.fired(s, rung).toRow(a.id))
             dao.insertEvent(EventRow(itemId = a.id, fromStatus = a.status.name, toStatus = a.status.name, at = now.toString(), note = "rung ${rung.level}"))
@@ -72,13 +74,18 @@ object Scheduler {
         }
         states = dao.alarms().associate { it.itemId to it.toState() }
 
-        if (graph.prefs.lockCard) Notifier.showCard(app, placement.board(items, now)) else Notifier.hideCard(app)
+        val focusItem = focus?.let { f -> items.firstOrNull { it.id == f.itemId && it.isOpen } }
+        if (graph.prefs.lockCard) Notifier.showCard(app, placement.board(items, now), focusItem) else Notifier.hideCard(app)
 
         // Next wake: the sooner of the next alarm event and the next board change.
         val nextAnchor = items
             .mapNotNull { a -> Escalation.nextEvent(a, stateOf(a.id), now)?.let { a to it } }
             .minByOrNull { it.second }
-        val wake = listOfNotNull(nextAnchor?.second, placement.nextChange(items, now)).min()
+        // Silenced rungs resume when quiet hours or focus end, so wake then too.
+        val quietEnds = quiet?.takeIf { now.toLocalTime() in it }?.let { q ->
+            now.toLocalDate().atTime(q.end).let { if (it.isAfter(now)) it else it.plusDays(1) }
+        }
+        val wake = listOfNotNull(nextAnchor?.second, placement.nextChange(items, now), quietEnds, focus?.until).min()
         val isAlarm = nextAnchor != null && nextAnchor.second == wake && Escalation.isAlarmAt(nextAnchor.first, wake)
         schedule(app, wake, isAlarm)
         Log.i(TAG, "sync: next wake $wake${if (isAlarm) " (alarm)" else ""}")

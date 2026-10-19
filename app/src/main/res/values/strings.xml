@@ -32,6 +32,14 @@
     <string name="flash_added">Added: %1$s</string>
     <string name="flash_anchor_skipped">Off today\'s board</string>
     <string name="flash_restored">Put back</string>
+    <string name="focus_action">Focus</string>
+
+    <!-- Focus -->
+    <string name="focus_label">Focus</string>
+    <string name="focus_until_wall">until %1$s at %2$s</string>
+    <string name="focus_until_day_end">until the day ends at %1$s</string>
+    <string name="focus_done">Done with it</string>
+    <string name="focus_end">End focus</string>
 
     <!-- Setup line -->
     <string name="setup_notifications">Setup: tap to allow notifications, for alarms and the lock-screen card.</string>
@@ -47,6 +55,17 @@
     <string name="drawer_phone_settings">Phone settings</string>
     <string name="drawer_change_home">Change home app</string>
     <string name="drawer_pinned">%1$s, pinned</string>
+    <string name="drawer_app_settings">Initiative settings</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="section_board">Board</string>
+    <string name="section_look">Look</string>
+    <string name="section_alarms">Alarms</string>
+    <string name="setting_quiet">Quiet hours</string>
+    <string name="quiet_hint">During quiet hours, only Hard walls ring.</string>
+    <string name="quiet_from">From %1$s</string>
+    <string name="quiet_to">To %1$s</string>
     <string name="setting_board_after_unlock">Board after unlock</string>
     <string name="setting_lock_card">Lock-screen card</string>
     <string name="setting_theme">Theme</string>
@@ -65,6 +84,7 @@
     <string name="rung_nudge">%1$s in %2$d min. Time to move.</string>
     <string name="rung_alarm">%1$s now</string>
     <string name="card_now">Now: %1$s</string>
+    <string name="card_focus">Focus: %1$s</string>
 
     <!-- Notification channels -->
     <string name="channel_card">Lock-screen card</string>

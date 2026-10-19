@@ -75,7 +75,7 @@ object Notifier {
     }
 
     @SuppressLint("MissingPermission")
-    fun showCard(context: Context, board: Board) {
+    fun showCard(context: Context, board: Board, focus: Item? = null) {
         val nm = NotificationManagerCompat.from(context)
         if (!nm.areNotificationsEnabled()) {
             Log.i(TAG, "card skipped: notifications are off")
@@ -85,7 +85,13 @@ object Notifier {
         val next = board.next
         val b = NotificationCompat.Builder(context, CH_CARD)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle(now?.let { context.getString(R.string.card_now, it.title) } ?: context.getString(R.string.free_time))
+            .setContentTitle(
+                when {
+                    focus != null -> context.getString(R.string.card_focus, focus.title)
+                    now != null -> context.getString(R.string.card_now, now.title)
+                    else -> context.getString(R.string.free_time)
+                },
+            )
             .setContentText(next?.let { context.getString(R.string.next_float, it.title) } ?: board.now.reason)
             .setOngoing(true)
             .setSilent(true)
@@ -102,7 +108,7 @@ object Notifier {
             b.setShowWhen(false)
         }
         nm.notify(CARD_ID, b.build())
-        Log.i(TAG, "card: ${now?.title ?: "Free time"}")
+        Log.i(TAG, "card: ${focus?.let { "focus " + it.title } ?: now?.title ?: "Free time"}")
     }
 
     fun hideCard(context: Context) = NotificationManagerCompat.from(context).cancel(CARD_ID)

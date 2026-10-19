@@ -69,6 +69,12 @@ class EscalationTest {
         assertTrue(LocalTime.of(23, 0) in QuietHours(LocalTime.of(22, 0), LocalTime.of(7, 0)))
     }
 
+    @Test fun focusSilencesOnlySoftWalls() {
+        assertNull(Escalation.due(anchor(WallStrength.SOFT), AlarmState(), at(14, 56), focusing = true))
+        assertEquals(Rung.NUDGE, Escalation.due(anchor(WallStrength.SOFT), AlarmState(), at(14, 56)))
+        assertEquals(Rung.ALARM, Escalation.due(anchor(WallStrength.FIRM), AlarmState(), at(15), focusing = true))
+    }
+
     @Test fun settlesAtTheEnd() {
         val a = anchor(WallStrength.FIRM)
         assertNull(Escalation.settle(a, AlarmState(), at(15, 10)))

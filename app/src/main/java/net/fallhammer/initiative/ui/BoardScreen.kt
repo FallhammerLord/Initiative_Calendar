@@ -12,6 +12,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -71,7 +72,8 @@ fun BoardScreen(vm: BoardViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val flash by vm.flash.collectAsStateWithLifecycle()
     val ask by vm.ask.collectAsStateWithLifecycle()
-    val drawerOpen by vm.drawerOpen.collectAsStateWithLifecycle()
+    val overlay by vm.overlay.collectAsStateWithLifecycle()
+    val quiet by vm.quiet.collectAsStateWithLifecycle()
     val apps by vm.appList.collectAsStateWithLifecycle()
     val pinned by vm.pinned.collectAsStateWithLifecycle()
     val unlock by vm.unlock.collectAsStateWithLifecycle()
@@ -85,10 +87,10 @@ fun BoardScreen(vm: BoardViewModel) {
     // Coming back home should show the board, not an open keyboard.
     LaunchedEffect(opened) { focus.clearFocus() }
 
-    // Home screens never close on Back.
+    // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
         when {
-            drawerOpen -> vm.setDrawer(false)
+            overlay != Overlay.NONE -> vm.back()
             expanded -> expanded = false
         }
     }
@@ -105,7 +107,10 @@ fun BoardScreen(vm: BoardViewModel) {
     }
 
     Box(Modifier.fillMaxSize().background(Ink.bg)) {
-        Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
+        val focusView = ui.focus
+        if (focusView != null) {
+            FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
+        } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
             NowCard(
                 ui = ui,
                 flash = flash,
@@ -114,6 +119,7 @@ fun BoardScreen(vm: BoardViewModel) {
                 onSkip = vm::skip,
                 onTomorrow = vm::tomorrow,
                 onUndo = vm::undo,
+                onFocus = vm::startFocus,
             )
             Spacer(Modifier.height(Space.m))
             NextPeek(ui)
@@ -141,24 +147,37 @@ fun BoardScreen(vm: BoardViewModel) {
         }
 
         AnimatedVisibility(
-            visible = drawerOpen,
+            visible = overlay == Overlay.DRAWER,
             enter = slideInVertically { it },
             exit = slideOutVertically { it },
         ) {
             AppDrawer(
                 apps = apps,
                 pinned = pinned,
+                onLaunch = vm::launch,
+                onTogglePin = vm::togglePin,
+                onSettings = vm::openSettings,
+                onHomeChooser = vm::openHomeChooser,
+                onAppSettings = vm::showSettings,
+                onClose = { vm.setDrawer(false) },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = overlay == Overlay.SETTINGS,
+            enter = slideInVertically { it },
+            exit = slideOutVertically { it },
+        ) {
+            SettingsScreen(
                 unlock = unlock,
                 onBoardOnUnlock = vm::setBoardOnUnlock,
                 lockCard = lockCard,
                 onLockCard = vm::setLockCard,
                 lookId = look.id,
                 onLook = vm::setLook,
-                onLaunch = vm::launch,
-                onTogglePin = vm::togglePin,
-                onSettings = vm::openSettings,
-                onHomeChooser = vm::openHomeChooser,
-                onClose = { vm.setDrawer(false) },
+                quiet = quiet,
+                onQuiet = vm::setQuiet,
+                onClose = vm::back,
             )
         }
     }
@@ -173,6 +192,7 @@ private fun NowCard(
     onSkip: (Item) -> Unit,
     onTomorrow: (Item) -> Unit,
     onUndo: () -> Unit,
+    onFocus: (Item) -> Unit,
 ) {
     val board = ui.board
     val item = board?.now?.item
@@ -182,8 +202,18 @@ private fun NowCard(
             Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
             arrangement = Arrangement.SpaceBetween,
         ) {
-            Column {
-                Label(stringResource(R.string.now_label))
+            // Holding the title area starts focus; the Focus button is the visible twin.
+            Column(
+                Modifier.pointerInput(item) {
+                    detectTapGestures(onLongPress = { if (item != null && !item.isAnchor) onFocus(item) })
+                },
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Label(stringResource(R.string.now_label), Modifier.weight(1f))
+                    if (item != null && !item.isAnchor) {
+                        QuietButton(stringResource(R.string.focus_action), { onFocus(item) }, color = Ink.accent)
+                    }
+                }
                 Spacer(Modifier.height(Space.s))
                 // Until the database loads, the card stays blank rather than showing a wrong "Free time".
                 if (board != null) {
@@ -215,6 +245,37 @@ private fun NowCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Focus: the task, a countdown to the wall that ends it, and the two ways out. */
+@Composable
+private fun FocusScreen(focus: FocusView, now: LocalDateTime, onDone: (Item) -> Unit, onEnd: () -> Unit) {
+    val wall = focus.wall
+    val wallStart = wall?.start
+    Screen {
+        Card(Modifier.weight(1f), arrangement = Arrangement.SpaceBetween) {
+            Column {
+                Label(stringResource(R.string.focus_label))
+                Spacer(Modifier.height(Space.s))
+                Title(focus.item.title)
+            }
+            Column {
+                Text(Formats.countdown(now, focus.until), style = Type.hero, color = Ink.accent)
+                Body(
+                    if (wall != null && wallStart != null) {
+                        stringResource(R.string.focus_until_wall, wall.title, Formats.clock(wallStart))
+                    } else {
+                        stringResource(R.string.focus_until_day_end, Formats.clock(focus.until))
+                    },
+                )
+            }
+            Column {
+                PrimaryButton(stringResource(R.string.focus_done), { onDone(focus.item) }, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(Space.m))
+                SecondaryButton(stringResource(R.string.focus_end), onEnd, Modifier.fillMaxWidth())
             }
         }
     }

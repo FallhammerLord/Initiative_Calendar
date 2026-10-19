@@ -96,9 +96,11 @@ Top to bottom:
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
 5. **Apps.** Swipe up for the app list. A short row of pinned apps sits at the bottom.
 
-**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is at the bottom of the app drawer.
+**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is in Initiative settings.
 
 **Lock-screen card.** A silent ongoing notification shows the Now card on the lock screen: "Now: call landlord · Next: pickup in 1h 40m." No sound, no badge, no counter. It refreshes at each gap boundary through the same scheduler as the alarms. Android phones have no lock-screen widgets, so this is the glance before unlocking; board after unlock is the full view after it.
+
+**Initiative settings.** Opened from the app drawer's header. Grouped as Board (board after unlock, lock-screen card), Look (theme), and Alarms (quiet hours, with start and end times). The drawer itself holds only apps and the two exits to the normal phone.
 
 Swipe left for the full queue and a week view. Those views exist for planning and are never required.
 
@@ -116,7 +118,7 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 
 **Readability.** Large type, high contrast, short labels. Font choice in settings, with Atkinson Hyperlegible as the default. It's an open-licensed font designed for low-vision readers.
 
-**Themes.** Picked in the app drawer. Each theme sets colors, card and button shapes, outlines, and an optional background pattern; layout and type stay the same.
+**Themes.** Picked in Initiative settings. Each theme sets colors, card and button shapes, outlines, and an optional background pattern; layout and type stay the same.
 
 - **Sci-fi** (default), after the Foundry quest log module: navy panels with thin teal frames and cut corners, cyan accents, a faint hexagon grid behind each screen. Section labels keep the quest log's cyan and bold but stay in sentence case.
 - **Classic**: black and amber, rounded.
@@ -168,7 +170,9 @@ A missed float is an automatic skip. When a float is Now and its gap ends untouc
 
 Holding the card, or tapping Focus, says "I'm in it," and the app protects the burst until the next real wall.
 
-- The board collapses to the current task, a countdown to the next Firm or Hard anchor, and a **Done with it** button.
+- The board collapses to the current task, a countdown to the next Firm or Hard anchor, a **Done with it** button (marks the task done, with Undo), and **End focus**. Focus is offered on floats only.
+- Back never ends focus; it keeps going until the wall, Done with it, or End focus.
+- The lock-screen card reads "Focus: <task>".
 - Float prompts and Soft anchors go silent. Automatic skips pause.
 - A wrap-up warning fires at the wall's lead time: "Pickup in 15. Save your work."
 - Focus ends at the wall, or when you end it. It has no timer of its own.
@@ -354,7 +358,7 @@ Built and passing the emulator check:
 - Board after unlock
 - Quick-add with the basic parser
 
-Standards pass, next, so the remaining screens are built from shared parts instead of retrofitted:
+Standards pass, done, so the remaining screens are built from shared parts:
 
 - App container: one database, repository, scheduler, and settings
 - Design tokens, shared components, screen template, and one set of formatters
@@ -367,9 +371,13 @@ Standards pass, next, so the remaining screens are built from shared parts inste
 - Guards: design check, accessibility sweep, StrictMode, CLAUDE.md
 - Themes: Sci-fi and Classic, with a contrast test
 
-Then:
+Then, built:
 
+- Initiative settings screen, with quiet hours
 - Focus mode
+
+Still to build:
+
 - Lapse recap with miss policies
 - Weekly recopy
 - Nightly JSON export

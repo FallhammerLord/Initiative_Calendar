@@ -26,6 +26,8 @@ import kotlinx.coroutines.withContext
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.AppEntry
+import net.fallhammer.initiative.data.Focus
+import net.fallhammer.initiative.data.QuietSetting
 import net.fallhammer.initiative.data.SetupStep
 import net.fallhammer.initiative.graph
 import java.time.LocalDate
@@ -39,7 +41,14 @@ data class BoardUi(
     val ledger: List<LedgerMark> = emptyList(),
     val queue: List<Item> = emptyList(),
     val window: DayWindow = DayWindow(),
+    val focus: FocusView? = null,
 )
+
+/** A running focus session: the task, when it ends, and the wall that ends it (null: the day's end). */
+data class FocusView(val item: Item, val until: LocalDateTime, val wall: Item?)
+
+/** What's drawn over the board. */
+enum class Overlay { NONE, DRAWER, SETTINGS }
 
 /** Board on unlock: whether it's switched on, and whether Android allows it yet. */
 data class UnlockSetting(val enabled: Boolean = true, val permitted: Boolean = true)
@@ -56,8 +65,10 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private var items: List<Item> = emptyList()
     private var instancesFor: LocalDate? = null
 
-    /** The board recalculates whenever the data changes, the clock ticks, or the screen opens. */
-    val ui: StateFlow<BoardUi> = combine(repo.items, clock) { all, now ->
+    private val _focus = MutableStateFlow<Focus?>(null)
+
+    /** The board recalculates whenever the data changes, the clock ticks, focus changes, or the screen opens. */
+    val ui: StateFlow<BoardUi> = combine(repo.items, clock, _focus) { all, now, focus ->
         items = all
         BoardUi(
             now = now,
@@ -65,6 +76,9 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
             ledger = placement.ledger(all, now.toLocalDate()),
             queue = placement.dayQueue(all, now),
             window = graph.window,
+            focus = focus?.takeIf { now.isBefore(it.until) }?.let { f ->
+                all.firstOrNull { it.id == f.itemId && it.isOpen }?.let { FocusView(it, f.until, placement.nextWall(all, now)) }
+            },
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, BoardUi())
 
@@ -76,8 +90,8 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     /** A quick-add the parser couldn't place: "Anchor or float?" */
     val ask: StateFlow<Parsed?> = _ask.asStateFlow()
 
-    private val _drawerOpen = MutableStateFlow(false)
-    val drawerOpen: StateFlow<Boolean> = _drawerOpen.asStateFlow()
+    private val _overlay = MutableStateFlow(Overlay.NONE)
+    val overlay: StateFlow<Overlay> = _overlay.asStateFlow()
 
     private val _apps = MutableStateFlow<List<AppEntry>>(emptyList())
     val appList: StateFlow<List<AppEntry>> = _apps.asStateFlow()
@@ -99,6 +113,9 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val _lockCard = MutableStateFlow(true)
     val lockCard: StateFlow<Boolean> = _lockCard.asStateFlow()
 
+    private val _quiet = MutableStateFlow(QuietSetting())
+    val quiet: StateFlow<QuietSetting> = _quiet.asStateFlow()
+
     private val _look = MutableStateFlow<String?>(null)
     /** The chosen theme's id; null until settings load, which shows the default. */
     val look: StateFlow<String?> = _look.asStateFlow()
@@ -115,6 +132,12 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
             ui.collect { u ->
                 val f = u.board?.now?.item ?: return@collect
                 if (f.kind == Kind.FLOAT && f.activeSince == null) repo.markActive(f, u.now)
+            }
+        }
+        // Focus ends by itself at the wall, or when its task is done some other way.
+        viewModelScope.launch {
+            ui.collect { u ->
+                if (u.board != null && _focus.value != null && u.focus == null) endFocus()
             }
         }
         // Any change to the data re-arms alarms and refreshes the lock-screen card.
@@ -138,6 +161,8 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
                 _setup.value = graph.setup.missing(prefs)
                 _lockCard.value = prefs.lockCard
                 _look.value = prefs.lookId
+                _quiet.value = prefs.quiet
+                _focus.value = prefs.focus
                 _apps.value = graph.apps.installed()
             }
         }
@@ -150,6 +175,32 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     fun done(item: Item) = act(item) { repo.done(item, it); text(R.string.flash_done) }
     fun skip(item: Item) = act(item) { repo.skip(item, items, it) ?: text(R.string.flash_anchor_skipped) }
     fun tomorrow(item: Item) = act(item) { repo.tomorrow(item, it) }
+
+    /** Focus on [item] until the next Firm or Hard wall. Soft alarms stay silent meanwhile. */
+    fun startFocus(item: Item) {
+        val focus = Focus(item.id, placement.focusEnd(items, LocalDateTime.now()))
+        _focus.value = focus
+        saveFocus(focus)
+    }
+
+    fun endFocus() {
+        if (_focus.value == null) return
+        _focus.value = null
+        saveFocus(null)
+    }
+
+    /** Done with the focused task: marks it done, with Undo, and returns to the board. */
+    fun doneWithIt(item: Item) {
+        endFocus()
+        done(item)
+    }
+
+    private fun saveFocus(focus: Focus?) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { graph.prefs.focus = focus }
+            Scheduler.sync(getApplication<Application>())
+        }
+    }
 
     /** Takes back the last Done, Skip, or Tomorrow. */
     fun undo() {
@@ -189,11 +240,32 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setDrawer(open: Boolean) {
         if (open) refresh()
-        _drawerOpen.value = open
+        _overlay.value = if (open) Overlay.DRAWER else Overlay.NONE
+    }
+
+    /** Initiative's own settings screen (as opposed to the phone's, [openSettings]). */
+    fun showSettings() {
+        _overlay.value = Overlay.SETTINGS
+    }
+
+    /** Back from settings returns to the drawer; from the drawer, to the board. */
+    fun back() {
+        _overlay.value = when (_overlay.value) {
+            Overlay.SETTINGS -> Overlay.DRAWER
+            else -> Overlay.NONE
+        }
+    }
+
+    fun setQuiet(quiet: QuietSetting) {
+        _quiet.value = quiet
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { graph.prefs.quiet = quiet }
+            Scheduler.sync(getApplication<Application>())
+        }
     }
 
     fun launch(entry: AppEntry) {
-        _drawerOpen.value = false
+        _overlay.value = Overlay.NONE
         graph.apps.launch(entry)
     }
 

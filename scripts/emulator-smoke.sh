@@ -177,6 +177,13 @@ set_clock() {
   sleep 4
 }
 
+# From the board: drawer, then Initiative settings.
+open_settings() {
+  open_drawer
+  tap "Initiative settings" exact
+  see "Quiet hours" exact || fail "Initiative settings didn't open"
+}
+
 crash_check() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash > "$OUT/crash.txt"
@@ -357,7 +364,7 @@ adb logcat -d -s Initiative:V | tail -4 | tee -a "$OUT/steps.log"
 shot after-unlock
 
 # Switch it off: unlock should return to the last app instead.
-open_drawer
+open_settings
 xy=$(find_node "Board after unlock" exact) || fail "no board-after-unlock switch"
 y=${xy#* }
 adb shell input tap 980 "$y"
@@ -406,19 +413,30 @@ crash_check
 
 # --- Themes ---------------------------------------------------------------------
 
-open_drawer
+open_settings
 expect_text "Theme"
-shot scifi-drawer
+shot settings
 tap Classic exact
-shot classic-drawer
+shot classic-settings
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+see "Change home app" exact || fail "Back from settings should return to the drawer"
+pass "Back from settings returns to the drawer"
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 expect_front $PKG "Back closes the drawer"
 shot classic-board
-open_drawer
+open_settings
 tap Sci-fi exact
-adb shell input keyevent KEYCODE_BACK
-sleep 1
+tap "Quiet hours" exact
+expect_text "From 10:00 PM"
+shot quiet-hours
+tap "Quiet hours" exact
+see "From 10:00 PM" && fail "quiet-hour times still showing after switching off"
+pass "quiet hours switch on and off"
+home
+see "Quiet hours" exact && fail "Home should close settings"
+pass "Home closes settings"
 shot scifi-board
 pass "theme switches both ways"
 
@@ -436,6 +454,30 @@ done
 pass "buttons fit at 200% font"
 adb shell settings put system font_scale 1.0
 home
+crash_check
+
+# --- Focus ----------------------------------------------------------------------
+# It's past 1:00 PM: taxes is back as Now, and pickup at 2:00 PM is the next Hard wall.
+
+home
+expect_text "taxes"
+tap Focus exact
+expect_text "Done with it"
+expect_text "until pickup at 2:00 PM"
+shot focus
+expect_notification "Focus: taxes" "lock-screen card shows the focus"
+tap "End focus" exact
+expect_text "Tomorrow"
+pass "End focus returns to the board"
+xy=$(find_node "taxes" exact) || fail "no Now title to hold"
+adb shell input swipe $xy $xy 900
+sleep 2
+expect_text "Done with it"
+pass "holding the card starts focus"
+tap "Done with it" exact
+expect_text "Undo"
+expect_text "Free time"
+pass "Done with it finishes the task and returns to the board"
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"

@@ -109,6 +109,17 @@ class PlacementTest {
         assertEquals(at(22), engine.nextChange(emptyList(), at(21, 30)))
     }
 
+    @Test fun focusEndsAtTheNextFirmOrHardWall() {
+        val soft = Item(id = 5, title = "coffee", kind = Kind.ANCHOR, start = at(13), wall = WallStrength.SOFT, createdAt = created)
+        assertEquals(pickup.id, engine.nextWall(listOf(soft, pickup), at(12))?.id)
+        assertEquals(at(15), engine.focusEnd(listOf(soft, pickup), at(12)))
+        // No walls left: the end of the day window.
+        assertEquals(at(22), engine.focusEnd(listOf(soft), at(16)))
+        assertEquals(at(22), engine.focusEnd(emptyList(), at(21, 30)))
+        // Past the window: two hours on.
+        assertEquals(at(22, 30).plusHours(2), engine.focusEnd(emptyList(), at(22, 30)))
+    }
+
     @Test fun ledgerMarksWallsAndDone() {
         val done = float(2, "call").copy(status = Status.DONE, doneAt = at(9))
         val marks = engine.ledger(listOf(pickup, done), day)

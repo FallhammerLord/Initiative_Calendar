@@ -40,16 +40,11 @@ import net.fallhammer.initiative.data.AppEntry
 fun AppDrawer(
     apps: List<AppEntry>,
     pinned: List<String>,
-    unlock: UnlockSetting,
-    onBoardOnUnlock: (Boolean) -> Unit,
-    lockCard: Boolean,
-    onLockCard: (Boolean) -> Unit,
-    lookId: String,
-    onLook: (String) -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onSettings: () -> Unit,
     onHomeChooser: () -> Unit,
+    onAppSettings: () -> Unit,
     onClose: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -59,6 +54,7 @@ fun AppDrawer(
     Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
         Row(Modifier.fillMaxWidth().onSwipeDown(onClose), verticalAlignment = Alignment.CenterVertically) {
             Title(stringResource(R.string.drawer_title), style = Type.title, modifier = Modifier.weight(1f))
+            QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
             QuietButton(stringResource(R.string.drawer_close), onClose)
         }
         OutlinedTextField(
@@ -93,13 +89,6 @@ fun AppDrawer(
                 )
             }
         }
-        SettingSwitch(stringResource(R.string.setting_board_after_unlock), unlock.enabled, onBoardOnUnlock)
-        SettingSwitch(stringResource(R.string.setting_lock_card), lockCard, onLockCard)
-        ChoiceRow(
-            stringResource(R.string.setting_theme),
-            Looks.all.map { stringResource(it.label) },
-            Looks.all.indexOfFirst { it.id == lookId },
-        ) { onLook(Looks.all[it].id) }
         Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim)
     }
 }

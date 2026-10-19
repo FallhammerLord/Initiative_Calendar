@@ -30,6 +30,9 @@ data class Moved(val item: Item, val message: String)
  * Picks the Now card with a fixed, explainable rule. See docs/spec.md, Placement logic.
  */
 class Placement(private val window: DayWindow = DayWindow()) {
+    private companion object {
+        const val FOCUS_FALLBACK_HOURS = 2L
+    }
 
     fun board(items: List<Item>, now: LocalDateTime): Board {
         val today = now.toLocalDate()
@@ -136,6 +139,22 @@ class Placement(private val window: DayWindow = DayWindow()) {
         times += listOf(today.atTime(window.start), today.atTime(window.end), today.plusDays(1).atTime(window.start))
         val cap = now.plusHours(1)
         return times.filter { it.isAfter(now) }.minOrNull()?.let { minOf(it, cap) } ?: cap
+    }
+
+    /** The next Firm or Hard anchor still to start: the wall that ends a focus session. */
+    fun nextWall(items: List<Item>, now: LocalDateTime): Item? =
+        items.filter { !it.isTemplate && it.isAnchor && it.isOpen && it.start != null && it.wall != WallStrength.SOFT }
+            .filter { it.start!!.isAfter(now) }
+            .minByOrNull { it.start!! }
+
+    /**
+     * When a focus session started [now] ends: at the next Firm or Hard wall, or
+     * else at the end of the day window. Past the window, two hours from now.
+     */
+    fun focusEnd(items: List<Item>, now: LocalDateTime): LocalDateTime {
+        nextWall(items, now)?.start?.let { return it }
+        val dayEnd = now.toLocalDate().atTime(window.end)
+        return if (dayEnd.isAfter(now)) dayEnd else now.plusHours(FOCUS_FALLBACK_HOURS)
     }
 
     /** Skip: move to the next gap it fits, or an hour later, or tomorrow. */

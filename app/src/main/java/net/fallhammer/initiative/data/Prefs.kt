@@ -4,6 +4,17 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import initiative.core.QuietHours
+import java.time.LocalDateTime
+import java.time.LocalTime
+
+/** A focus session: on [itemId] until [until], the next Firm or Hard wall. */
+data class Focus(val itemId: Long, val until: LocalDateTime)
+
+/** Quiet hours as set, whether on or off, so the times survive switching off. */
+data class QuietSetting(val on: Boolean = false, val start: LocalTime = LocalTime.of(22, 0), val end: LocalTime = LocalTime.of(7, 0)) {
+    val hours: QuietHours? get() = if (on) QuietHours(start, end) else null
+}
 
 /** Small per-device settings. */
 class Prefs(private val context: Context) {
@@ -30,6 +41,35 @@ class Prefs(private val context: Context) {
         get() = prefs.getString(LOOK, null)
         set(value) = prefs.edit().putString(LOOK, value).apply()
 
+    var quiet: QuietSetting
+        get() = QuietSetting(
+            on = prefs.getBoolean(QUIET_ON, false),
+            start = LocalTime.parse(prefs.getString(QUIET_START, "22:00")),
+            end = LocalTime.parse(prefs.getString(QUIET_END, "07:00")),
+        )
+        set(value) = prefs.edit()
+            .putBoolean(QUIET_ON, value.on)
+            .putString(QUIET_START, value.start.toString())
+            .putString(QUIET_END, value.end.toString())
+            .apply()
+
+    /** The running focus session, if any. */
+    var focus: Focus?
+        get() {
+            val id = prefs.getLong(FOCUS_ITEM, -1)
+            val until = prefs.getString(FOCUS_UNTIL, null)
+            return if (id < 0 || until == null) null else Focus(id, LocalDateTime.parse(until))
+        }
+        set(value) {
+            val edit = prefs.edit()
+            if (value == null) {
+                edit.remove(FOCUS_ITEM).remove(FOCUS_UNTIL)
+            } else {
+                edit.putLong(FOCUS_ITEM, value.itemId).putString(FOCUS_UNTIL, value.until.toString())
+            }
+            edit.apply()
+        }
+
     /** Whether the one-tap notification prompt has been shown; after that, Settings is the only way. */
     var askedNotifications: Boolean
         get() = prefs.getBoolean(ASKED_NOTIFICATIONS, false)
@@ -52,5 +92,10 @@ class Prefs(private val context: Context) {
         const val LOCK_CARD = "lockCard"
         const val LOOK = "look"
         const val ASKED_NOTIFICATIONS = "askedNotifications"
+        const val QUIET_ON = "quietOn"
+        const val QUIET_START = "quietStart"
+        const val QUIET_END = "quietEnd"
+        const val FOCUS_ITEM = "focusItem"
+        const val FOCUS_UNTIL = "focusUntil"
     }
 }

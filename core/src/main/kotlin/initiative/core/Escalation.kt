@@ -57,9 +57,11 @@ object Escalation {
     /**
      * The rung to show now, or null. When several rungs have passed (the phone was
      * off, say) only the highest fires. A finished snooze re-fires the same rung.
+     * While [focusing], Soft anchors stay silent; Firm and Hard still climb.
      */
-    fun due(anchor: Item, state: AlarmState, now: LocalDateTime, quiet: QuietHours? = null): Rung? {
+    fun due(anchor: Item, state: AlarmState, now: LocalDateTime, quiet: QuietHours? = null, focusing: Boolean = false): Rung? {
         if (!live(anchor, state, now)) return null
+        if (focusing && anchor.wall == WallStrength.SOFT) return null
         val until = state.snoozedUntil
         if (until != null && now.isBefore(until)) return null
         if (quiet != null && anchor.wall != WallStrength.HARD && now.toLocalTime() in quiet) return null
