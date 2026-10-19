@@ -19,6 +19,8 @@ shot() {
 
 fail() {
   log "FAIL: $*"
+  log "--- app log ---"
+  adb logcat -d -s Initiative:V | tail -20 | tee -a "$OUT/steps.log"
   adb exec-out screencap -p > "$OUT/zz-failure.png"
   ui > "$OUT/zz-failure-ui.xml" || true
   adb logcat -d > "$OUT/logcat.txt"
@@ -219,6 +221,7 @@ crash_check
 # --- Lock screen and board after unlock ----------------------------------------
 
 adb shell locksettings set-pin 1234 > /dev/null || fail "couldn't set a test PIN"
+adb shell locksettings verify --old 1234 > /dev/null 2>&1 && pass "test PIN set"
 adb shell am start -a android.settings.SETTINGS > /dev/null
 sleep 2
 adb shell input keyevent KEYCODE_SLEEP
@@ -232,6 +235,7 @@ adb shell input text 1234
 adb shell input keyevent KEYCODE_ENTER
 sleep 3
 expect_front $PKG "PIN unlock works and lands on the board"
+adb logcat -d -s Initiative:V | tail -4 | tee -a "$OUT/steps.log"
 shot after-unlock
 
 # Switch it off: unlock should return to the last app instead.

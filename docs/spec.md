@@ -96,7 +96,7 @@ Top to bottom:
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
 5. **Apps.** Swipe up for the app list. A short row of pinned apps sits at the bottom.
 
-**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board comes forward after every unlock instead, except during a call. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is at the bottom of the app drawer.
+**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is at the bottom of the app drawer.
 
 **Lock-screen card.** A silent ongoing notification shows the Now card on the lock screen: "Now: call landlord · Next: pickup in 1h 40m." No sound, no badge, no counter. It refreshes at each gap boundary through the same scheduler as the alarms. Android phones have no lock-screen widgets, so this is the glance before unlocking; board after unlock is the full view after it.
 
