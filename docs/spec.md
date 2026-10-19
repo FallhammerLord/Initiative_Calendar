@@ -1,0 +1,308 @@
+# Initiative — Scheduling Launcher Spec
+
+Oct 19, 2026 · @Ken · rev 2
+
+## Purpose
+
+Initiative is an Android home screen that runs your day like a GM runs a session. It holds the notes; you see the current scene and whose turn it is.
+
+It is built for a brain where sustained routine engagement is unreliable. So the app has to work when ignored, and welcome you back after a lapse with no debt.
+
+Design rules:
+
+- **Presence through placement.** It lives on the home screen, so every unlock shows the board.
+- **Interrupt rarely, and only when it matters.** Fixed commitments can interrupt. Flexible tasks never do.
+- **No guilt state.** No overdue counters, red badges, or streaks.
+- **One thing at a time.** The board shows one card. Everything else is one tap or swipe away.
+- **Owned end to end.** Local data, no accounts, no Google services, no internet traffic by design. The only network use is sync with your own desktop on home Wi-Fi.
+
+Success looks like this after 90 days: still installed, hard commitments reliably hit, and lapses end with a return to the board.
+
+## Platform and constraints
+
+A sideloaded Android app in Kotlin that runs the same on stock Android today and GrapheneOS later. For private use only; it is never distributed.
+
+- **Launcher.** Registers as a home app. You set it as default once.
+- **Its own calendar.** All events and tasks live in the app's local database. It reads no other calendar.
+- **No Google dependency.** No Play Services, no Firebase, no cloud push. Alarms are scheduled on the device.
+- **Home network sync.** The phone is the primary home of all data. The desktop counterpart is a secondary window that syncs over home Wi-Fi and sends its edits back to the phone. The app talks only to addresses on the local network and makes no internet requests. Android's network permission is all-or-nothing, so this is enforced in the app's code, not by the OS.
+- **Distribution.** A signed APK you install directly. Updates are a new APK over the old one.
+- **Model files.** Speech and language models ship as separate files the app loads from a folder you pick, so APK updates stay small. Syncthing can deliver them.
+- **Target.** Android 10 or newer, so most phones from the last six years qualify.
+
+**On-device language model (optional).** The rule-based parser is the baseline. Phrases it can't handle fall back to a small Qwen model, run by llama.cpp with a grammar constraint that only allows valid task fields. No Claude or other cloud AI.
+
+**Vendor constraint.** No Meta components anywhere in the stack: no Llama models, no Meta libraries or SDKs. llama.cpp and whisper.cpp are independent (ggml, MIT license) and allowed. Check every new dependency against this rule.
+
+## Data model
+
+Every entry is an Item, and every Item is either an Anchor or a Float.
+
+- **Anchor.** Fixed time. School runs, appointments, game nights. Anchors are the walls of the day.
+- **Float.** Flexible task. Calls, chores, errands. Floats fill the gaps between walls.
+
+| Field | Applies to | Values |
+| --- | --- | --- |
+| Title, notes | Both | Free text |
+| Kind | Both | Anchor, Float |
+| Start, end | Anchor | Date and time |
+| Wall strength | Anchor | Soft, Firm, Hard |
+| Lead time | Anchor | Minutes of warning before start, default 15 |
+| Partner alert | Anchor | On or off, Hard only |
+| Duration | Float | Estimate in minutes, default 30, learned over time |
+| Earliest start | Float | Optional date |
+| Deadline | Float | Optional date |
+| Priority | Float | Auto (default), or Low, Normal, High set by hand |
+| Effort | Float | Quick, Focus |
+| Skip count | Float | Times skipped, manual or automatic |
+| Recurrence | Both | See Recurrence |
+| Miss policy | Both | Reroll, Drop, Ask |
+| Status | Both | Pending, Active, Done, Missed, Dropped |
+| Pinned slot | Float | Optional time you fix by hand |
+
+An event log records every status change with a timestamp. The recap screen and duration learning read from it.
+
+Settings hold the day window, quiet hours, the partner's phone number, default lead time, default duration, and the lapse thresholds.
+
+### Recurrence
+
+A recurring item is stored as a template. The app generates one instance per occurrence, a few weeks ahead. Each instance has its own status, so missing one never touches the others. Editing the template updates future instances only.
+
+| Pattern | Options |
+| --- | --- |
+| Daily | Every day, or every other day |
+| Weekdays | Monday to Friday |
+| Weekly | Chosen days, every week or every other week |
+| Monthly | Same date or same weekday (e.g. second Tuesday), every month or every other month |
+| Yearly | Same date, every year or every other year |
+
+### Learned details
+
+Repeated items get better estimates as you use them.
+
+- **Duration.** When an item goes from Active to Done, the elapsed time updates its estimate as a rolling average of the last five runs. Outliers beyond 3× the estimate are ignored.
+- **Which items count as repeated.** Instances of one recurring template, and floats with the same title (case-insensitive) created again.
+- **Other fields.** A new float with a known title inherits that title's last priority, effort, and miss policy. You can override any of them.
+
+## The Board
+
+The board is a hybrid. It uses Board B's single card and buttons, and folds Board A's Next card and wall strip into one ledger line.
+
+Top to bottom:
+
+1. **Now card.** Fills most of the screen. One item in large type. A one-line reason under the title, such as "Due tomorrow, fits before pickup." Three buttons: **Done**, **Skip**, **Tomorrow**.
+2. **Next peek.** One small line under the card. For an anchor it shows a countdown: "School pickup in 1h 40m."
+3. **Ledger line.** A single line pinned near the bottom that shows the day: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. Tapping it expands to the full day queue.
+4. **Quick-add bar.** One line of text to capture anything, with a mic button.
+5. **Apps.** Swipe up for the app list. A short row of pinned apps sits at the bottom.
+
+Swipe left for the full queue and a week view. Those views exist for planning and are never required.
+
+When nothing needs doing, the Now card says **Free time**. An empty board is a valid, calm state.
+
+**Buttons.**
+
+- **Done** marks it finished.
+- **Skip** moves the card to its next reasonable slot and shows where it landed, e.g. "Back at 3:30, after pickup." See Placement logic.
+- **Tomorrow** takes it off today's board entirely.
+
+**Focus.** Hold the card for about two-thirds of a second, or tap the small Focus button. See Focus mode.
+
+**Weekly recopy.** Derived from Ken's old sticky-pad system: one list, recopied weekly, finished items simply fall off. Once a week the single card becomes "Recopy the list." It walks every open item, oldest first, one card at a time: Keep, Reschedule (later this week or next week), or Drop. Items skipped three or more times get a nudge to drop them or give them a real time.
+
+**Readability.** Large type, high contrast, short labels. Font choice in settings, with Atkinson Hyperlegible as the default. It's an open-licensed font designed for low-vision readers.
+
+&#91;embedded content: board mockup · first pass\]
+
+The clickable prototype keeps Board A and Board B side by side for comparison by feel. Where the two disagree, Board B wins.
+
+## Placement logic
+
+The app picks the Now card for you, every time you look, using a fixed and explainable rule.
+
+1. If an anchor is in progress, it is Now.
+2. If the next anchor's lead-time warning has passed, that anchor is Now: "Starts in 10 min."
+3. If a float is pinned to this slot, it is Now.
+4. Otherwise, find the current gap: the time until the next anchor's lead-time warning, or the end of the day window.
+5. List floats that are eligible today: past their earliest start, not sent to Tomorrow, and short enough to fit the gap.
+6. A float longer than every gap today is eligible for the day's longest gap instead, so big tasks still surface.
+7. Rank them: priority first, then nearest deadline, then oldest.
+8. The top float becomes Now. The reason line states which rule picked it.
+9. If nothing fits, Now is Free time.
+
+The day window runs from 8:00 to 22:00 by default and is set in settings. Outside it, Now is Free time unless an anchor is due.
+
+The board recalculates on every open and every button press. Dragging is never required.
+
+### Priority
+
+You can set priority by hand. When you don't, it is Auto, and the app works it out from three signals:
+
+- **Deadline.** Due today, tomorrow, or already past raises it to High.
+- **Skips.** Every two skips raise it one step, up to High.
+- **Age.** A float open for two weeks rises one step.
+
+A float with no deadline, no skips, and recent creation sits at Normal. A hand-set priority is never changed by the app. The reason line names the signal, e.g. "Skipped twice, moved up."
+
+### Skip and reslot
+
+Skip, by hand or automatic, does two things:
+
+1. **Reslot.** The float moves to the next gap it fits, after the current one, and the card shows where it landed. If there is no later gap today, it moves an hour later in the current gap when it still fits there. Otherwise it goes to tomorrow's first fitting gap.
+2. **Reshuffle.** The skip count goes up, Auto priority is recalculated, and the rest of today's queue re-ranks around it.
+
+A missed float is an automatic skip. When a float is Now and its gap ends untouched, the app skips it for you. Skips are never shown as misses, counters, or badges. They only feed priority, the recopy nudge, and the lapse rule.
+
+## Focus mode
+
+Holding the card, or tapping Focus, says "I'm in it," and the app protects the burst until the next real wall.
+
+- The board collapses to the current task, a countdown to the next Firm or Hard anchor, and a **Done with it** button.
+- Float prompts and Soft anchors go silent. Automatic skips pause.
+- A wrap-up warning fires at the wall's lead time: "Pickup in 15. Save your work."
+- Focus ends at the wall, or when you end it. It has no timer of its own.
+
+This turns hyperfocus into an asset the app respects, with the walls still guarded.
+
+## Escalation ladder
+
+Only anchors can interrupt. Each anchor climbs one rung at a time until you respond, and its wall strength sets the highest rung it can reach. One tap on **On it** at any rung stops the climb.
+
+| Rung | What happens | When it fires |
+| --- | --- | --- |
+| 0. Board | The anchor shows on the Next peek and ledger line. No alert. | Always |
+| 1. Quiet notice | Silent notification with the countdown. | At lead time |
+| 2. Nudge | Notification with sound and vibration, shown over other apps. | 5 minutes before start |
+| 3. Alarm | Full-screen alarm with sound until you respond. | At start |
+| 4. Partner | Pre-written SMS to your partner. | 5 minutes after start, if no On it |
+
+| Wall strength | Highest rung |
+| --- | --- |
+| Soft | 2. Nudge |
+| Firm | 3. Alarm |
+| Hard | 3. Alarm, or 4. Partner when Partner alert is on |
+
+If the lead time is under 5 minutes, rungs 1 and 2 merge into one nudge at lead time.
+
+- **Snooze limits.** Soft and Firm allow two 5-minute snoozes. Hard allows one. A snooze pauses the climb; it resumes at the same rung.
+- **Trust rule.** Every interruption must be worth it. A rung that fires when you didn't need it means the anchor's strength is set too high.
+- **Anti-habituation.** Each rung rotates through several phrasings, so the words stay readable. Sound rotation comes in v0.3.
+- **Quiet hours.** Only Hard anchors break through.
+- **Focus mode.** Soft anchors stay at rung 0. Firm and Hard climb as normal.
+- **Missed anchors.** An anchor with no On it by its end time is marked Missed.
+
+## Lapse recovery
+
+After a lapse, you get one "Previously on" screen, then a clean board.
+
+A lapse starts when the board goes untouched for 24 hours, or three automatic skips happen in a row. Both thresholds are adjustable.
+
+The recap shows three short blocks:
+
+1. **What passed.** Anchors since you were last here, marked done or missed in neutral words.
+2. **What the app handled.** Automatically skipped floats sorted by their miss policy. Reroll items went back in the queue. Drop items went to the archive.
+3. **What's ahead.** Anchors in the next 24 hours.
+
+Items set to **Ask** get one batch triage: Keep or Drop on each, plus a single Drop all button.
+
+One tap on "Back to the board" closes the recap. The dropped items never appear again unless you go looking in the archive.
+
+## Capture
+
+One line in the quick-add bar creates an item, parsed on the device.
+
+| You type | You get |
+| --- | --- |
+| dentist thu 3pm | Anchor, Thursday 3:00 PM, Firm |
+| call landlord | Float, Auto priority, 30 min |
+| pickup girls weekdays 3pm hard | Recurring Hard anchor, weekdays |
+| taxes by fri high | Float, deadline Friday, High priority |
+| game night tue 7pm soft | Anchor, Tuesday 7:00 PM, Soft |
+| bins every other mon 7am | Recurring Firm anchor, every other Monday |
+
+The rule of thumb: a time makes an anchor, no time makes a float. Words like *hard*, *soft*, *high*, *by*, and *every other* set the extra fields.
+
+When the parser is unsure, it asks one question as a tap chip: "Anchor or float?"
+
+- **Share target.** Text shared from any app lands in quick-add.
+- **Voice.** A large mic button on the board. Speak a task and the parser creates the item with no typing. Speech runs on the phone through Whisper (whisper.cpp, base model), fully offline, the same on stock Android and GrapheneOS. A tap chip confirms when the parser is unsure.
+- **Editing.** Tap any card's title to open a full form with every field.
+
+## Data, backup, permissions
+
+All data lives in one local SQLite database. It leaves the phone only as files you choose to move, or through home Wi-Fi sync with your desktop.
+
+**Backup.** Each night the app writes two files to a folder you pick: a full JSON export and an .ics file of anchors. A Syncthing client watches that folder and copies it to the homelab. Restore reads the JSON back in.
+
+**Import.** Any .ics file, such as a school calendar, imports as anchors. You set wall strength during import.
+
+| Permission | Why |
+| --- | --- |
+| Home app | Lets it be the launcher |
+| Exact alarms | Anchors fire on the minute |
+| Full-screen alerts | Rung 3 alarm for Firm and Hard walls |
+| Notifications | Rungs 1 and 2 |
+| Start at boot | Re-arms alarms after a restart |
+| Battery exemption | Stops the system from delaying alarms |
+| Send SMS | Rung 4 only; requested when you turn it on |
+| Network | Home Wi-Fi sync only |
+| Microphone | Voice capture; requested on first use |
+
+The app requests no location, contacts, or storage-wide access.
+
+### Implementation notes
+
+- **Alarms.** Schedule rung 3 with `setAlarmClock()`. Android exempts it from Doze and shows it in the status bar.
+- **Exact alarm permission.** Declare `USE_EXACT_ALARM`. It is granted at install on Android 13 and newer. Play Store rules limiting it to alarm apps don't apply to a sideloaded build.
+- **Full-screen alerts.** On Android 14 and newer, this needs a one-time grant in system Settings. First-run setup walks you through it, along with the battery exemption.
+- **Licenses.** Private use only, so model licenses are not a constraint. The vendor rule still applies.
+
+## Build plan
+
+Version 0.1 is the smallest thing you could live on for two weeks and judge.
+
+**v0.1 — Live on it**
+
+- Launcher with the hybrid Board: Now card, Next peek, ledger line, app list
+- Anchors and floats, with daily, weekday, weekly, monthly, and yearly recurrence, including every-other options
+- Placement logic with reason lines, Auto priority, and skip reslot
+- Duration learning with a 30-minute default
+- Escalation rungs 0 to 3
+- Focus mode
+- Lapse recap with miss policies
+- Weekly recopy
+- Quick-add with the basic parser
+- Nightly JSON export
+
+**v0.2 — Close the loop**
+
+- Partner SMS rung
+- .ics import and export
+- Week view and archive browser
+- Rotating alert wording
+
+**v0.3 — Polish**
+
+- Font and theme options
+- Share target
+- Parser handles more phrasing
+- Optional per-item sounds
+
+**v0.4 — Desktop and voice**
+
+- Desktop counterpart app with the full board and editing
+- Phone and desktop sync over home Wi-Fi, no cloud
+- Voice capture with offline speech recognition
+
+After two weeks on v0.1, we review what got ignored, what annoyed you, and what saved you. That review sets v0.2.
+
+## Open questions
+
+- [ ] **Launcher base.** Fork Olauncher, or write a minimal launcher from scratch? A fork brings working gestures and app handling. Scratch keeps the codebase small and fully understood.
+- [ ] **Build setup.** Android Studio on your PC, or a GitHub Actions job that produces the APK? The first keeps everything local. The second needs no install.
+- [ ] **Partner rung.** Does your partner want Hard-wall texts, and for which anchors?
+- [ ] **Kids' lane.** Should the daughters' events get their own color or marker on the ledger line?
+- [ ] **Lapse threshold.** Is 24 hours right, or does a shorter window catch you sooner?
+- [ ] **Escalation timing.** Are the rung times and Soft's ceiling at rung 2 right?
+- [ ] **Sync conflicts.** When phone and desktop both edit one item between syncs, does the phone always win, or the latest edit?
+- [ ] **Name.** Initiative is a working title.

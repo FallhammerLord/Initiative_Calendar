@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A d20-ish diamond: the initiative order. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#000000"
+        android:pathData="M0,0h48v48h-48z" />
+    <path
+        android:fillColor="#FFC857"
+        android:pathData="M24,6 L40,24 L24,42 L8,24 Z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M24,14 L32,24 L24,34 L16,24 Z" />
+</vector>
