@@ -94,6 +94,14 @@ hide_keyboard() {
   fi
 }
 
+# Swipe up on the board; the drawer must open.
+open_drawer() {
+  hide_keyboard
+  adb shell input swipe 540 1700 540 500 250
+  sleep 2
+  see "Change home app" exact || fail "swipe up didn't open the app drawer"
+}
+
 crash_check() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash > "$OUT/crash.txt"
@@ -173,8 +181,7 @@ crash_check
 
 # --- Ways out to the normal phone ---------------------------------------------
 
-adb shell input swipe 540 1700 540 500 250
-sleep 2
+open_drawer
 expect_text "Change home app"
 shot app-drawer
 
@@ -182,16 +189,17 @@ tap "Phone settings" exact
 expect_front com.android.settings "Phone settings opens Settings"
 home
 expect_front $PKG "Home returns to the board from Settings"
+adb shell dumpsys input_method | grep -q "mInputShown=true" && fail "keyboard opened by itself on returning home"
+pass "keyboard stays closed on returning home"
+shot back-home
 
-adb shell input swipe 540 1700 540 500 250
-sleep 2
+open_drawer
 tap "Change home app" exact
 expect_front "com.android.settings|permissioncontroller" "Change home app opens the system chooser"
 shot home-chooser
 home
 
-adb shell input swipe 540 1700 540 500 250
-sleep 2
+open_drawer
 xy=$(find_node android.widget.EditText class) || fail "no app search field"
 adb shell input tap $xy
 sleep 1
@@ -224,8 +232,7 @@ expect_front $PKG "PIN unlock works and lands on the board"
 shot after-unlock
 
 # Switch it off: unlock should return to the last app instead.
-adb shell input swipe 540 1700 540 500 250
-sleep 2
+open_drawer
 xy=$(find_node "Board after unlock" exact) || fail "no board-after-unlock switch"
 y=${xy#* }
 adb shell input tap 980 "$y"

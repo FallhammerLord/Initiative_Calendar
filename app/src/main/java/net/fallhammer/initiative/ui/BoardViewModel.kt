@@ -83,6 +83,10 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val _pinned = MutableStateFlow<List<String>>(emptyList())
     val pinned: StateFlow<List<String>> = _pinned.asStateFlow()
 
+    private val _opened = MutableStateFlow(0)
+    /** Bumps each time the board comes to the front, so the screen can reset focus. */
+    val opened: StateFlow<Int> = _opened.asStateFlow()
+
     private val _unlock = MutableStateFlow(UnlockSetting())
     val unlock: StateFlow<UnlockSetting> = _unlock.asStateFlow()
 
@@ -104,6 +108,7 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun refresh() {
+        _opened.value += 1
         val now = LocalDateTime.now()
         clock.value = now
         _apps.value = apps.installed()

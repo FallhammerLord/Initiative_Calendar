@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,8 +50,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,7 +77,12 @@ fun BoardScreen(vm: BoardViewModel) {
     val apps by vm.appList.collectAsStateWithLifecycle()
     val pinned by vm.pinned.collectAsStateWithLifecycle()
     val unlock by vm.unlock.collectAsStateWithLifecycle()
+    val opened by vm.opened.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
+
+    // Coming back home should show the board, not an open keyboard.
+    LaunchedEffect(opened) { focus.clearFocus() }
 
     // Home screens never close on Back.
     BackHandler {
@@ -191,15 +200,22 @@ private fun NowCard(
 @Composable
 private fun BigButton(label: String, primary: Boolean = false, modifier: Modifier, onClick: () -> Unit) {
     val m = modifier.height(64.dp)
+    val pad = PaddingValues(horizontal = 6.dp)
     if (primary) {
-        Button(onClick = onClick, modifier = m, colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.bg)) {
-            Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Button(onClick = onClick, modifier = m, contentPadding = pad, colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.bg)) {
+            ButtonLabel(label, FontWeight.Bold)
         }
     } else {
-        OutlinedButton(onClick = onClick, modifier = m) {
-            Text(label, fontSize = 20.sp, color = Ink.text)
+        OutlinedButton(onClick = onClick, modifier = m, contentPadding = pad) {
+            ButtonLabel(label, FontWeight.Normal)
         }
     }
+}
+
+// One line, never broken mid-word.
+@Composable
+private fun ButtonLabel(label: String, weight: FontWeight) {
+    Text(label, fontSize = 19.sp, fontWeight = weight, maxLines = 1, softWrap = false, overflow = TextOverflow.Visible)
 }
 
 @Composable
