@@ -43,6 +43,9 @@ try:
 except Exception:
     sys.exit(1)
 for n in root.iter("node"):
+    # Text boxes echo what was typed; never treat them as labels.
+    if mode != "class" and n.get("class") == "android.widget.EditText":
+        continue
     vals = [n.get("class") or ""] if mode == "class" else [n.get("text") or "", n.get("content-desc") or ""]
     for v in vals:
         if (v == q) if mode in ("exact", "class") else (q in v):
