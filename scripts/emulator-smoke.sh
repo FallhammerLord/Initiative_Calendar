@@ -194,11 +194,30 @@ strict_check() {
   pid=$(adb shell pidof $PKG | tr -d '\r')
   [ -n "$pid" ] || return 0
   adb logcat -d --pid="$pid" -s StrictMode:D > "$OUT/strictmode.txt"
-  if grep -qE "DiskWriteViolation|NetworkViolation|LeakedClosableViolation|SqliteObjectLeakedViolation" "$OUT/strictmode.txt"; then
-    grep -E "Violation" "$OUT/strictmode.txt" | sort | uniq -c | head -20 | tee -a "$OUT/steps.log"
-    fail "StrictMode: main-thread write, network, or leaked handle (see strictmode.txt)"
-  fi
-  pass "StrictMode clean ($(grep -c DiskReadViolation "$OUT/strictmode.txt") main-thread reads noted)"
+  # A violation counts when its stack passes through app or library code. Ones
+  # raised entirely inside Android (such as its own window-surface cleanup) don't.
+  python3 - "$OUT/strictmode.txt" <<'PY' | tee -a "$OUT/steps.log" || fail "StrictMode: main-thread write, network, or leaked handle in app code (see strictmode.txt)"
+import re, sys
+SERIOUS = ("DiskWriteViolation", "NetworkViolation", "LeakedClosableViolation", "SqliteObjectLeakedViolation")
+PLATFORM = ("android.", "java.", "javax.", "libcore.", "com.android.", "dalvik.", "sun.", "jdk.internal.")
+blocks, cur = [], None
+for line in open(sys.argv[1], errors="replace"):
+    if "StrictMode policy violation" in line:
+        cur = {"kind": next((k for k in SERIOUS if k in line), None), "read": "DiskReadViolation" in line, "frames": []}
+        blocks.append(cur)
+    elif cur is not None:
+        m = re.search(r"\bat ([\w$.<>]+)\(", line)
+        if m:
+            cur["frames"].append(m.group(1))
+ours = [b for b in blocks if b["kind"] and any(not f.startswith(PLATFORM) for f in b["frames"])]
+for b in ours:
+    print("    ", b["kind"], "via", next(f for f in b["frames"] if not f.startswith(PLATFORM)))
+reads = sum(b["read"] for b in blocks)
+print(f"     StrictMode: {len(ours)} serious in app code, {reads} main-thread reads noted, "
+      f"{sum(1 for b in blocks if b['kind']) - len(ours)} inside Android only")
+sys.exit(1 if ours else 0)
+PY
+  pass "StrictMode clean"
 }
 
 # --- Setup -------------------------------------------------------------------

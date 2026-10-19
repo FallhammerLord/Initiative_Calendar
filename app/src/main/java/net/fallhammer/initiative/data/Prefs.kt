@@ -7,7 +7,13 @@ import android.provider.Settings
 
 /** Small per-device settings. */
 class Prefs(private val context: Context) {
-    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    // Opened lazily: the first open creates the file on disk, so InitiativeApp
+    // warms it on a background thread at startup.
+    private val prefs by lazy { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
+
+    fun warm() {
+        prefs.all
+    }
 
     /** Bring the board forward after every unlock. On by default. */
     var boardOnUnlock: Boolean

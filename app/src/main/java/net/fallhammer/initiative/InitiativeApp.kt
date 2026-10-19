@@ -9,6 +9,9 @@ import android.media.AudioManager
 import android.os.StrictMode
 import android.util.Log
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class InitiativeApp : Application() {
     lateinit var graph: AppGraph
@@ -18,6 +21,11 @@ class InitiativeApp : Application() {
         super.onCreate()
         watchMainThread()
         graph = AppGraph(this)
+        // Settings files are created on first open; keep that disk work off the main thread.
+        CoroutineScope(Dispatchers.IO).launch {
+            graph.prefs.warm()
+            graph.apps.warm()
+        }
         // Screen-off and unlock can't be caught from the manifest on Android 8+, so
         // the receiver lives as long as the app's process. Android keeps the home
         // app's process around, so this holds in practice. Both actions are

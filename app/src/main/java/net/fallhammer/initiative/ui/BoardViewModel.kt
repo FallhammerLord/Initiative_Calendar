@@ -124,14 +124,17 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
         _opened.value += 1
         val now = LocalDateTime.now()
         clock.value = now
-        val prefs = graph.prefs
-        _pinned.value = graph.apps.pinned()
-        _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
-        _setup.value = graph.setup.missing(prefs)
-        _lockCard.value = prefs.lockCard
-        // Reading every installed app is slow; keep it off the main thread.
+        // Settings files, permission checks, and the installed-app list all touch
+        // disk or system services, so they're read off the main thread.
         viewModelScope.launch {
-            _apps.value = withContext(Dispatchers.IO) { graph.apps.installed() }
+            withContext(Dispatchers.IO) {
+                val prefs = graph.prefs
+                _pinned.value = graph.apps.pinned()
+                _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
+                _setup.value = graph.setup.missing(prefs)
+                _lockCard.value = prefs.lockCard
+                _apps.value = graph.apps.installed()
+            }
         }
         if (instancesFor != now.toLocalDate()) {
             instancesFor = now.toLocalDate()

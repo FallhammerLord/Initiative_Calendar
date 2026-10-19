@@ -11,7 +11,12 @@ data class AppEntry(val label: String, val component: ComponentName) {
 
 /** Installed apps for the drawer, and the pinned row kept in preferences. */
 class Apps(private val context: Context) {
-    private val prefs = context.getSharedPreferences("apps", Context.MODE_PRIVATE)
+    private val prefs by lazy { context.getSharedPreferences("apps", Context.MODE_PRIVATE) }
+
+    /** Opens the pinned-apps file off the main thread; see [Prefs.warm]. */
+    fun warm() {
+        prefs.all
+    }
 
     fun installed(): List<AppEntry> {
         val pm = context.packageManager

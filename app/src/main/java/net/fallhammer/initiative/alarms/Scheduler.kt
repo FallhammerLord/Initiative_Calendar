@@ -9,8 +9,10 @@ import android.util.Log
 import initiative.core.AlarmState
 import initiative.core.Escalation
 import initiative.core.Status
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import net.fallhammer.initiative.TAG
 import net.fallhammer.initiative.graph
 import net.fallhammer.initiative.data.EventRow
@@ -27,7 +29,11 @@ import java.time.LocalDateTime
 object Scheduler {
     private val lock = Mutex()
 
-    suspend fun sync(context: Context) = lock.withLock {
+    // Runs on a background thread wherever it's called from: it reads the
+    // database and settings, and talks to the alarm and notification services.
+    suspend fun sync(context: Context) = withContext(Dispatchers.IO) { lock.withLock { syncLocked(context) } }
+
+    private suspend fun syncLocked(context: Context) {
         val app = context.applicationContext
         val graph = app.graph
         val dao = graph.dao
