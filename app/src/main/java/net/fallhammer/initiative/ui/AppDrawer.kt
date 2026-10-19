@@ -19,6 +19,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +46,8 @@ import net.fallhammer.initiative.data.AppEntry
 fun AppDrawer(
     apps: List<AppEntry>,
     pinned: List<String>,
+    unlock: UnlockSetting,
+    onBoardOnUnlock: (Boolean) -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onSettings: () -> Unit,
@@ -92,6 +96,14 @@ fun AppDrawer(
                         .padding(vertical = 12.dp),
                 )
             }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Board after unlock", fontSize = 18.sp, color = Ink.text, modifier = Modifier.weight(1f))
+            Switch(
+                checked = unlock.enabled,
+                onCheckedChange = onBoardOnUnlock,
+                colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.bg),
+            )
         }
         Text("Hold an app to pin it to the board.", fontSize = 14.sp, color = Ink.dim)
     }

@@ -10,7 +10,7 @@ It is built for a brain where sustained routine engagement is unreliable. So the
 
 Design rules:
 
-- **Presence through placement.** It lives on the home screen, so every unlock shows the board.
+- **Presence through placement.** It lives on the home screen and comes forward after every unlock, so you see the board each time you pick up the phone. The system lock screen stays as it is.
 - **Interrupt rarely, and only when it matters.** Fixed commitments can interrupt. Flexible tasks never do.
 - **No guilt state.** No overdue counters, red badges, or streaks.
 - **One thing at a time.** The board shows one card. Everything else is one tap or swipe away.
@@ -95,6 +95,8 @@ Top to bottom:
 3. **Ledger line.** A single line pinned near the bottom that shows the day: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. Tapping it expands to the full day queue.
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
 5. **Apps.** Swipe up for the app list. A short row of pinned apps sits at the bottom.
+
+**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board comes forward after every unlock instead, except during a call. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is at the bottom of the app drawer.
 
 Swipe left for the full queue and a week view. Those views exist for planning and are never required.
 
@@ -245,6 +247,7 @@ All data lives in one local SQLite database. It leaves the phone only as files y
 | Start at boot | Re-arms alarms after a restart |
 | Battery exemption | Stops the system from delaying alarms |
 | Send SMS | Rung 4 only; requested when you turn it on |
+| Display over other apps | Board after unlock |
 | Network | Home Wi-Fi sync only |
 | Microphone | Voice capture; requested on first use |
 

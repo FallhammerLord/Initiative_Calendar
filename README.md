@@ -17,6 +17,7 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 
 - Registers as a home app, with an app drawer, search, pinned apps, and exits to phone Settings and the home-app chooser
 - The board: Now card with Done / Skip / Tomorrow, the reason line, Next peek, ledger line that expands into the day queue
+- Board after unlock (switch in the app drawer)
 - Quick-add with the rule-based parser, including "Anchor or float?" chips
 - Placement, Auto priority, skip reslot, recurrence instances, duration learning
 

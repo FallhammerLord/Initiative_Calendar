@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import net.fallhammer.initiative.data.AppEntry
 import net.fallhammer.initiative.data.Apps
 import net.fallhammer.initiative.data.InitiativeDb
+import net.fallhammer.initiative.data.Prefs
 import net.fallhammer.initiative.data.Repository
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -36,11 +37,17 @@ data class BoardUi(
     val window: DayWindow = DayWindow(),
 )
 
+/** Board on unlock: whether it's switched on, and whether Android allows it yet. */
+data class UnlockSetting(val enabled: Boolean = true, val permitted: Boolean = true) {
+    val needsPermission: Boolean get() = enabled && !permitted
+}
+
 class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val window = DayWindow()
     private val placement = Placement(window)
     private val repo = Repository(InitiativeDb.get(app).items(), placement)
     private val apps = Apps(app)
+    private val prefs = Prefs(app)
 
     private val clock = MutableStateFlow(LocalDateTime.now())
     private var items: List<Item> = emptyList()
@@ -76,6 +83,9 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val _pinned = MutableStateFlow<List<String>>(emptyList())
     val pinned: StateFlow<List<String>> = _pinned.asStateFlow()
 
+    private val _unlock = MutableStateFlow(UnlockSetting())
+    val unlock: StateFlow<UnlockSetting> = _unlock.asStateFlow()
+
     init {
         viewModelScope.launch {
             while (true) {
@@ -98,6 +108,7 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
         clock.value = now
         _apps.value = apps.installed()
         _pinned.value = apps.pinned()
+        _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
         if (instancesFor != now.toLocalDate()) {
             instancesFor = now.toLocalDate()
             viewModelScope.launch { repo.ensureInstances(now) }
@@ -149,6 +160,13 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
         apps.togglePin(entry)
         _pinned.value = apps.pinned()
     }
+
+    fun setBoardOnUnlock(on: Boolean) {
+        prefs.boardOnUnlock = on
+        _unlock.value = _unlock.value.copy(enabled = on)
+    }
+
+    fun grantUnlockPermission() = prefs.openJumpPermission()
 
     fun openSettings() = apps.openSettings()
     fun openHomeChooser() = apps.openHomeChooser()

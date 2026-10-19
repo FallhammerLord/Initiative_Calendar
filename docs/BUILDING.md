@@ -12,12 +12,15 @@ GitHub builds the app for you on every push. You don't need Android Studio for t
 5. **Make it your home screen.** Press the Home button. Android asks which home app to use; pick **Initiative** and choose **Always**.
    If it doesn't ask: **Settings → Apps → Default apps → Home app → Initiative**.
 
+6. **Let the board appear after unlock.** The board shows a yellow line asking for "Display over other apps". Tap it, switch Initiative on, and press Back. Without this, unlocking returns you to whatever app was open, as usual.
+
 ## Getting back to the normal phone
 
 - Swipe up on the board, or tap **Apps**, for every app you have installed.
 - **Phone settings** opens the system Settings app.
 - **Change home app** opens the screen where you pick your old launcher again. Use it if anything goes wrong.
-- The lock screen doesn't change. Initiative replaces the home screen only, which is what you see after you unlock.
+- The lock screen doesn't change. Your pattern still unlocks the phone, and the board appears after.
+- **Board after unlock** has an on/off switch at the bottom of the app drawer.
 
 ## Updating
 

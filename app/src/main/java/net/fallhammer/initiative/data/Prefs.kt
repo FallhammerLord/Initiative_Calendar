@@ -1,0 +1,32 @@
+package net.fallhammer.initiative.data
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+
+/** Small per-device settings. */
+class Prefs(private val context: Context) {
+    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    /** Bring the board forward after every unlock. On by default. */
+    var boardOnUnlock: Boolean
+        get() = prefs.getBoolean(BOARD_ON_UNLOCK, true)
+        set(value) = prefs.edit().putBoolean(BOARD_ON_UNLOCK, value).apply()
+
+    /**
+     * Android blocks background apps from opening a screen. "Display over other
+     * apps" is the permission that lifts that block for the board-on-unlock jump.
+     */
+    fun canJumpToBoard(): Boolean = Settings.canDrawOverlays(context)
+
+    fun openJumpPermission() {
+        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+    }
+
+    private companion object {
+        const val BOARD_ON_UNLOCK = "boardOnUnlock"
+    }
+}

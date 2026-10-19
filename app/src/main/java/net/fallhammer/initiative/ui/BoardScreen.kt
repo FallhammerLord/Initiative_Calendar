@@ -72,6 +72,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val drawerOpen by vm.drawerOpen.collectAsStateWithLifecycle()
     val apps by vm.appList.collectAsStateWithLifecycle()
     val pinned by vm.pinned.collectAsStateWithLifecycle()
+    val unlock by vm.unlock.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
 
     // Home screens never close on Back.
@@ -113,6 +114,11 @@ fun BoardScreen(vm: BoardViewModel) {
                     onCancel = vm::cancelAsk,
                 )
             }
+            if (unlock.needsPermission) {
+                TextButton(onClick = vm::grantUnlockPermission, modifier = Modifier.fillMaxWidth()) {
+                    Text("Tap to let the board appear after you unlock. Allow “Display over other apps”.", fontSize = 16.sp, color = Ink.accent)
+                }
+            }
             QuickAdd(onSubmit = vm::submit)
             PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
             TextButton(onClick = { vm.setDrawer(true) }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -128,6 +134,8 @@ fun BoardScreen(vm: BoardViewModel) {
             AppDrawer(
                 apps = apps,
                 pinned = pinned,
+                unlock = unlock,
+                onBoardOnUnlock = vm::setBoardOnUnlock,
                 onLaunch = vm::launch,
                 onTogglePin = vm::togglePin,
                 onSettings = vm::openSettings,
