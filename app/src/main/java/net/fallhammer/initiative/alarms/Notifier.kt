@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import initiative.core.AlarmState
@@ -19,6 +20,7 @@ import initiative.core.Rung
 import initiative.core.WallStrength
 import net.fallhammer.initiative.MainActivity
 import net.fallhammer.initiative.R
+import net.fallhammer.initiative.TAG
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -73,7 +75,10 @@ object Notifier {
     @SuppressLint("MissingPermission")
     fun showCard(context: Context, board: Board) {
         val nm = NotificationManagerCompat.from(context)
-        if (!nm.areNotificationsEnabled()) return
+        if (!nm.areNotificationsEnabled()) {
+            Log.i(TAG, "card skipped: notifications are off")
+            return
+        }
         val now = board.now.item
         val next = board.next
         val b = NotificationCompat.Builder(context, CH_CARD)
@@ -95,6 +100,7 @@ object Notifier {
             b.setShowWhen(false)
         }
         nm.notify(CARD_ID, b.build())
+        Log.i(TAG, "card: ${now?.title ?: "Free time"}")
     }
 
     fun hideCard(context: Context) = NotificationManagerCompat.from(context).cancel(CARD_ID)
@@ -102,7 +108,10 @@ object Notifier {
     @SuppressLint("MissingPermission")
     fun showRung(context: Context, anchor: Item, rung: Rung, state: AlarmState, now: LocalDateTime) {
         val nm = NotificationManagerCompat.from(context)
-        if (!nm.areNotificationsEnabled()) return
+        if (!nm.areNotificationsEnabled()) {
+            Log.w(TAG, "rung ${rung.level} for ${anchor.title} not shown: notifications are off")
+            return
+        }
         val start = anchor.start ?: return
         val mins = Duration.between(now, start).toMinutes().coerceAtLeast(0)
         val (channel, title) = when (rung) {

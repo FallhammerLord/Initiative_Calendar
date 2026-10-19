@@ -21,6 +21,7 @@ fail() {
   log "FAIL: $*"
   log "--- app log ---"
   adb logcat -d -s Initiative:V | tail -20 | tee -a "$OUT/steps.log"
+  adb shell dumpsys notification --noredact > "$OUT/notifications.txt"
   adb exec-out screencap -p > "$OUT/zz-failure.png"
   ui > "$OUT/zz-failure-ui.xml" || true
   adb logcat -d > "$OUT/logcat.txt"
@@ -133,12 +134,12 @@ unlock_with_pin() {
   fail "PIN didn't unlock the phone"
 }
 
-# Active notifications only (dumpsys also keeps recently removed ones).
-notifications() { adb shell dumpsys notification --noredact | sed -n '/Notification List:/,/^ *mArchive/p'; }
+# Active notifications only. dumpsys also lists recently removed ones further down.
+notifications() { adb shell dumpsys notification --noredact | sed -n '/Notification List:/,/Archive/p'; }
 
 expect_notification() {
   for _ in 1 2 3 4 5; do
-    notifications | grep -q "$1" && { pass "$2"; return; }
+    adb shell dumpsys notification --noredact | grep -q "$1" && { pass "$2"; return; }
     sleep 1
   done
   fail "$2 (no notification with '$1')"
