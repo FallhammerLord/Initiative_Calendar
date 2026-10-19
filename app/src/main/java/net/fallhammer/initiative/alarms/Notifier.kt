@@ -37,6 +37,10 @@ object Notifier {
 
     fun rungId(itemId: Long): Int = 1000 + (itemId % 1_000_000).toInt()
 
+    // Rung 3 gets its own notification: Android only opens a full-screen alarm
+    // for a newly posted notification, never for an update to the nudge.
+    private fun alarmId(itemId: Long): Int = 2_000_000 + (itemId % 1_000_000).toInt()
+
     fun ensureChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         fun channel(id: String, name: String, importance: Int, setup: NotificationChannel.() -> Unit = {}) =
@@ -135,11 +139,20 @@ object Notifier {
         if (rung == Rung.ALARM) b.setFullScreenIntent(AlarmActivity.pending(context, anchor.id), true)
         val n = b.build()
         // The alarm sound repeats until On it or Snooze.
-        if (rung == Rung.ALARM) n.flags = n.flags or Notification.FLAG_INSISTENT
-        nm.notify(rungId(anchor.id), n)
+        if (rung == Rung.ALARM) {
+            n.flags = n.flags or Notification.FLAG_INSISTENT
+            nm.cancel(rungId(anchor.id))
+            nm.notify(alarmId(anchor.id), n)
+        } else {
+            nm.notify(rungId(anchor.id), n)
+        }
     }
 
-    fun cancelRung(context: Context, itemId: Long) = NotificationManagerCompat.from(context).cancel(rungId(itemId))
+    fun cancelRung(context: Context, itemId: Long) {
+        val nm = NotificationManagerCompat.from(context)
+        nm.cancel(rungId(itemId))
+        nm.cancel(alarmId(itemId))
+    }
 
     fun openBoard(context: Context): PendingIntent = PendingIntent.getActivity(
         context,
