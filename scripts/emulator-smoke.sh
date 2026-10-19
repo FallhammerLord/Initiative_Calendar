@@ -15,6 +15,28 @@ log() { echo "$*" | tee -a "$OUT/steps.log"; }
 shot() {
   STEP=$((STEP + 1))
   adb exec-out screencap -p > "$OUT/$(printf %02d $STEP)-$1.png"
+  a11y_sweep "$1"
+}
+
+# Every tappable element of ours must carry something TalkBack can read: its
+# own text, a description, a hint, or text inside it. Runs at every screenshot.
+a11y_sweep() {
+  ui > "$OUT/a11y.xml"
+  python3 - "$OUT/a11y.xml" "$PKG" <<'PY' || fail "unlabelled control on '$1' (see above)"
+import sys, xml.etree.ElementTree as ET
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except Exception:
+    sys.exit(0)  # no dump (lock screen, transition): nothing to check
+pkg = sys.argv[2]
+def spoken(n):
+    return any((m.get(a) or "").strip() for m in n.iter("node") for a in ("text", "content-desc", "hint"))
+bad = [n for n in root.iter("node")
+       if n.get("package") == pkg and (n.get("clickable") == "true" or n.get("long-clickable") == "true") and not spoken(n)]
+for n in bad:
+    print("    unlabelled", n.get("class"), n.get("bounds"))
+sys.exit(1 if bad else 0)
+PY
 }
 
 fail() {
@@ -161,6 +183,22 @@ crash_check() {
     fail "app crashed (see crash.txt)"
   fi
   pass "no crashes so far"
+  strict_check
+}
+
+# StrictMode logs main-thread disk and network work. Writes, network, and leaked
+# database or file handles fail the run; disk reads are counted for review, since
+# Android itself reads fonts and settings on the main thread at startup.
+strict_check() {
+  local pid
+  pid=$(adb shell pidof $PKG | tr -d '\r')
+  [ -n "$pid" ] || return 0
+  adb logcat -d --pid="$pid" -s StrictMode:D > "$OUT/strictmode.txt"
+  if grep -qE "DiskWriteViolation|NetworkViolation|LeakedClosableViolation|SqliteObjectLeakedViolation" "$OUT/strictmode.txt"; then
+    grep -E "Violation" "$OUT/strictmode.txt" | sort | uniq -c | head -20 | tee -a "$OUT/steps.log"
+    fail "StrictMode: main-thread write, network, or leaked handle (see strictmode.txt)"
+  fi
+  pass "StrictMode clean ($(grep -c DiskReadViolation "$OUT/strictmode.txt") main-thread reads noted)"
 }
 
 # --- Setup -------------------------------------------------------------------

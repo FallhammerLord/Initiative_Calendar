@@ -20,6 +20,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Design guard
+        run: bash scripts/design-guard.sh
+
       - name: Test the scheduling engine
         run: ./gradlew -p core test
 

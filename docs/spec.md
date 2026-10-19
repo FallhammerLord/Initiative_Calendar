@@ -266,6 +266,8 @@ The app requests no location, contacts, or storage-wide access.
 
 Three rule sets every change follows. Under each, the checklist names the gaps found in the October audit; ticked items are closed. Where the pieces live: tokens and components in `app/.../ui/Design.kt`, colors and font in `Theme.kt`, formatters in `core/.../Formats.kt`, wording in `res/values/strings.xml`, services in `AppGraph.kt`, versions in `gradle/libs.versions.toml`.
 
+**Guards.** CI enforces what it can: `scripts/design-guard.sh` blocks hand-set sizes, colors, shapes, wording, time formats, and services outside their one home; the emulator test sweeps every screen it visits for unlabelled controls and fails on StrictMode main-thread writes, network use, or leaked handles. `CLAUDE.md` carries the rest for any future session.
+
 ### Android engineering
 
 - **Layers.** Screens talk to a ViewModel, the ViewModel to the repository, the repository to the database. Scheduling rules stay in `core/`, with no Android code.

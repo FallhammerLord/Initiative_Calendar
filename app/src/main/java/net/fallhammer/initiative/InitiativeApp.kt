@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.os.StrictMode
 import android.util.Log
 import androidx.core.content.ContextCompat
 
@@ -15,6 +16,7 @@ class InitiativeApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        watchMainThread()
         graph = AppGraph(this)
         // Screen-off and unlock can't be caught from the manifest on Android 8+, so
         // the receiver lives as long as the app's process. Android keeps the home
@@ -27,6 +29,23 @@ class InitiativeApp : Application() {
         ContextCompat.registerReceiver(this, UnlockReceiver(), filter, ContextCompat.RECEIVER_EXPORTED)
         Log.i(TAG, "board-on-unlock receiver registered")
     }
+}
+
+/*
+ * StrictMode reports disk, network, and leaked-handle problems to the log. It
+ * only logs, never crashes, so it costs nothing until something goes wrong;
+ * the emulator test reads these lines and fails on the serious ones.
+ */
+private fun watchMainThread() {
+    StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build())
+    StrictMode.setVmPolicy(
+        StrictMode.VmPolicy.Builder()
+            .detectLeakedClosableObjects()
+            .detectLeakedSqlLiteObjects()
+            .detectLeakedRegistrationObjects()
+            .penaltyLog()
+            .build(),
+    )
 }
 
 const val TAG = "Initiative"
