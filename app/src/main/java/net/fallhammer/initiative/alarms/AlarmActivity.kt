@@ -85,14 +85,14 @@ class AlarmActivity : ComponentActivity() {
             )
             Spacer(Modifier.height(48.dp))
             Button(
-                onClick = { act { AlarmActions.onIt(this, item.id) } },
+                onClick = { act { AlarmActions.onIt(this@AlarmActivity, item.id) } },
                 modifier = Modifier.fillMaxWidth().height(88.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.bg),
             ) { Text("On it", fontSize = 28.sp, fontWeight = FontWeight.Bold) }
             if (left > 0) {
                 Spacer(Modifier.height(16.dp))
                 OutlinedButton(
-                    onClick = { act { AlarmActions.snooze(this, item.id) } },
+                    onClick = { act { AlarmActions.snooze(this@AlarmActivity, item.id) } },
                     modifier = Modifier.fillMaxWidth().height(72.dp),
                 ) { Text("Snooze 5 min ($left left)", fontSize = 22.sp, color = Ink.text) }
             }
