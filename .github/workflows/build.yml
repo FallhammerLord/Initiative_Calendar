@@ -112,3 +112,12 @@ jobs:
           files: |
             initiative-${{ github.run_number }}.apk
             screens-${{ github.run_number }}.zip
+
+      # A passing release supersedes earlier failed-test entries.
+      - name: Clear out failed test releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --repo "${{ github.repository }}" --limit 100 --json tagName --jq '.[].tagName' \
+            | { grep '^failed-' || true; } \
+            | while read -r tag; do gh release delete "$tag" --repo "${{ github.repository }}" --cleanup-tag --yes; done
