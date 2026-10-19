@@ -5,11 +5,15 @@ import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import initiative.core.AlarmState
 import initiative.core.Effort
 import initiative.core.Freq
 import initiative.core.Item
@@ -76,6 +80,25 @@ data class RunRow(
     val at: String,
 )
 
+/** Escalation progress for one anchor. */
+@Entity(tableName = "alarms")
+data class AlarmRow(
+    @PrimaryKey val itemId: Long,
+    val ackedAt: String?,
+    val snoozes: Int,
+    val snoozedUntil: String?,
+    val lastRung: Int,
+)
+
+fun AlarmRow.toState() = AlarmState(
+    ackedAt = ackedAt?.let(LocalDateTime::parse),
+    snoozes = snoozes,
+    snoozedUntil = snoozedUntil?.let(LocalDateTime::parse),
+    lastRung = lastRung,
+)
+
+fun AlarmState.toRow(itemId: Long) = AlarmRow(itemId, ackedAt?.toString(), snoozes, snoozedUntil?.toString(), lastRung)
+
 @Dao
 interface ItemDao {
     @Query("SELECT * FROM items")
@@ -107,17 +130,39 @@ interface ItemDao {
 
     @Query("SELECT minutes FROM runs WHERE titleKey = :key ORDER BY id DESC LIMIT 10")
     suspend fun recentRuns(key: String): List<Int>
+
+    @Query("SELECT * FROM items WHERE id = :id")
+    suspend fun byId(id: Long): ItemRow?
+
+    @Query("SELECT * FROM alarms")
+    suspend fun alarms(): List<AlarmRow>
+
+    @Query("SELECT * FROM alarms WHERE itemId = :id")
+    suspend fun alarm(id: Long): AlarmRow?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putAlarm(row: AlarmRow)
 }
 
-@Database(entities = [ItemRow::class, EventRow::class, RunRow::class], version = 1, exportSchema = false)
+@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 2, exportSchema = false)
 abstract class InitiativeDb : RoomDatabase() {
     abstract fun items(): ItemDao
 
     companion object {
         @Volatile private var instance: InitiativeDb? = null
 
+        private val ADD_ALARMS = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `alarms` (`itemId` INTEGER NOT NULL, `ackedAt` TEXT, " +
+                        "`snoozes` INTEGER NOT NULL, `snoozedUntil` TEXT, `lastRung` INTEGER NOT NULL, PRIMARY KEY(`itemId`))",
+                )
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
+                .addMigrations(ADD_ALARMS)
                 .build()
                 .also { instance = it }
         }

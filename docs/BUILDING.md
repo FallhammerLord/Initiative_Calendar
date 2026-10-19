@@ -14,7 +14,12 @@ Before a build becomes a release, GitHub installs it on an Android emulator as t
 5. **Make it your home screen.** Press the Home button. Android asks which home app to use; pick **Initiative** and choose **Always**.
    If it doesn't ask: **Settings → Apps → Default apps → Home app → Initiative**.
 
-6. **Let the board appear after unlock.** The board shows a yellow line asking for "Display over other apps". Tap it, switch Initiative on, and press Back. Without this, unlocking returns you to whatever app was open, as usual.
+6. **Work through the setup line.** A yellow line above the quick-add box shows one permission at a time. Tap it, switch Initiative on in the screen that opens, and press Back. The next one appears until all are done:
+   - **Notifications**, for alarms and the lock-screen card
+   - **Alarms on the minute** (most phones grant this already, so it may not appear)
+   - **Full-screen alarms**, so Firm and Hard walls can wake the screen
+   - **Battery**: choose **Allow**, so battery saving can't delay alarms
+   - **Display over other apps**, so the board appears after you unlock
 
 ## Getting back to the normal phone
 

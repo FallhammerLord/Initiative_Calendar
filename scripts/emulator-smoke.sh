@@ -133,6 +133,23 @@ unlock_with_pin() {
   fail "PIN didn't unlock the phone"
 }
 
+# Active notifications only (dumpsys also keeps recently removed ones).
+notifications() { adb shell dumpsys notification --noredact | sed -n '/Notification List:/,/^ *mArchive/p'; }
+
+expect_notification() {
+  for _ in 1 2 3 4 5; do
+    notifications | grep -q "$1" && { pass "$2"; return; }
+    sleep 1
+  done
+  fail "$2 (no notification with '$1')"
+}
+
+# Jump the emulator clock to HHMM today. The app re-arms on clock changes.
+set_clock() {
+  adb shell date "$(date -u +%m%d)$1$(date -u +%Y).00" > /dev/null
+  sleep 4
+}
+
 crash_check() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash > "$OUT/crash.txt"
@@ -167,13 +184,17 @@ pass "set as home app"
 home
 expect_front $PKG "Home opens the board"
 expect_text "Free time"
-expect_text "Display over other apps"
+expect_text "Setup:"
 shot board-first-run
 
+# Grant what a person grants through the setup line.
+adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow
+adb shell appops set $PKG USE_FULL_SCREEN_INTENT allow
+adb shell dumpsys deviceidle whitelist +$PKG > /dev/null
 home
-see "Display over other apps" && fail "permission prompt still showing after grant"
-pass "permission prompt clears once granted"
+if see "Setup:"; then fail "setup line still showing after every grant"; fi
+pass "setup line clears once everything is granted"
 
 quick_add "call landlord"
 quick_add "taxes by fri high"
@@ -182,6 +203,7 @@ expect_text "taxes"
 expect_text "High priority"
 expect_text "Next: call landlord"
 shot two-floats
+expect_notification "Now: taxes" "lock-screen card shows the Now card"
 
 tap Skip exact
 expect_text "Back at"
@@ -272,6 +294,37 @@ unlock_with_pin
 expect_front com.android.settings "With the switch off, unlock returns to the last app"
 adb shell locksettings clear --old 1234 > /dev/null
 home
+crash_check
+
+# --- Alarms ---------------------------------------------------------------------
+
+quick_add "dentist 12:40pm hard"
+hide_keyboard
+expect_text "Next: dentist"
+set_clock 1226
+expect_notification "dentist in" "rung 1: quiet notice at lead time"
+set_clock 1236
+expect_notification "Time to move" "rung 2: nudge 5 minutes before"
+shot nudge
+adb shell input keyevent KEYCODE_SLEEP
+sleep 2
+set_clock 1240
+expect_front AlarmActivity "rung 3: full-screen alarm over the lock screen"
+shot alarm-screen
+expect_text "Snooze 5 min (1 left)"
+tap "On it" exact
+sleep 2
+adb logcat -d -s Initiative:V | grep -q "on it: dentist" || fail "On it didn't register"
+resumed | grep -q AlarmActivity && fail "alarm screen still up after On it"
+if notifications | grep -q "dentist now"; then fail "alarm notification still up after On it"; fi
+pass "On it stops the alarm"
+adb shell input keyevent KEYCODE_WAKEUP
+adb shell wm dismiss-keyguard
+sleep 2
+set_clock 1311
+if notifications | grep -q "dentist"; then fail "dentist notifications linger after it ended"; fi
+pass "ended anchor clears"
+adb logcat -d -s Initiative:V | tail -12 | tee -a "$OUT/steps.log"
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"

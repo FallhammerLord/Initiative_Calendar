@@ -24,6 +24,10 @@ import net.fallhammer.initiative.data.AppEntry
 import net.fallhammer.initiative.data.Apps
 import net.fallhammer.initiative.data.InitiativeDb
 import net.fallhammer.initiative.data.Prefs
+import net.fallhammer.initiative.data.Setup
+import net.fallhammer.initiative.data.SetupStep
+import net.fallhammer.initiative.alarms.Scheduler
+import kotlinx.coroutines.flow.conflate
 import net.fallhammer.initiative.data.Repository
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -38,9 +42,7 @@ data class BoardUi(
 )
 
 /** Board on unlock: whether it's switched on, and whether Android allows it yet. */
-data class UnlockSetting(val enabled: Boolean = true, val permitted: Boolean = true) {
-    val needsPermission: Boolean get() = enabled && !permitted
-}
+data class UnlockSetting(val enabled: Boolean = true, val permitted: Boolean = true)
 
 class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val window = DayWindow()
@@ -48,6 +50,7 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = Repository(InitiativeDb.get(app).items(), placement)
     private val apps = Apps(app)
     private val prefs = Prefs(app)
+    private val setupCheck = Setup(app)
 
     private val clock = MutableStateFlow(LocalDateTime.now())
     private var items: List<Item> = emptyList()
@@ -90,6 +93,13 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val _unlock = MutableStateFlow(UnlockSetting())
     val unlock: StateFlow<UnlockSetting> = _unlock.asStateFlow()
 
+    private val _setup = MutableStateFlow<List<SetupStep>>(emptyList())
+    /** Permissions still to grant, in order. */
+    val setup: StateFlow<List<SetupStep>> = _setup.asStateFlow()
+
+    private val _lockCard = MutableStateFlow(true)
+    val lockCard: StateFlow<Boolean> = _lockCard.asStateFlow()
+
     init {
         viewModelScope.launch {
             while (true) {
@@ -104,6 +114,10 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
                 if (f.kind == Kind.FLOAT && f.activeSince == null) repo.markActive(f, u.now)
             }
         }
+        // Any change to the data re-arms alarms and refreshes the lock-screen card.
+        viewModelScope.launch {
+            repo.items.conflate().collect { Scheduler.sync(getApplication<Application>()) }
+        }
         refresh()
     }
 
@@ -114,6 +128,8 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
         _apps.value = apps.installed()
         _pinned.value = apps.pinned()
         _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
+        _setup.value = setupCheck.missing(prefs)
+        _lockCard.value = prefs.lockCard
         if (instancesFor != now.toLocalDate()) {
             instancesFor = now.toLocalDate()
             viewModelScope.launch { repo.ensureInstances(now) }
@@ -169,9 +185,16 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     fun setBoardOnUnlock(on: Boolean) {
         prefs.boardOnUnlock = on
         _unlock.value = _unlock.value.copy(enabled = on)
+        _setup.value = setupCheck.missing(prefs)
     }
 
-    fun grantUnlockPermission() = prefs.openJumpPermission()
+    fun setLockCard(on: Boolean) {
+        prefs.lockCard = on
+        _lockCard.value = on
+        viewModelScope.launch { Scheduler.sync(getApplication<Application>()) }
+    }
+
+    fun openSetup(step: SetupStep) = setupCheck.open(step)
 
     fun openSettings() = apps.openSettings()
     fun openHomeChooser() = apps.openHomeChooser()

@@ -77,6 +77,8 @@ fun BoardScreen(vm: BoardViewModel) {
     val apps by vm.appList.collectAsStateWithLifecycle()
     val pinned by vm.pinned.collectAsStateWithLifecycle()
     val unlock by vm.unlock.collectAsStateWithLifecycle()
+    val setup by vm.setup.collectAsStateWithLifecycle()
+    val lockCard by vm.lockCard.collectAsStateWithLifecycle()
     val opened by vm.opened.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
@@ -123,9 +125,10 @@ fun BoardScreen(vm: BoardViewModel) {
                     onCancel = vm::cancelAsk,
                 )
             }
-            if (unlock.needsPermission) {
-                TextButton(onClick = vm::grantUnlockPermission, modifier = Modifier.fillMaxWidth()) {
-                    Text("Tap to let the board appear after you unlock. Allow “Display over other apps”.", fontSize = 16.sp, color = Ink.accent)
+            // One setup step at a time, until all are done.
+            setup.firstOrNull()?.let { step ->
+                TextButton(onClick = { vm.openSetup(step) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(step.text, fontSize = 16.sp, color = Ink.accent)
                 }
             }
             QuickAdd(onSubmit = vm::submit)
@@ -145,6 +148,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 pinned = pinned,
                 unlock = unlock,
                 onBoardOnUnlock = vm::setBoardOnUnlock,
+                lockCard = lockCard,
+                onLockCard = vm::setLockCard,
                 onLaunch = vm::launch,
                 onTogglePin = vm::togglePin,
                 onSettings = vm::openSettings,

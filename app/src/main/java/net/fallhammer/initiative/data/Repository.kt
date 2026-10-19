@@ -78,7 +78,7 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         update(item, item.copy(status = Status.ACTIVE, activeSince = now))
     }
 
-    private suspend fun update(old: Item, new: Item, note: String = "") {
+    suspend fun update(old: Item, new: Item, note: String = "") {
         dao.update(new.toRow())
         if (old.status != new.status || note.isNotEmpty()) {
             dao.insertEvent(

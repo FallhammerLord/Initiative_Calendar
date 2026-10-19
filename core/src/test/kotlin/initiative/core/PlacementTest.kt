@@ -102,6 +102,13 @@ class PlacementTest {
         assertEquals("Skipped 2 times, moved up", b.now.reason)
     }
 
+    @Test fun nextChangeIsTheNextBoundary() {
+        assertEquals(at(14, 45), engine.nextChange(listOf(pickup), at(14)))
+        assertEquals(at(15), engine.nextChange(listOf(pickup), at(14, 50)))
+        assertEquals(at(11), engine.nextChange(emptyList(), at(10)))
+        assertEquals(at(22), engine.nextChange(emptyList(), at(21, 30)))
+    }
+
     @Test fun ledgerMarksWallsAndDone() {
         val done = float(2, "call").copy(status = Status.DONE, doneAt = at(9))
         val marks = engine.ledger(listOf(pickup, done), day)

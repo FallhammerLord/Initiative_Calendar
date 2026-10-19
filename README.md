@@ -19,9 +19,12 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 - Registers as a home app, with an app drawer, search, pinned apps, and exits to phone Settings and the home-app chooser
 - The board: Now card with Done / Skip / Tomorrow, the reason line, Next peek, ledger line that expands into the day queue
 - Board after unlock (switch in the app drawer)
+- Alarms: the escalation ladder, rungs 1 to 3, with On it and Snooze, a full-screen alarm over the lock screen, and re-arming after a restart
+- Lock-screen card: a silent Now card with a live countdown to the next anchor (switch in the app drawer)
+- A setup line on the board that walks through each permission
 - Quick-add with the rule-based parser, including "Anchor or float?" chips
 - Placement, Auto priority, skip reslot, recurrence instances, duration learning
 
-Not yet (next pass): alarms, the escalation ladder, and the lock-screen card. After that: focus mode, lapse recap, weekly recopy, editing form, nightly export.
+Not yet: focus mode, lapse recap, weekly recopy, editing form, nightly export.
 
 Font: Atkinson Hyperlegible, SIL Open Font License ([docs/OFL-AtkinsonHyperlegible.txt](docs/OFL-AtkinsonHyperlegible.txt)).

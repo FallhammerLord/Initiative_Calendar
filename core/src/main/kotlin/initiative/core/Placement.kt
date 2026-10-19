@@ -122,6 +122,25 @@ class Placement(private val window: DayWindow = DayWindow()) {
         return out
     }
 
+    /**
+     * The next moment the board could pick something different: an anchor's warning,
+     * start or end, a float coming back, a pinned slot, or the day window. Never more
+     * than an hour away, as a safety net.
+     */
+    fun nextChange(items: List<Item>, now: LocalDateTime): LocalDateTime {
+        val live = items.filter { !it.isTemplate && it.isOpen }
+        val today = now.toLocalDate()
+        val times = mutableListOf<LocalDateTime>()
+        live.filter { it.isAnchor && it.start != null }.forEach { times += listOf(it.warnAt!!, it.start!!, it.anchorEnd!!) }
+        live.filter { !it.isAnchor }.forEach { f ->
+            f.notBefore?.let { times += it }
+            f.pinnedSlot?.let { times += listOf(it, it.plusMinutes(f.durationMinutes.toLong())) }
+        }
+        times += listOf(today.atTime(window.start), today.atTime(window.end), today.plusDays(1).atTime(window.start))
+        val cap = now.plusHours(1)
+        return times.filter { it.isAfter(now) }.minOrNull()?.let { minOf(it, cap) } ?: cap
+    }
+
     /** Skip: move to the next gap it fits, or an hour later, or tomorrow. */
     fun skip(item: Item, items: List<Item>, now: LocalDateTime): Moved {
         val today = now.toLocalDate()

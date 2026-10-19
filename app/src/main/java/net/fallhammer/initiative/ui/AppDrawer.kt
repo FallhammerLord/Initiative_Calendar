@@ -48,6 +48,8 @@ fun AppDrawer(
     pinned: List<String>,
     unlock: UnlockSetting,
     onBoardOnUnlock: (Boolean) -> Unit,
+    lockCard: Boolean,
+    onLockCard: (Boolean) -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onSettings: () -> Unit,
@@ -97,14 +99,20 @@ fun AppDrawer(
                 )
             }
         }
-        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Board after unlock", fontSize = 18.sp, color = Ink.text, modifier = Modifier.weight(1f))
-            Switch(
-                checked = unlock.enabled,
-                onCheckedChange = onBoardOnUnlock,
-                colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.bg),
-            )
-        }
+        SettingSwitch("Board after unlock", unlock.enabled, onBoardOnUnlock)
+        SettingSwitch("Lock-screen card", lockCard, onLockCard)
         Text("Hold an app to pin it to the board.", fontSize = 14.sp, color = Ink.dim)
+    }
+}
+
+@Composable
+private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 18.sp, color = Ink.text, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.bg),
+        )
     }
 }

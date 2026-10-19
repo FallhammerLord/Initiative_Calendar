@@ -14,6 +14,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(BOARD_ON_UNLOCK, true)
         set(value) = prefs.edit().putBoolean(BOARD_ON_UNLOCK, value).apply()
 
+    /** The silent Now card on the lock screen. On by default. */
+    var lockCard: Boolean
+        get() = prefs.getBoolean(LOCK_CARD, true)
+        set(value) = prefs.edit().putBoolean(LOCK_CARD, value).apply()
+
     /**
      * Android blocks background apps from opening a screen. "Display over other
      * apps" is the permission that lifts that block for the board-on-unlock jump.
@@ -28,5 +33,6 @@ class Prefs(private val context: Context) {
 
     private companion object {
         const val BOARD_ON_UNLOCK = "boardOnUnlock"
+        const val LOCK_CARD = "lockCard"
     }
 }
