@@ -85,8 +85,11 @@ class ForecastTest {
         assertEquals(at(14, 15), engine.dropTime(f.slots, 1, at(14)))
         // After pickup: its end.
         assertEquals(at(15, 30), engine.dropTime(f.slots, 3, at(14)))
-        // Partway through a minute: the next whole one.
-        assertEquals(at(14, 1), engine.dropTime(f.slots, 0, at(14).plusSeconds(20)))
+        // Dropped first, partway through a minute: this minute, so it's Now at once.
+        assertEquals(at(14), engine.dropTime(f.slots, 0, at(14).plusSeconds(20)))
+        // After another entry, partway through a minute: the next whole one.
+        val late = engine.forecast(listOf(pickup, task(2), task(3, created = 8)), at(14).plusSeconds(20))
+        assertEquals(at(14, 16), engine.dropTime(late.slots, 1, at(14).plusSeconds(20)))
     }
 
     @Test fun aPinnedNowStillShowsWhatsNext() {
@@ -94,5 +97,19 @@ class ForecastTest {
         val b = engine.board(listOf(pinned, task(3, created = 8)), at(9, 5))
         assertEquals(2L, b.now.item?.id)
         assertEquals(3L, b.next?.id)
+    }
+
+    @Test fun theNowCardAgreesWithTheForecast() {
+        // A task pinned to start in a minute: not Now yet, and the card says when, not "nothing else".
+        val soon = task(2).copy(pinnedSlot = at(19, 5))
+        val club = Item(id = 9, title = "club", kind = Kind.ANCHOR, start = at(20), createdAt = at(7))
+        val b = engine.board(listOf(soon, club), at(19, 4))
+        assertEquals(null, b.now.item)
+        assertEquals("Up next at 7:05 PM: t2", b.now.reason)
+        // A minute later it's Now.
+        assertEquals(2L, engine.board(listOf(soon, club), at(19, 5)).now.item?.id)
+        // Whenever the forecast starts a task now, the card shows that same task.
+        val items = listOf(club, task(3), task(4, created = 8).copy(pinnedSlot = at(19, 20)))
+        assertEquals(engine.forecast(items, at(19)).slots.first().item.id, engine.board(items, at(19)).now.item?.id)
     }
 }

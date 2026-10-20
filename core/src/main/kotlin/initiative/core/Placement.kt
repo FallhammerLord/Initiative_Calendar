@@ -82,13 +82,26 @@ class Placement(private val window: DayWindow = DayWindow()) {
             return Board(NowPick(null, why), nextAnchor)
         }
 
+        // The forecast leads, so the Now card and the day panel always agree.
+        val forecast = forecast(items, now, order)
+        val tasks = forecast.slots.filter { !it.item.isAnchor }
+        val upNext = tasks.firstOrNull()
+
         val gaps = gaps(today, live, now)
-        val current = gaps.firstOrNull { now in it } ?: return Board(NowPick(null, "Nothing fits right now"), nextAnchor)
+        val current = gaps.firstOrNull { now in it } ?: return Board(NowPick(null, upNextReason(upNext) ?: "Nothing fits right now"), nextAnchor)
         val longest = gaps.maxOf { it.minutes }
+
+        if (upNext != null && !upNext.at.isAfter(now)) {
+            val second = tasks.getOrNull(1)?.item
+            // A task's window closes at the gap's end, or sooner at a pinned task's start.
+            val until = (listOf(current.end) + tasks.filter { it.item.pinnedSlot != null && it.at.isAfter(now) }.map { it.at }).min()
+            return Board(NowPick(upNext.item, reasonFor(upNext.item, second, current, longest, today)), nextAnchor ?: second, until = until)
+        }
 
         val ready = eligible(floats, now)
         val ranked = rank(ready.filter { fits(it, current, longest) }, today, order)
-        val top = ranked.firstOrNull() ?: return Board(NowPick(null, idleReason(floats, ready, current, now)), nextAnchor)
+        val top = ranked.firstOrNull()
+            ?: return Board(NowPick(null, upNextReason(upNext) ?: idleReason(floats, ready, current, now)), nextAnchor ?: upNext?.item)
 
         val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today)
         return Board(NowPick(top, reason), nextAnchor ?: ranked.getOrNull(1), until = current.end)
@@ -197,8 +210,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * entry before it, or now when dropped first.
      */
     fun dropTime(slots: List<Slot>, index: Int, now: LocalDateTime): LocalDateTime {
-        val before = slots.getOrNull(index - 1)
-        return wholeMinute(if (before == null) now else maxOf(before.end, now))
+        // Dropped first: it starts this minute, so it's Now straight away.
+        val before = slots.getOrNull(index - 1) ?: return now.withSecond(0).withNano(0)
+        return wholeMinute(maxOf(before.end, now))
     }
 
     // Up to the next whole minute, so the entry before keeps all of its time.
@@ -330,6 +344,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
                 .thenBy { it.createdAt },
         )
     }
+
+    /** A task coming later today: "Up next at 7:30 PM: clean upstairs". */
+    private fun upNextReason(next: Slot?): String? = next?.let { "Up next at ${Formats.clock(it.at)}: ${it.item.title}" }
 
     /**
      * Why Now is Free time. "Nothing fits" only when a task could be shown but

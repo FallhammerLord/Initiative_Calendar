@@ -20,7 +20,7 @@ class PlacementTest {
         // Skipped until 3:30, and one for tomorrow: nothing is due yet, so not "Nothing fits".
         val skipped = float(2, "taxes", mins = 15).copy(notBefore = at(15, 30))
         val later = float(3, "dentist", mins = 15).copy(earliestStart = day.plusDays(1))
-        assertEquals("Back at 3:30 PM: taxes", engine.board(listOf(pickup, skipped, later), at(12)).now.reason)
+        assertEquals("Up next at 3:30 PM: taxes", engine.board(listOf(pickup, skipped, later), at(12)).now.reason)
         assertEquals("Nothing else is due today", engine.board(listOf(pickup, later), at(12)).now.reason)
     }
 
@@ -67,7 +67,8 @@ class PlacementTest {
         val items = listOf(pickup, float(2, "deep clean", mins = 60))
         val b = engine.board(items, at(14, 15))
         assertNull(b.now.item)
-        assertEquals("Nothing fits before pickup", b.now.reason)
+        // The card names what comes next instead.
+        assertEquals("Up next at 3:30 PM: deep clean", b.now.reason)
     }
 
     @Test fun longerThanEveryGapTakesTheLongest() {
