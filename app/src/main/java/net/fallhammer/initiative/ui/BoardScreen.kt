@@ -29,9 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -58,7 +55,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -66,7 +62,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkKind
-import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.SetupStep
 import java.time.LocalDateTime
@@ -196,7 +191,7 @@ fun BoardScreen(vm: BoardViewModel) {
                 }
                 // Open, the day panel lies over the board, so the Now card keeps its shape.
                 if (expanded) {
-                    DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) })
+                    DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) }, onMove = vm::moveTask)
                 }
             }
         }
@@ -415,11 +410,11 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
 }
 
 /**
- * The open day panel: Next, today's line, and the queue, on a sheet over the
+ * The open day panel: Next, today's line, and the day's forecast, on a sheet over the
  * board. Swipe its handle down, tap outside it, or press Back to fold it.
  */
 @Composable
-private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit) {
+private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit, onMove: (Item, Int) -> Unit) {
     val closeLabel = stringResource(R.string.day_close)
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -437,7 +432,7 @@ private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit) {
                 Spacer(Modifier.height(Space.s))
                 LedgerLine(ui)
                 Spacer(Modifier.height(Space.s))
-                DayQueue(ui.queue, Modifier.weight(1f, fill = false), onEdit)
+                ForecastList(ui.forecast, Modifier.weight(1f, fill = false), onEdit, onMove)
             }
         }
     }
@@ -496,34 +491,6 @@ private fun LedgerLine(ui: BoardUi) {
 }
 
 @Composable
-private fun DayQueue(queue: List<Item>, modifier: Modifier, onEdit: (Item) -> Unit) {
-    if (queue.isEmpty()) {
-        Body(stringResource(R.string.queue_empty), modifier = Modifier.padding(Space.s))
-        return
-    }
-    LazyColumn(modifier.fillMaxWidth().padding(horizontal = Space.xs)) {
-        items(queue, key = { it.id }) { item ->
-            val lead = item.start?.let(Formats::clock) ?: Formats.countdown(java.time.Duration.ofMinutes(item.durationMinutes.toLong()))
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = Tap.min)
-                    .clickable(onClickLabel = stringResource(R.string.edit_action)) { onEdit(item) }
-                    .padding(vertical = Space.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(lead, style = Type.bodySmall, color = Ink.dim, modifier = Modifier.width(104.dp))
-                Text(
-                    item.title,
-                    style = Type.bodySmall.copy(fontWeight = if (item.isAnchor && item.wall == WallStrength.HARD) FontWeight.Bold else FontWeight.Normal),
-                    color = Ink.text,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().padding(bottom = Space.s)) {
@@ -552,6 +519,12 @@ private fun QuickAdd(onSubmit: (String) -> Boolean) {
         textStyle = Type.body.copy(color = Ink.text),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { if (onSubmit(text)) text = "" }),
+        // Enter adds too; the button is there for anyone who'd rather tap.
+        trailingIcon = if (text.isBlank()) {
+            null
+        } else {
+            { QuietButton(stringResource(R.string.quick_add_button), { if (onSubmit(text)) text = "" }, color = Ink.accent) }
+        },
         modifier = Modifier.fillMaxWidth(),
     )
 }

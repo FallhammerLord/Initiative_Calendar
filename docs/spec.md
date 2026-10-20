@@ -92,7 +92,9 @@ Top to bottom:
 
 1. **Now card.** Fills most of the screen. One item in large type. A one-line reason under the title, such as "Due tomorrow, fits before pickup." Three buttons: **Done**, **Skip**, **Tomorrow**.
 2. **Next peek.** One small line under the card. For an anchor it shows a countdown: "School pickup in 1h 40m." It is also the handle of the day panel: tap it or swipe it up to open the panel; swipe down, tap outside, or press Back to fold it.
-3. **Ledger line.** Inside the day panel, above today's queue: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. The open panel lies over the board as a sheet, so the Now card never shrinks to make room.
+3. **Ledger line and forecast.** Inside the day panel, above the forecast: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. The open panel lies over the board as a sheet, so the Now card never shrinks to make room. Below the line, the forecast lists the rest of today with times: anchors at their starts, and tasks filling the free time between in rank order. A skipped or missed task lands at the time it's back, not at the bottom. Tasks that can't fit today sit under Later. It's a forecast, not a promise, and reshuffles as the day goes.
+
+**Reordering.** Hold a task in the forecast and drag it to a new place. It lands there only if it fits before the next anchor's warning; it can never displace an anchor, and anchors can't be dragged. A task that lands is held to that time; if the time passes undone, it's free to be placed again. Your order also breaks ties when the rules rank tasks equally; priority and due dates still lead. TalkBack gets Move earlier and Move later. Quick-add's empty field reads only "Type a new task", with no example task to catch the eye; an Add button appears once there's text.
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
 5. **Apps.** Below the dock, a slim ⌃ pull tab opens the app list with a tap; it's the visible twin of the swipe. A dock of six fixed slots for favourite apps runs along the bottom. Tap a slot to open its app; an empty slot shows + and opens a picker; hold a slot to change or empty it. Holding an app in the drawer adds it to the first empty slot. In the Sci-fi look the slots are nested hexagon trios (two stacked, one tucked to the right, each tile's point in the next one's notch); taps go by each tile's real outline, not its box. In Classic they're plain squares. A swipe up that starts in this bottom band (the dock and the Apps button, above Android's own gesture strip) opens the app list; a swipe anywhere else on the board doesn't. The pull tab does the same with a tap.
 
@@ -412,6 +414,8 @@ After v0.1, built:
 - A calendar file of anchors, initiative-anchors.ics, written beside the nightly backup.
 - The recap shows full dates ("Tue, Oct 20").
 - A lapse or a due recopy shows while the board stays open, not only when it comes back to the front.
+
+**Parked: icon drawer.** The app drawer as rows of icons, five to a row, seated by use: the most-used five in the top row, the next five below. Seats never move by themselves; new apps take the next empty seat, and only a drag or a "Sort by use" tap reorders. Counts come from launches through Initiative, so no Usage access permission. Parked because the dock and search cover the need for now. (Adaptive menus that reorder by use tend to slow people down; stable seats avoid that. Findlater and McGrenere, CHI 2004, cited from memory.)
 
 **v0.2 — Close the loop**
 

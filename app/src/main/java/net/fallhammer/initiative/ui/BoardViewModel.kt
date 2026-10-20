@@ -7,6 +7,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import initiative.core.Board
 import initiative.core.DayWindow
+import initiative.core.Forecast
+import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.LedgerMark
@@ -38,7 +40,8 @@ data class BoardUi(
     val now: LocalDateTime = LocalDateTime.now(),
     val board: Board? = null,
     val ledger: List<LedgerMark> = emptyList(),
-    val queue: List<Item> = emptyList(),
+    /** The rest of today, in order, for the open day panel. */
+    val forecast: Forecast = Forecast(emptyList(), emptyList()),
     val window: DayWindow = DayWindow(),
     val focus: FocusView? = null,
 )
@@ -76,14 +79,17 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
 
     private val _focus = MutableStateFlow<Focus?>(null)
 
+    /** The person's own task order; see Placement.board. */
+    private val order = MutableStateFlow<List<Long>>(emptyList())
+
     /** The board recalculates whenever the data changes, the clock ticks, focus changes, or the screen opens. */
-    val ui: StateFlow<BoardUi> = combine(repo.items, clock, _focus) { all, now, focus ->
+    val ui: StateFlow<BoardUi> = combine(repo.items, clock, _focus, order) { all, now, focus, mine ->
         items = all
         BoardUi(
             now = now,
-            board = placement.board(all, now),
+            board = placement.board(all, now, mine),
             ledger = placement.ledger(all, now.toLocalDate()),
-            queue = placement.dayQueue(all, now),
+            forecast = placement.forecast(all, now, mine),
             window = graph.window,
             focus = focus?.takeIf { now.isBefore(it.until) }?.let { f ->
                 all.firstOrNull { it.id == f.itemId && it.isOpen }?.let { FocusView(it, f.until, placement.nextWall(all, now)) }
@@ -156,6 +162,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                     prefs.quickDefaultsShortened = true
                 }
                 settings.load(prefs)
+                order.value = prefs.taskOrder
                 backup.load(prefs)
                 recopy.load(prefs, now)
                 recap.load(prefs, now)
@@ -172,6 +179,32 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     fun done(item: Item) = act(item) { repo.done(item, it); text(R.string.flash_done) }
     fun skip(item: Item) = act(item) { repo.skip(item, items, it) ?: text(R.string.flash_anchor_skipped) }
     fun tomorrow(item: Item) = act(item) { repo.tomorrow(item, it) }
+
+    /**
+     * Dragged in the day panel to [index] among the other entries. It lands there
+     * only if it fits before the next anchor's warning, and never over an anchor;
+     * otherwise it stays put. Its new place also becomes the tie breaker.
+     */
+    fun moveTask(item: Item, index: Int) {
+        val now = LocalDateTime.now()
+        val others = ui.value.forecast.slots.filter { it.item.id != item.id }
+        val at = placement.dropTime(others, index, now)
+        if (!placement.canPin(item, items, at, now)) {
+            show(Flash(text(R.string.doesnt_fit)))
+            return
+        }
+        // Your order: the day's tasks as they'll stand, then the rest as they were.
+        val dayTasks = others.map { it.item }.filter { !it.isAnchor }.map { it.id }.toMutableList()
+        dayTasks.add(others.take(index).count { !it.item.isAnchor }, item.id)
+        val mine = dayTasks + order.value.filter { it !in dayTasks }
+        order.value = mine
+        acted()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { graph.prefs.taskOrder = mine }
+            repo.pin(item, at)
+            show(Flash(getApplication<Application>().getString(R.string.moved_to, Formats.clock(at))))
+        }
+    }
 
     /** Focus on [item] until the next Firm or Hard wall. Soft alarms stay silent meanwhile. */
     fun startFocus(item: Item) {

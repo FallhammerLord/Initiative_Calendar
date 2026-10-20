@@ -24,6 +24,15 @@ enum class MarkKind { DONE, SOFT, FIRM, HARD }
 
 data class LedgerMark(val at: LocalDateTime, val kind: MarkKind, val item: Item)
 
+/** One entry in today's forecast: an anchor at its start, or a task where it should begin. */
+data class Slot(val item: Item, val at: LocalDateTime) {
+    /** When this entry's time is over: an anchor's end, or a task's start plus its length. */
+    val end: LocalDateTime get() = if (item.isAnchor) item.anchorEnd!! else at.plusMinutes(item.durationMinutes.toLong())
+}
+
+/** The rest of today in order, and the tasks that don't fit today ([later]). */
+data class Forecast(val slots: List<Slot>, val later: List<Item>)
+
 /** Result of Skip or Tomorrow: the updated item and where it landed. */
 data class Moved(val item: Item, val message: String)
 
@@ -35,7 +44,8 @@ class Placement(private val window: DayWindow = DayWindow()) {
         const val FOCUS_FALLBACK_HOURS = 2L
     }
 
-    fun board(items: List<Item>, now: LocalDateTime): Board {
+    /** [order] is the person's own task order, by id: a tie breaker when the rules rank tasks equally. */
+    fun board(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Board {
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val upcoming = openAnchors(live).filter { it.start!!.isAfter(now) }
@@ -74,7 +84,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val longest = gaps.maxOf { it.minutes }
 
         val ready = eligible(floats, now)
-        val ranked = rank(ready.filter { fits(it, current, longest) }, today)
+        val ranked = rank(ready.filter { fits(it, current, longest) }, today, order)
         val top = ranked.firstOrNull() ?: return Board(NowPick(null, idleReason(floats, ready, current, now)), nextAnchor)
 
         val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today)
@@ -82,13 +92,14 @@ class Placement(private val window: DayWindow = DayWindow()) {
     }
 
     /** Today's remaining walls and open floats in board order, for the expanded ledger. */
-    fun dayQueue(items: List<Item>, now: LocalDateTime): List<Item> {
+    fun dayQueue(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): List<Item> {
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
         val floats = rank(
             eligible(live.filter { !it.isAnchor && it.isOpen }, now.toLocalDate().atTime(window.end).minusMinutes(1)),
             today,
+            order,
         )
         return anchors + floats
     }
@@ -128,6 +139,92 @@ class Placement(private val window: DayWindow = DayWindow()) {
         }
         if (dayEnd.isAfter(cursor)) out += Gap(cursor, dayEnd, prev, null)
         return out
+    }
+
+    /**
+     * The rest of today, in order: anchors at their starts, tasks pinned to a time,
+     * and the other tasks filling the free time between, best-ranked first. A task
+     * can't start before it's back from a skip; when nothing ready fits, the
+     * forecast waits for the next one coming back. Tasks that can't fit go in
+     * [Forecast.later]. A forecast, not a promise: it reshuffles as the day goes.
+     */
+    fun forecast(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Forecast {
+        val today = now.toLocalDate()
+        val live = items.filter { !it.isTemplate }
+        val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
+        val floats = live.filter { !it.isAnchor && it.isOpen && (it.earliestStart == null || !it.earliestStart.isAfter(today)) }
+        val pinned = floats.filter { pinHolds(it, now) && it.pinnedSlot!!.toLocalDate() == today }
+        val pool = rank(floats - pinned.toSet(), today, order).toMutableList()
+        val placed = mutableListOf<Slot>()
+        for ((start, end) in freeTimes(today, live, now, pinned)) {
+            var cursor = start
+            while (true) {
+                val room = Duration.between(cursor, end).toMinutes()
+                val pick = pool.firstOrNull { (it.notBefore == null || !it.notBefore.isAfter(cursor)) && it.durationMinutes <= room }
+                if (pick != null) {
+                    placed += Slot(pick, cursor)
+                    pool.remove(pick)
+                    cursor = cursor.plusMinutes(pick.durationMinutes.toLong())
+                    continue
+                }
+                // Nothing ready fits yet: wait for the next task back from a skip, if it would fit.
+                cursor = pool.mapNotNull { f ->
+                    f.notBefore?.takeIf { it.isAfter(cursor) && !it.plusMinutes(f.durationMinutes.toLong()).isAfter(end) }
+                }.minOrNull() ?: break
+            }
+        }
+        val slots = (anchors.map { Slot(it, it.start!!) } + pinned.map { Slot(it, it.pinnedSlot!!) } + placed).sortedBy { it.at }
+        return Forecast(slots, pool)
+    }
+
+    /**
+     * Whether [item] can be pinned to start at [at] today: it must fit in free
+     * time, clear of every anchor's warning and time and of other pinned tasks.
+     */
+    fun canPin(item: Item, items: List<Item>, at: LocalDateTime, now: LocalDateTime): Boolean {
+        if (item.isAnchor || at.toLocalDate() != now.toLocalDate()) return false
+        val others = items.filter { !it.isTemplate && it.id != item.id }
+        val pinned = others.filter { !it.isAnchor && it.isOpen && pinHolds(it, now) }
+        val end = at.plusMinutes(item.durationMinutes.toLong())
+        return freeTimes(now.toLocalDate(), others, now.withSecond(0).withNano(0), pinned).any { (s, e) -> !at.isBefore(s) && !end.isAfter(e) }
+    }
+
+    /**
+     * The time a task dropped at [index] in [slots] would start: right after the
+     * entry before it, or now when dropped first.
+     */
+    fun dropTime(slots: List<Slot>, index: Int, now: LocalDateTime): LocalDateTime {
+        val start = now.withSecond(0).withNano(0)
+        val before = slots.getOrNull(index - 1) ?: return start
+        return maxOf(before.end, start)
+    }
+
+    /**
+     * Free time on [date] from [from], as (start, end) pairs: the day window, less
+     * each anchor's warning-to-end (including ones marked Done, which still hold
+     * their time) and each pinned task's slot.
+     */
+    private fun freeTimes(date: LocalDate, items: List<Item>, from: LocalDateTime, pinned: List<Item>): List<Pair<LocalDateTime, LocalDateTime>> {
+        val dayStart = maxOf(date.atTime(window.start), from)
+        val dayEnd = date.atTime(window.end)
+        val blocks = items
+            .filter { it.isAnchor && it.start != null && it.status != Status.DROPPED && it.start.toLocalDate() == date }
+            .map { it.warnAt!! to it.anchorEnd!! } +
+            pinned.map { it.pinnedSlot!! to it.pinnedSlot.plusMinutes(it.durationMinutes.toLong()) }
+        val out = mutableListOf<Pair<LocalDateTime, LocalDateTime>>()
+        var cursor = dayStart
+        for ((s, e) in blocks.sortedBy { it.first }) {
+            if (s.isAfter(cursor)) out += cursor to minOf(s, dayEnd)
+            if (e.isAfter(cursor)) cursor = e
+        }
+        if (dayEnd.isAfter(cursor)) out += cursor to dayEnd
+        return out.filter { (s, e) -> e.isAfter(s) }
+    }
+
+    /** A pin holds until its slot is over; after that the task is free to be placed again. */
+    private fun pinHolds(f: Item, now: LocalDateTime): Boolean {
+        val slot = f.pinnedSlot ?: return false
+        return now.isBefore(slot.plusMinutes(f.durationMinutes.toLong()))
     }
 
     /**
@@ -203,7 +300,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
     private fun eligible(floats: List<Item>, now: LocalDateTime): List<Item> {
         val today = now.toLocalDate()
         return floats.filter { f ->
-            f.pinnedSlot == null &&
+            (f.pinnedSlot == null || !pinHolds(f, now)) &&
                 (f.earliestStart == null || !f.earliestStart.isAfter(today)) &&
                 (f.notBefore == null || !f.notBefore.isAfter(now))
         }
@@ -215,12 +312,16 @@ class Placement(private val window: DayWindow = DayWindow()) {
         return need <= current.minutes || (need > longest && current.minutes == longest)
     }
 
-    private fun rank(floats: List<Item>, today: LocalDate): List<Item> =
-        floats.sortedWith(
+    private fun rank(floats: List<Item>, today: LocalDate, order: List<Long> = emptyList()): List<Item> {
+        // The person's own order breaks ties; tasks they haven't placed come after, oldest first.
+        val place = order.withIndex().associate { (i, id) -> id to i }
+        return floats.sortedWith(
             compareByDescending<Item> { it.resolvePriority(today).level }
                 .thenBy(nullsLast()) { it.deadline }
+                .thenBy { place[it.id] ?: Int.MAX_VALUE }
                 .thenBy { it.createdAt },
         )
+    }
 
     /**
      * Why Now is Free time. "Nothing fits" only when a task could be shown but
@@ -232,7 +333,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         if (ready.isNotEmpty()) return "Nothing fits before ${current.after?.title ?: "the day ends"}"
         val today = now.toLocalDate()
         val back = floats
-            .filter { f -> f.pinnedSlot == null && (f.earliestStart == null || !f.earliestStart.isAfter(today)) }
+            .filter { f -> !pinHolds(f, now) && (f.earliestStart == null || !f.earliestStart.isAfter(today)) }
             .mapNotNull { f -> f.notBefore?.takeIf { it.isAfter(now) && it.toLocalDate() == today }?.let { f to it } }
             .minByOrNull { it.second }
         return back?.let { (f, at) -> "Back at ${Formats.clock(at)}: ${f.title}" } ?: "Nothing else is due today"

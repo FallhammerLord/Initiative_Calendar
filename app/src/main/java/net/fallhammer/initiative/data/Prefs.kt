@@ -120,6 +120,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(QUICK_SHORTENED, false)
         set(value) = prefs.edit().putBoolean(QUICK_SHORTENED, value).apply()
 
+    /** The person's own task order, by id, from dragging in the day panel: a tie breaker in ranking. */
+    var taskOrder: List<Long>
+        get() = prefs.getString(TASK_ORDER, "").orEmpty().split(",").mapNotNull { it.toLongOrNull() }
+        set(value) = prefs.edit().putString(TASK_ORDER, value.joinToString(",")).apply()
+
     /** Hours with no action before the recap shows. */
     var lapseHours: Int
         get() = prefs.getInt(LAPSE_HOURS, Lapse.UNTOUCHED_HOURS.toInt())
@@ -188,6 +193,7 @@ class Prefs(private val context: Context) {
         const val RECAP_SINCE = "recapSince"
         const val LAST_RECOPY = "lastRecopy"
         const val LAPSE_HOURS = "lapseHours"
+        const val TASK_ORDER = "taskOrder"
         const val QUICK_SHORTENED = "quickDefaultsShortened"
         const val RECOPY_DAYS = "recopyDays"
         const val RECOPY_LATER = "recopyLater"

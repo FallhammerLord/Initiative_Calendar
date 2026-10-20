@@ -16,6 +16,8 @@ data class PassInput(
     val shown: Shown? = null,
     val backupFolderSet: Boolean = false,
     val lastBackup: LocalDateTime? = null,
+    /** The person's own task order, by id; see Placement.board. */
+    val order: List<Long> = emptyList(),
 )
 
 /** A rung that fires now, with the anchor's alarm state before and after. */
@@ -89,7 +91,7 @@ object Pass {
         }
         autoSkip?.let { items = items.replacing(listOf(it.second)) }
 
-        val board = placement.board(items, now)
+        val board = placement.board(items, now, input.order)
         val nowFloat = board.now.item?.takeIf { !it.isAnchor }
         val until = board.until
         val shown = if (nowFloat != null && until != null) Shown(nowFloat.id, until, nowFloat.skipCount, nowFloat.notBefore) else null

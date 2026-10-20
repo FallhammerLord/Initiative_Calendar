@@ -141,6 +141,11 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         }
     }
 
+    /** Dragged in the day panel: the task is held to start at [at]. */
+    suspend fun pin(item: Item, at: LocalDateTime) {
+        update(item, item.copy(pinnedSlot = at, notBefore = null, status = Status.PENDING), note = "moved by hand")
+    }
+
     /** First time a float becomes Now, start its clock. */
     suspend fun markActive(item: Item, now: LocalDateTime) {
         if (item.activeSince != null || item.isAnchor) return

@@ -107,6 +107,19 @@ PY
 
 see() { find_node "$1" "${2:-contains}" > /dev/null; }
 
+# Hold at ($1, $2), drag to y $3, and let go: a long-press drag, as a finger does it.
+drag() {
+  adb shell input motionevent DOWN "$1" "$2"
+  sleep 1
+  local step=$(( ($3 - $2) / 6 ))
+  for i in 1 2 3 4 5 6; do
+    adb shell input motionevent MOVE "$1" $(( $2 + step * i ))
+    sleep 0.1
+  done
+  adb shell input motionevent UP "$1" "$3"
+  sleep 1.5
+}
+
 # Bounds of the first node whose text or description is exactly $1: "x1 y1 x2 y2".
 node_bounds() {
   ui > "$OUT/ui.xml"
@@ -731,6 +744,32 @@ adb shell input keyevent KEYCODE_BACK
 wait_gone Type exact || fail "Back should close the edit form"
 expect_text "dentist call"
 pass "Back closes the edit form without saving"
+crash_check
+
+# --- Day forecast and dragging ---------------------------------------------------
+# The open day panel lists the rest of today with times. Hold a task and drag it
+# above another: it moves there, since it fits.
+
+home
+quick_add "read mail"
+quick_add "water plants"
+hide_keyboard
+tap "Next:"
+expect_text "Today's line"
+expect_text "water plants"
+shot forecast
+read -r _ wtop _ wbottom < <(node_bounds "water plants") || fail "no water plants in the forecast"
+read -r rx1 rtop rx2 _ < <(node_bounds "read mail") || fail "no read mail in the forecast"
+[ "$wtop" -gt "$rtop" ] || fail "expected water plants below read mail before the drag"
+drag $(( (rx1 + rx2) / 2 )) $(( (wtop + wbottom) / 2 )) $(( rtop + 4 ))
+expect_text "Moved to"
+read -r _ wtop _ _ < <(node_bounds "water plants")
+read -r _ rtop _ _ < <(node_bounds "read mail")
+[ "$wtop" -lt "$rtop" ] || fail "water plants should now come before read mail"
+pass "dragging a task moves it in the forecast"
+shot forecast-after-drag
+adb shell input keyevent KEYCODE_BACK
+wait_gone "Today's line" || fail "Back should fold the day panel"
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"

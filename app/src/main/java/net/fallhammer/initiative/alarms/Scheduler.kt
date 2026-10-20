@@ -59,6 +59,7 @@ object Scheduler {
                 shown = prefs.shown,
                 backupFolderSet = prefs.backupFolder != null,
                 lastBackup = prefs.lastBackup,
+                order = prefs.taskOrder,
             ),
             graph.placement,
         )
