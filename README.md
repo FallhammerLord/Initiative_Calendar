@@ -37,6 +37,9 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 - Missed floats skip themselves when their window closes
 - Built for Android 16 (API 36)
 
-Not yet: restore from backup, editing form, .ics export.
+- Edit form: tap the Now title or a day-queue item to change it, or remove it with Undo
+- Restore from a backup file, in settings
+
+Not yet: changing how a recurring item repeats, .ics export.
 
 Font: Atkinson Hyperlegible, SIL Open Font License ([docs/OFL-AtkinsonHyperlegible.txt](docs/OFL-AtkinsonHyperlegible.txt)).

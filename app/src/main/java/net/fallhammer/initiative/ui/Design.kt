@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -257,12 +259,20 @@ fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
     }
 }
 
-/** A labelled pick-one setting, such as the theme. Each option is a radio button for TalkBack. */
+/**
+ * A labelled pick-one setting, such as the theme. Each option is a radio button
+ * for TalkBack. Options wrap onto more lines when they don't fit.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChoiceRow(label: String, options: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
     Column(Modifier.fillMaxWidth().selectableGroup()) {
         Text(label, style = Type.bodySmall, color = Ink.text)
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.padding(top = Space.xs)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Space.s),
+            verticalArrangement = Arrangement.spacedBy(Space.s),
+            modifier = Modifier.padding(top = Space.xs),
+        ) {
             options.forEachIndexed { i, option ->
                 val mod = Modifier.semantics { role = Role.RadioButton; selected = i == chosen }
                 if (i == chosen) {

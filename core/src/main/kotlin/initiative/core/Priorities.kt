@@ -24,7 +24,7 @@ fun Item.resolvePriority(today: LocalDate): ResolvedPriority {
         return ResolvedPriority(Level.HIGH, dueText(due, today))
     }
     if (skipCount >= 2) {
-        return ResolvedPriority(Level.HIGH, "Skipped $skipCount times, moved up")
+        return ResolvedPriority(Level.HIGH, "Moved up after a few skips")
     }
     if (ChronoUnit.DAYS.between(createdAt.toLocalDate(), today) >= 14) {
         return ResolvedPriority(Level.HIGH, "On the list two weeks, moved up")

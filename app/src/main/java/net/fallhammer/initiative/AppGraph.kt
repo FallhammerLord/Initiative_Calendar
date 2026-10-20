@@ -16,7 +16,8 @@ import net.fallhammer.initiative.data.Setup
 class AppGraph(context: Context) {
     val window = DayWindow()
     val placement = Placement(window)
-    val dao = InitiativeDb.get(context).items()
+    val db = InitiativeDb.get(context)
+    val dao = db.items()
     val repo = Repository(dao, placement)
     val prefs = Prefs(context)
     val apps = Apps(context)

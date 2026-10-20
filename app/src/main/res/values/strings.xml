@@ -115,6 +115,55 @@
     <string name="backup_written">Backup saved</string>
     <string name="backup_failed">The folder couldn\'t be reached</string>
 
+    <!-- Edit form -->
+    <string name="edit_label">Edit</string>
+    <string name="edit_title">Title</string>
+    <string name="edit_notes">Notes</string>
+    <string name="edit_type">Type</string>
+    <string name="edit_anchor">Anchor</string>
+    <string name="edit_float">Float</string>
+    <string name="edit_repeats">This one repeats. Changes here apply to this time only.</string>
+    <string name="edit_date">Date: %1$s</string>
+    <string name="edit_starts">Starts %1$s</string>
+    <string name="edit_ends">Ends %1$s</string>
+    <string name="edit_set_end">Set an end</string>
+    <string name="edit_wall">Wall</string>
+    <string name="edit_lead">Warning before</string>
+    <string name="edit_duration">How long</string>
+    <string name="edit_priority">Priority</string>
+    <string name="priority_auto">Auto</string>
+    <string name="priority_low">Low</string>
+    <string name="priority_normal">Normal</string>
+    <string name="priority_high">High</string>
+    <string name="edit_effort">Effort</string>
+    <string name="effort_quick">Quick</string>
+    <string name="effort_focus">Focus</string>
+    <string name="edit_deadline">Due %1$s</string>
+    <string name="edit_no_deadline">Set a due date</string>
+    <string name="edit_after">Not before %1$s</string>
+    <string name="edit_no_after">Set a first day</string>
+    <string name="edit_clear">Clear</string>
+    <string name="edit_missed">If it\'s missed</string>
+    <string name="miss_reroll">Back in the queue</string>
+    <string name="miss_drop">Drop it</string>
+    <string name="miss_ask">Ask me</string>
+    <string name="edit_save">Save</string>
+    <string name="edit_remove">Remove</string>
+    <string name="edit_cancel">Cancel</string>
+    <string name="edit_saved">Saved</string>
+    <string name="edit_removed">Removed</string>
+    <string name="edit_need_title">Add a title first</string>
+    <string name="edit_action">Edit</string>
+
+    <!-- Restore -->
+    <string name="restore_choose">Restore from a file</string>
+    <string name="restore_hint">Restoring replaces everything. What\'s here now is saved first to the backup folder, as initiative-before-restore.json.</string>
+    <string name="restore_ask">Replace everything with the backup from %1$s at %2$s?</string>
+    <string name="restore_replace">Replace everything</string>
+    <string name="restore_cancel">Cancel</string>
+    <string name="restore_done">Backup restored</string>
+    <string name="restore_not_backup">That file isn\'t an Initiative backup</string>
+
     <!-- Alarms -->
     <string name="alarm_on_it">On it</string>
     <plurals name="alarm_snooze_left">

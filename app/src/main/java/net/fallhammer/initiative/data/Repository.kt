@@ -91,6 +91,15 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         update(item, item.copy(notBefore = notBefore, status = Status.PENDING, pinnedSlot = null, activeSince = null), note = note)
     }
 
+    /**
+     * Saves changes from the edit form. A new time for an anchor starts its
+     * alarm ladder over.
+     */
+    suspend fun edit(old: Item, new: Item) {
+        update(old, new, note = "edited")
+        if (old.start != new.start || old.leadMinutes != new.leadMinutes || old.kind != new.kind) dao.clearAlarm(new.id)
+    }
+
     /** First time a float becomes Now, start its clock. */
     suspend fun markActive(item: Item, now: LocalDateTime) {
         if (item.activeSince != null || item.isAnchor) return

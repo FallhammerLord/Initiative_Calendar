@@ -99,7 +99,7 @@ class PlacementTest {
         val items = listOf(float(2, "older", createdAt = at(7)), float(3, "skipped", createdAt = at(8)).copy(skipCount = 2))
         val b = engine.board(items, at(10))
         assertEquals("skipped", b.now.item?.title)
-        assertEquals("Skipped 2 times, moved up", b.now.reason)
+        assertEquals("Moved up after a few skips", b.now.reason)
     }
 
     @Test fun nextChangeIsTheNextBoundary() {

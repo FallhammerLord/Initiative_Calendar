@@ -152,6 +152,32 @@ interface ItemDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putAlarm(row: AlarmRow)
+
+    /** Forgets an anchor's alarm progress, so the ladder runs again for a new time. */
+    @Query("DELETE FROM alarms WHERE itemId = :id")
+    suspend fun clearAlarm(id: Long)
+
+    // Restore: empty every table, then put the backup's rows back with their ids.
+    @Query("DELETE FROM items")
+    suspend fun clearItems()
+
+    @Query("DELETE FROM events")
+    suspend fun clearEvents()
+
+    @Query("DELETE FROM runs")
+    suspend fun clearRuns()
+
+    @Query("DELETE FROM alarms")
+    suspend fun clearAlarms()
+
+    @Insert
+    suspend fun insertEvents(rows: List<EventRow>)
+
+    @Insert
+    suspend fun insertRuns(rows: List<RunRow>)
+
+    @Insert
+    suspend fun insertAlarms(rows: List<AlarmRow>)
 }
 
 @Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 2, exportSchema = true)

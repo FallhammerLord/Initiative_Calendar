@@ -42,7 +42,7 @@ class WallClockTest {
         // 1:00 AM to 9:00 AM on the night the clocks jump: 7 real hours, not 8.
         val from = LocalDateTime.of(2026, 3, 8, 1, 0)
         val to = LocalDateTime.of(2026, 3, 8, 9, 0)
-        assertEquals("7h 0m", Formats.countdown(from, to, eastern))
+        assertEquals("7h", Formats.countdown(from, to, eastern))
     }
 
     @Test

@@ -314,6 +314,8 @@ Second pass, after v0.1:
 - [ ] The scheduler runs alarms, the lock-screen card, automatic skips, and the backup in one pass.
 - [ ] Libraries are about two years old (Compose, Room, Kotlin).
 - [ ] A lapse shows only when the board comes back to the front.
+- [x] The reason line said "Skipped 3 times, moved up", a counter. It now says "Moved up after a few skips".
+- [x] Pick-one rows ran off the screen with many options or large text. They now wrap.
 
 ### UI and UX
 
@@ -393,7 +395,12 @@ Then, built:
 - Nightly JSON export to a folder you pick (the .ics half comes in v0.2)
 - Targets Android 16 (API 36), tested on an Android 16 emulator
 
-Deferred from v0.1: restore from the backup file, and lapse and recopy timings in settings.
+After v0.1, built:
+
+- The edit form: tap the Now card's title, or an item in the day queue, to change every field or remove it (with Undo). Changing how a recurring item repeats comes later; edits apply to that one time.
+- Restore from a backup file in settings. What's there is saved first as initiative-before-restore.json.
+
+Still deferred: lapse and recopy timings in settings.
 
 **v0.2 — Close the loop**
 

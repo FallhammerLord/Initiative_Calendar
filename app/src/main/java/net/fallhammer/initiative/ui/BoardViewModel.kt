@@ -54,8 +54,8 @@ data class Flash(val text: String, val undo: Item? = null)
 
 /**
  * The home screen's state. The board, focus, quick-add, and which screen is open
- * live here; each other feature has its own part ([recap], [recopy], [backup],
- * [settings], [launcher]) sharing this scope through [BoardParts].
+ * live here; each other feature has its own part ([recap], [recopy], [edit],
+ * [backup], [settings], [launcher]) sharing this scope through [BoardParts].
  */
 class BoardViewModel(app: Application, private val saved: SavedStateHandle) : AndroidViewModel(app) {
     private val graph = app.graph
@@ -69,6 +69,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     private val parts = BoardParts(app, viewModelScope, show = ::show, acted = ::acted)
     val recap = RecapModel(parts, repo.items, clock)
     val recopy = RecopyModel(parts, repo.items, clock, saved) { items }
+    val edit = EditModel(parts, saved) { items }
     val backup = BackupModel(parts)
     val settings = SettingsModel(parts)
     val launcher = LauncherModel(parts)
@@ -220,9 +221,10 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         saved[OVERLAY] = if (open) Overlay.DRAWER else Overlay.NONE
     }
 
-    /** Home: closes the drawer, settings, or a recopy walk, back to the board. */
+    /** Home: closes the drawer, settings, the edit form, or a recopy walk, back to the board. */
     fun home() {
         recopy.stop()
+        edit.cancel()
         saved[OVERLAY] = Overlay.NONE
     }
 
@@ -231,9 +233,11 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         saved[OVERLAY] = Overlay.SETTINGS
     }
 
-    /** Back steps out one level: recopy walk, then settings to the drawer, then the drawer to the board. */
+    /** Back steps out one level: edit form or recopy walk, then settings to the drawer, then the drawer to the board. */
     fun back() {
-        if (recopy.walking) {
+        if (edit.isOpen) {
+            edit.cancel()
+        } else if (recopy.walking) {
             recopy.stop()
         } else {
             saved[OVERLAY] = if (overlay.value == Overlay.SETTINGS) Overlay.DRAWER else Overlay.NONE

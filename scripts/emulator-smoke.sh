@@ -74,7 +74,15 @@ if mode == "class":
     nodes.reverse()
 for n in nodes:
     # Text boxes echo what was typed; never treat them as labels.
-    if mode != "class" and n.get("class") == "android.widget.EditText":
+    # "field" mode finds a text box by what it holds.
+    is_box = n.get("class") == "android.widget.EditText"
+    if mode == "field":
+        if is_box and (n.get("text") or "") == q:
+            x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
+            print((x1 + x2) // 2, (y1 + y2) // 2)
+            sys.exit(0)
+        continue
+    if mode != "class" and is_box:
         continue
     vals = [n.get("class") or ""] if mode == "class" else [n.get("text") or "", n.get("content-desc") or ""]
     for v in vals:
@@ -587,6 +595,44 @@ wait_gone "Later this week" exact || fail "recopy walk still showing after the l
 wait_gone "Recopy the list" || fail "recopy card still showing after the walk"
 pass "the recopy walk finishes and the card clears"
 shot after-recopy
+crash_check
+
+# --- Edit form ---------------------------------------------------------------------
+# Tap the Now title to edit. Rename, Save, then Remove with Undo, then Back to cancel.
+
+home
+tap "dentist" exact
+expect_text "If it's missed"
+expect_text "Remove"
+shot edit-form
+xy=$(find_node "dentist" field) || fail "no title field holding 'dentist'"
+adb shell input tap $xy
+adb shell input keyevent KEYCODE_MOVE_END
+adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq 12))
+adb shell input text "dentist%scall"
+wait_for "dentist call" field || fail "couldn't rename in the title field"
+hide_keyboard
+tap Save exact
+expect_text "Saved"
+expect_text "dentist call"
+wait_gone "If it's missed" || fail "edit form still open after Save"
+pass "Save renames the item and returns to the board"
+
+tap "dentist call" exact
+expect_text "Remove"
+tap Remove exact
+expect_text "Removed"
+expect_text "Free time"
+tap Undo exact
+expect_text "dentist call"
+pass "Remove takes it off the board, and Undo puts it back"
+
+tap "dentist call" exact
+expect_text "If it's missed"
+adb shell input keyevent KEYCODE_BACK
+wait_gone "If it's missed" || fail "Back should close the edit form"
+expect_text "dentist call"
+pass "Back closes the edit form without saving"
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"

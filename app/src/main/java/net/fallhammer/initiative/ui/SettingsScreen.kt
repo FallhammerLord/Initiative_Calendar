@@ -39,10 +39,14 @@ fun SettingsScreen(
     backup: BackupState,
     onBackupFolder: (Uri) -> Unit,
     onBackUpNow: () -> Unit,
+    onRestoreFile: (Uri) -> Unit,
+    onRestoreConfirm: () -> Unit,
+    onRestoreCancel: () -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { it?.let(onBackupFolder) }
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(onRestoreFile) }
     fun pickTime(initial: LocalTime, onPicked: (LocalTime) -> Unit) {
         TimePickerDialog(context, { _, h, m -> onPicked(LocalTime.of(h, m)) }, initial.hour, initial.minute, false).show()
     }
@@ -96,6 +100,28 @@ fun SettingsScreen(
                         SecondaryButton(stringResource(R.string.backup_now), onBackUpNow, Modifier.weight(1f), height = Tap.min)
                     }
                 }
+                Spacer(Modifier.height(Space.l))
+                val restoreFrom = backup.restoreFrom
+                if (restoreFrom == null) {
+                    Body(stringResource(R.string.restore_hint), style = Type.bodySmall)
+                    Spacer(Modifier.height(Space.s))
+                    SecondaryButton(
+                        stringResource(R.string.restore_choose),
+                        { pickBackup.launch(BACKUP_TYPES) },
+                        Modifier.fillMaxWidth(),
+                        height = Tap.min,
+                    )
+                } else {
+                    Body(
+                        stringResource(R.string.restore_ask, Formats.day(restoreFrom.toLocalDate()), Formats.clock(restoreFrom)),
+                        color = Ink.text,
+                    )
+                    Spacer(Modifier.height(Space.s))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
+                        SecondaryButton(stringResource(R.string.restore_replace), onRestoreConfirm, Modifier.weight(1f), height = Tap.min)
+                        QuietButton(stringResource(R.string.restore_cancel), onRestoreCancel)
+                    }
+                }
             }
         }
     }
@@ -109,3 +135,6 @@ private fun Section(title: String, content: @Composable () -> Unit) {
     Spacer(Modifier.height(Space.xs))
     Column(Modifier.fillMaxWidth()) { content() }
 }
+
+// Synced files don't always keep their JSON type, so the picker also offers plain files.
+private val BACKUP_TYPES = arrayOf("application/json", "application/octet-stream", "text/*")

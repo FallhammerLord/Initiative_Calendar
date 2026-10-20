@@ -11,8 +11,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -83,6 +84,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val recopyDue by vm.recopy.due.collectAsStateWithLifecycle()
     val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
     val backup by vm.backup.state.collectAsStateWithLifecycle()
+    val draft by vm.edit.draft.collectAsStateWithLifecycle()
     val look = LocalLook.current
     val opened by vm.opened.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -94,7 +96,7 @@ fun BoardScreen(vm: BoardViewModel) {
     // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
         when {
-            overlay != Overlay.NONE || recopyItem != null -> vm.back()
+            overlay != Overlay.NONE || recopyItem != null || draft != null -> vm.back()
             expanded -> expanded = false
         }
     }
@@ -114,6 +116,7 @@ fun BoardScreen(vm: BoardViewModel) {
         val focusView = ui.focus
         val shownRecap = recap
         val walkItem = recopyItem
+        val editing = draft
         // Each of these takes the board's place, so nothing hides underneath:
         // "Previously on" after a lapse, then the recopy walk, then focus.
         if (shownRecap != null) {
@@ -127,6 +130,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 onDrop = vm.recopy::drop,
                 onStop = vm.recopy::stop,
             )
+        } else if (editing != null) {
+            EditScreen(editing, vm.edit)
         } else if (focusView != null) {
             FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
         } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
@@ -139,12 +144,13 @@ fun BoardScreen(vm: BoardViewModel) {
                 onTomorrow = vm::tomorrow,
                 onUndo = vm::undo,
                 onFocus = vm::startFocus,
+                onEdit = vm.edit::open,
             )
             Spacer(Modifier.height(Space.m))
             NextPeek(ui)
             Spacer(Modifier.height(Space.s))
             LedgerLine(ui, onClick = { expanded = !expanded })
-            if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp))
+            if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp), onEdit = vm.edit::open)
             Spacer(Modifier.height(Space.m))
             // The weekly recopy waits while an anchor is Now.
             if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
@@ -204,6 +210,9 @@ fun BoardScreen(vm: BoardViewModel) {
                 backup = backup,
                 onBackupFolder = vm.backup::setFolder,
                 onBackUpNow = vm.backup::backUpNow,
+                onRestoreFile = vm.backup::pickRestore,
+                onRestoreConfirm = vm.backup::confirmRestore,
+                onRestoreCancel = vm.backup::cancelRestore,
                 onClose = vm::back,
             )
         }
@@ -211,6 +220,7 @@ fun BoardScreen(vm: BoardViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NowCard(
     ui: BoardUi,
@@ -221,6 +231,7 @@ private fun NowCard(
     onTomorrow: (Item) -> Unit,
     onUndo: () -> Unit,
     onFocus: (Item) -> Unit,
+    onEdit: (Item) -> Unit,
 ) {
     val board = ui.board
     val item = board?.now?.item
@@ -233,10 +244,20 @@ private fun NowCard(
             Modifier.verticalScroll(scroll, enabled = scroll.maxValue > 0).heightIn(min = maxHeight),
             arrangement = Arrangement.SpaceBetween,
         ) {
-            // Holding the title area starts focus; the Focus button is the visible twin.
+            // Tapping the title area opens the edit form; holding it starts focus,
+            // with the Focus button as the visible twin. TalkBack reads both actions.
+            val editLabel = stringResource(R.string.edit_action)
+            val focusLabel = stringResource(R.string.focus_action)
             Column(
-                Modifier.pointerInput(item) {
-                    detectTapGestures(onLongPress = { if (item != null && !item.isAnchor) onFocus(item) })
+                if (item == null) {
+                    Modifier
+                } else {
+                    Modifier.combinedClickable(
+                        onClickLabel = editLabel,
+                        onClick = { onEdit(item) },
+                        onLongClickLabel = if (item.isAnchor) null else focusLabel,
+                        onLongClick = if (item.isAnchor) null else ({ onFocus(item) }),
+                    )
                 },
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -378,7 +399,7 @@ private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DayQueue(queue: List<Item>, modifier: Modifier) {
+private fun DayQueue(queue: List<Item>, modifier: Modifier, onEdit: (Item) -> Unit) {
     if (queue.isEmpty()) {
         Body(stringResource(R.string.queue_empty), modifier = Modifier.padding(Space.s))
         return
@@ -386,7 +407,14 @@ private fun DayQueue(queue: List<Item>, modifier: Modifier) {
     LazyColumn(modifier.fillMaxWidth().padding(horizontal = Space.xs)) {
         items(queue, key = { it.id }) { item ->
             val lead = item.start?.let(Formats::clock) ?: Formats.countdown(java.time.Duration.ofMinutes(item.durationMinutes.toLong()))
-            Row(Modifier.padding(vertical = Space.xs)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Tap.min)
+                    .clickable(onClickLabel = stringResource(R.string.edit_action)) { onEdit(item) }
+                    .padding(vertical = Space.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(lead, style = Type.bodySmall, color = Ink.dim, modifier = Modifier.width(104.dp))
                 Text(
                     item.title,
