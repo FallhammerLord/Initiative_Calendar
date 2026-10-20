@@ -407,10 +407,24 @@ After v0.1, built:
 
 **v0.2 — Close the loop**
 
+- The Log: planning beyond today (below)
+- Subtasks: one level of steps inside an item (below)
 - Partner SMS rung
-- .ics import and export
-- Week view and archive browser
+- .ics import
 - Rotating alert wording
+
+**The Log.** The board stays the default: the current task, with today's live timeline beneath. Planning is one tap away and closes back to the board.
+
+- *Way in.* Tap the day line ("Today · tap for the week") to open the Log. Tap the Next line to open that item in the edit form.
+- *Zoom.* Day, Week, Month, Year. It opens on Day (today's queue, as the day line showed before), and pages forward and back at each zoom, so next year's appointment is a few flips away.
+- *Lists, not folders.* Each zoom is a flat list grouped by date, with days that fold. Month and Year mark days that hold anchors, with no counts.
+- *Search.* One box across everything, including done and dropped items, so the archive is a filter, not a separate screen.
+- *Series as parents.* A repeating item opens to its times, past and coming, the way a quest opens to its subquests.
+- *Tap to edit.* Any item opens the edit form. Put back returns a done or dropped item to the board.
+
+**Subtasks.** One level of steps inside an item, shown as a short checklist on its card and in the form. The board still shows one item; its next open step is the line under the title. Breaking work into steps is a core skill in adult ADHD treatment, so this ranks with the Log.
+
+**Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
 
 **v0.3 — Polish**
 
@@ -421,7 +435,7 @@ After v0.1, built:
 
 **v0.4 — Desktop and voice**
 
-- Desktop counterpart app with the full board and editing
+- Desktop counterpart app with the full board and editing, styled after the Fallhammer quest log: planning happens at the desk, and the timeline is pushed to the phone, which stays the interface
 - Phone and desktop sync over home Wi-Fi, no cloud
 - Voice capture with offline speech recognition
 
