@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -121,61 +122,65 @@ fun BoardScreen(vm: BoardViewModel) {
         val editing = draft
         // Each of these takes the board's place, so nothing hides underneath:
         // "Previously on" after a lapse, then the recopy walk, then focus.
-        if (shownRecap != null) {
-            RecapScreen(shownRecap, onKeep = vm.recap::keep, onDrop = vm.recap::drop, onDropAll = vm.recap::dropAll, onBack = vm.recap::close)
-        } else if (walkItem != null) {
-            RecopyScreen(
-                walkItem,
-                onKeep = { vm.recopy.keep() },
-                onThisWeek = vm.recopy::laterThisWeek,
-                onNextWeek = vm.recopy::nextWeek,
-                onDrop = vm.recopy::drop,
-                onStop = vm.recopy::stop,
-            )
-        } else if (editing != null) {
-            EditScreen(editing, vm.edit)
-        } else if (focusView != null) {
-            FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
-        } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
-            NowCard(
-                ui = ui,
-                flash = flash,
-                modifier = Modifier.weight(1f),
-                onDone = vm::done,
-                onSkip = vm::skip,
-                onTomorrow = vm::tomorrow,
-                onUndo = vm::undo,
-                onFocus = vm::startFocus,
-                onEdit = vm.edit::open,
-            )
-            Spacer(Modifier.height(Space.m))
-            NextPeek(ui)
-            Spacer(Modifier.height(Space.s))
-            LedgerLine(ui, onClick = { expanded = !expanded })
-            if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp), onEdit = vm.edit::open)
-            Spacer(Modifier.height(Space.m))
-            // The weekly recopy waits while an anchor is Now.
-            if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
-                RecopyCard(onStart = vm.recopy::start, onLater = vm.recopy::later)
+        // Under the drawer or settings, the screen below is hidden from TalkBack,
+        // so it never reads controls that are covered.
+        Box(Modifier.fillMaxSize().then(if (overlay != Overlay.NONE) Modifier.clearAndSetSemantics { } else Modifier)) {
+            if (shownRecap != null) {
+                RecapScreen(shownRecap, onKeep = vm.recap::keep, onDrop = vm.recap::drop, onDropAll = vm.recap::dropAll, onBack = vm.recap::close)
+            } else if (walkItem != null) {
+                RecopyScreen(
+                    walkItem,
+                    onKeep = { vm.recopy.keep() },
+                    onThisWeek = vm.recopy::laterThisWeek,
+                    onNextWeek = vm.recopy::nextWeek,
+                    onDrop = vm.recopy::drop,
+                    onStop = vm.recopy::stop,
+                )
+            } else if (editing != null) {
+                EditScreen(editing, vm.edit)
+            } else if (focusView != null) {
+                FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
+            } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
+                NowCard(
+                    ui = ui,
+                    flash = flash,
+                    modifier = Modifier.weight(1f),
+                    onDone = vm::done,
+                    onSkip = vm::skip,
+                    onTomorrow = vm::tomorrow,
+                    onUndo = vm::undo,
+                    onFocus = vm::startFocus,
+                    onEdit = vm.edit::open,
+                )
                 Spacer(Modifier.height(Space.m))
-            }
-            ask?.let { parsed ->
-                AskChips(
-                    title = parsed.item.title,
-                    onFloat = vm::answerFloat,
-                    onAnchor = vm::answerAnchor,
-                    onCancel = vm::cancelAsk,
+                NextPeek(ui)
+                Spacer(Modifier.height(Space.s))
+                LedgerLine(ui, onClick = { expanded = !expanded })
+                if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp), onEdit = vm.edit::open)
+                Spacer(Modifier.height(Space.m))
+                // The weekly recopy waits while an anchor is Now.
+                if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
+                    RecopyCard(onStart = vm.recopy::start, onLater = vm.recopy::later)
+                    Spacer(Modifier.height(Space.m))
+                }
+                ask?.let { parsed ->
+                    AskChips(
+                        title = parsed.item.title,
+                        onFloat = vm::answerFloat,
+                        onAnchor = vm::answerAnchor,
+                        onCancel = vm::cancelAsk,
+                    )
+                }
+                // One setup step at a time, until all are done.
+                setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
+                QuickAdd(onSubmit = vm::submit)
+                PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
+                QuietButton(
+                    stringResource(R.string.apps_button),
+                    onClick = { vm.setDrawer(true) },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
             }
-            // One setup step at a time, until all are done.
-            setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
-            QuickAdd(onSubmit = vm::submit)
-            PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
-            QuietButton(
-                stringResource(R.string.apps_button),
-                onClick = { vm.setDrawer(true) },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
         }
 
         AnimatedVisibility(
