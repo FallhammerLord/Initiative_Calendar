@@ -37,4 +37,24 @@ class TrioTest {
         assertEquals(5, Trio.tileAt(Trio.advance(hex) * 5 + hex / 2, h, hex, 6))
         assertNull(Trio.tileAt(Trio.advance(hex) * 5 + Trio.width(hex) + 5, h, hex, 6))
     }
+
+    @Test fun everyDockHexagonSitsOnABackgroundCell() {
+        // A dock 6 tiles across a 1080-wide screen with 42 margins, lower on the screen.
+        val w = Trio.hexFor(1080f - 84f, 6)
+        val rowX = 42f
+        val rowY = 1980f
+        val cells = Trio.cells(w, rowX + w / 2, rowY + Trio.hexHeight(w) / 2, 1080f, 2400f)
+        for (tile in 0 until 6) {
+            for ((cx, cy) in Trio.centers(w)) {
+                val x = rowX + tile * Trio.advance(w) + cx
+                val y = rowY + cy
+                assertTrue(cells.any { (gx, gy) -> kotlin.math.abs(gx - x) < 0.01f && kotlin.math.abs(gy - y) < 0.01f }, "tile $tile hexagon at ($x, $y)")
+            }
+        }
+        // And the grid reaches every edge: some cell overlaps each one.
+        val r = w / 2
+        val h = Trio.hexHeight(w) / 2
+        assertTrue(cells.any { it.first - r <= 0f } && cells.any { it.first + r >= 1080f })
+        assertTrue(cells.any { it.second - h <= 0f } && cells.any { it.second + h >= 2400f })
+    }
 }

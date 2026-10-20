@@ -20,8 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -60,6 +63,7 @@ fun Dock(slots: List<AppEntry?>, icons: Map<String, ImageBitmap>, onTap: (Int) -
 @Composable
 private fun TrioDock(slots: List<AppEntry?>, icons: Map<String, ImageBitmap>, onTap: (Int) -> Unit, onHold: (Int) -> Unit) {
     val density = LocalDensity.current
+    val lattice = LocalHexLattice.current
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val hex = Trio.hexFor(constraints.maxWidth.toFloat(), slots.size)
         val tileWidth = with(density) { Trio.width(hex).toDp() }
@@ -71,6 +75,11 @@ private fun TrioDock(slots: List<AppEntry?>, icons: Map<String, ImageBitmap>, on
             Modifier
                 .fillMaxWidth()
                 .height(tileHeight)
+                // The background honeycomb lines up with the dock's hexagons.
+                .onGloballyPositioned { c ->
+                    val at = c.positionInRoot()
+                    lattice.value = HexLattice(hex, Offset(at.x + hex / 2, at.y + Trio.hexHeight(hex) / 2))
+                }
                 .pointerInput(hex, slots.size) {
                     detectTapGestures(
                         onTap = { p -> Trio.tileAt(p.x, p.y, hex, slots.size)?.let(onTap) },
