@@ -113,9 +113,20 @@ fun BoardScreen(vm: BoardViewModel) {
     Box(Modifier.fillMaxSize().background(Ink.bg)) {
         val focusView = ui.focus
         val shownRecap = recap
-        // After a lapse, "Previously on" comes first, then focus, then the board.
+        val walkItem = recopyItem.takeIf { overlay == Overlay.RECOPY }
+        // Each of these takes the board's place, so nothing hides underneath:
+        // "Previously on" after a lapse, then the recopy walk, then focus.
         if (shownRecap != null) {
             RecapScreen(shownRecap, onKeep = vm::keepAsked, onDrop = vm::dropAsked, onDropAll = vm::dropAllAsked, onBack = vm::closeRecap)
+        } else if (walkItem != null) {
+            RecopyScreen(
+                walkItem,
+                onKeep = vm::recopyKeep,
+                onThisWeek = vm::recopyLaterThisWeek,
+                onNextWeek = vm::recopyNextWeek,
+                onDrop = vm::recopyDrop,
+                onStop = vm::stopRecopy,
+            )
         } else if (focusView != null) {
             FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
         } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
@@ -197,17 +208,6 @@ fun BoardScreen(vm: BoardViewModel) {
             )
         }
 
-        val walkItem = recopyItem
-        if (overlay == Overlay.RECOPY && walkItem != null) {
-            RecopyScreen(
-                walkItem,
-                onKeep = vm::recopyKeep,
-                onThisWeek = vm::recopyLaterThisWeek,
-                onNextWeek = vm::recopyNextWeek,
-                onDrop = vm::recopyDrop,
-                onStop = vm::stopRecopy,
-            )
-        }
     }
 }
 

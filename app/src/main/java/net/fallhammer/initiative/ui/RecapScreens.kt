@@ -1,6 +1,5 @@
 package net.fallhammer.initiative.ui
 
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import initiative.core.Formats
 import initiative.core.Item
@@ -103,8 +101,7 @@ fun RecopyScreen(
     onDrop: (Item) -> Unit,
     onStop: () -> Unit,
 ) {
-    // Catch taps on empty space so they never reach the board underneath.
-    Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
+    Screen {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Label(stringResource(R.string.recopy_label), Modifier.weight(1f))
             QuietButton(stringResource(R.string.recopy_stop), onStop)
