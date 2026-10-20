@@ -1,5 +1,7 @@
 package net.fallhammer.initiative.ui
 
+import initiative.core.Lapse
+import initiative.core.Recopy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +32,14 @@ class SettingsModel(private val parts: BoardParts) {
     private val _quiet = MutableStateFlow(QuietSetting())
     val quiet: StateFlow<QuietSetting> = _quiet.asStateFlow()
 
+    private val _lapseHours = MutableStateFlow(Lapse.UNTOUCHED_HOURS.toInt())
+    /** Hours with no action before "Previously on". */
+    val lapseHours: StateFlow<Int> = _lapseHours.asStateFlow()
+
+    private val _recopyDays = MutableStateFlow(Recopy.EVERY_DAYS.toInt())
+    /** Days between recopies. */
+    val recopyDays: StateFlow<Int> = _recopyDays.asStateFlow()
+
     private val _look = MutableStateFlow<String?>(null)
     /** The chosen theme's id; null until settings load, which shows the default. */
     val look: StateFlow<String?> = _look.asStateFlow()
@@ -41,6 +51,18 @@ class SettingsModel(private val parts: BoardParts) {
         _lockCard.value = prefs.lockCard
         _look.value = prefs.lookId
         _quiet.value = prefs.quiet
+        _lapseHours.value = prefs.lapseHours
+        _recopyDays.value = prefs.recopyDays
+    }
+
+    fun setLapseHours(hours: Int) {
+        _lapseHours.value = hours
+        parts.scope.launch(Dispatchers.IO) { graph.prefs.lapseHours = hours }
+    }
+
+    fun setRecopyDays(days: Int) {
+        _recopyDays.value = days
+        parts.scope.launch(Dispatchers.IO) { graph.prefs.recopyDays = days }
     }
 
     fun setBoardOnUnlock(on: Boolean) {

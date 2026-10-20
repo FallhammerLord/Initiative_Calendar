@@ -4,6 +4,8 @@ import initiative.core.Item
 import initiative.core.Learning
 import initiative.core.Parsed
 import initiative.core.Placement
+import initiative.core.Recurrence
+import initiative.core.Series
 import initiative.core.Status
 import initiative.core.instancesBetween
 import initiative.core.occurrenceDate
@@ -38,7 +40,7 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         val today = now.toLocalDate()
         val have = all.filter { it.templateId != null }.groupBy { it.templateId }
             .mapValues { (_, list) -> list.mapNotNull { it.occurrenceDate }.toSet() }
-        val fresh = all.filter { it.isTemplate }.flatMap { t ->
+        val fresh = all.filter { it.isTemplate && it.status != Status.DROPPED }.flatMap { t ->
             val existing = have[t.id].orEmpty()
             t.instancesBetween(today, today.plusDays(LOOKAHEAD_DAYS))
                 .filter { it.occurrenceDate !in existing }
@@ -100,6 +102,45 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         if (old.start != new.start || old.leadMinutes != new.leadMinutes || old.kind != new.kind) dao.clearAlarm(new.id)
     }
 
+    /**
+     * Saves an edit to one time of a series, or to a one-off item, that also
+     * changes the series from here on. [rule] is how it repeats after the edit:
+     * - a time of a series, with a rule: the series restarts here, edited, and
+     *   its open times from here on are made again;
+     * - a time of a series, with no rule: the series stops, and this time stays
+     *   as a one-off with the edit;
+     * - a one-off, with a rule: a new series starts here, and this item becomes
+     *   its first time.
+     */
+    suspend fun editSeries(old: Item, new: Item, rule: Recurrence?, now: LocalDateTime) {
+        val template = old.templateId?.let { dao.byId(it)?.toItem() }
+        val today = now.toLocalDate()
+        // Open times of the series from this one's date on are made again from the edit.
+        val from = (old.occurrenceDate ?: today).toString()
+        when {
+            template != null && rule != null -> {
+                update(template, Series.from(template, new, rule), note = "series edited")
+                dao.deleteOpenInstances(template.id, from, keep = NONE)
+                if (!old.isOpen) edit(old, new)
+                ensureInstances(now)
+            }
+            template != null -> {
+                update(template, template.copy(status = Status.DROPPED), note = "series stopped")
+                dao.deleteOpenInstances(template.id, from, keep = old.id)
+                edit(old, new.copy(templateId = null))
+            }
+            rule != null -> {
+                val first = Series.start(new, rule, today)
+                val id = dao.insert(first.toRow())
+                dao.insertEvent(EventRow(itemId = id, fromStatus = null, toStatus = first.status.name, at = now.toString(), note = "series started"))
+                val joined = if (new.isAnchor) new else new.copy(earliestStart = Series.joinDate(new, today))
+                edit(old, joined.copy(templateId = id))
+                ensureInstances(now)
+            }
+            else -> edit(old, new)
+        }
+    }
+
     /** First time a float becomes Now, start its clock. */
     suspend fun markActive(item: Item, now: LocalDateTime) {
         if (item.activeSince != null || item.isAnchor) return
@@ -123,5 +164,6 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
 
     private companion object {
         const val LOOKAHEAD_DAYS = 21L
+        const val NONE = -1L
     }
 }

@@ -39,7 +39,8 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 
 - Edit form: tap the Now title or a day-queue item to change it, or remove it with Undo
 - Restore from a backup file, in settings
-
-Not yet: changing how a recurring item repeats, .ics export.
+- Repeating items in the edit form: start, change, or stop a series; edit this time or this and later
+- Lapse and recopy timings in settings
+- A calendar file of anchors (initiative-anchors.ics) beside the nightly backup
 
 Font: Atkinson Hyperlegible, SIL Open Font License ([docs/OFL-AtkinsonHyperlegible.txt](docs/OFL-AtkinsonHyperlegible.txt)).

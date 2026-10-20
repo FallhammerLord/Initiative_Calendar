@@ -20,6 +20,11 @@ class LapseTest {
         assertTrue(Lapse.started(at(0, 9), 0, at(1, 9)))
         assertTrue(Lapse.started(at(0, 9), 3, at(0, 12)))
         assertFalse(Lapse.started(null, 0, at(5, 9)))
+        // A shorter or longer setting.
+        assertTrue(Lapse.started(at(0, 9), 0, at(0, 21), hours = 12))
+        assertFalse(Lapse.started(at(0, 9), 0, at(1, 12), hours = 48))
+        assertTrue(Recopy.due(at(0, 9), at(7, 9)))
+        assertFalse(Recopy.due(at(0, 9), at(7, 9), days = 14))
     }
 
     @Test fun autoSkipOnlyWhenUntouched() {

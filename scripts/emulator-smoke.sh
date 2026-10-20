@@ -491,7 +491,11 @@ crash_check
 
 open_settings
 expect_text "Theme"
+expect_text "Recopy the list every"
 shot settings
+tap "2 weeks" exact
+tap "1 week" exact
+pass "recopy timing switches and back"
 tap Classic exact
 shot classic-settings
 adb shell input keyevent KEYCODE_BACK
@@ -611,11 +615,13 @@ adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq 12))
 adb shell input text "dentist%scall"
 wait_for "dentist call" field || fail "couldn't rename in the title field"
 hide_keyboard
+tap "Every day" exact
+shot edit-repeat
 tap Save exact
 expect_text "Saved"
 expect_text "dentist call"
 wait_gone Type exact || fail "edit form still open after Save"
-pass "Save renames the item and returns to the board"
+pass "Save renames the item, makes it repeat, and returns to the board"
 
 tap "dentist call" exact
 expect_text "Remove"

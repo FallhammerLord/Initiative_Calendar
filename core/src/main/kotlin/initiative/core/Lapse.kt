@@ -41,9 +41,9 @@ object Lapse {
     const val SKIP_STREAK = 3
     private const val AHEAD_HOURS = 24L
 
-    /** A lapse: no action for a day, or three automatic skips in a row. */
-    fun started(lastAction: LocalDateTime?, autoSkipStreak: Int, now: LocalDateTime): Boolean =
-        autoSkipStreak >= SKIP_STREAK || (lastAction != null && !now.isBefore(lastAction.plusHours(UNTOUCHED_HOURS)))
+    /** A lapse: no action for [hours] (a day by default), or three automatic skips in a row. */
+    fun started(lastAction: LocalDateTime?, autoSkipStreak: Int, now: LocalDateTime, hours: Long = UNTOUCHED_HOURS): Boolean =
+        autoSkipStreak >= SKIP_STREAK || (lastAction != null && !now.isBefore(lastAction.plusHours(hours)))
 
     fun recap(items: List<Item>, autoSkipped: Set<Long>, since: LocalDateTime, now: LocalDateTime): Recap {
         val live = items.filter { !it.isTemplate }

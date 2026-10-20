@@ -310,10 +310,10 @@ Second pass, after v0.1:
 - [x] The open screen and a recopy walk were lost if Android reclaimed the app. Both are now saved.
 - [x] Countdowns across a daylight-saving change were an hour off. They now count real time, with tests for both changes.
 - [x] The emulator test looked once for each thing, so slow screens failed it. Checks now wait up to a few seconds.
-- [ ] No tests for the ViewModel or the scheduler; the emulator test covers them late.
-- [ ] The scheduler runs alarms, the lock-screen card, automatic skips, and the backup in one pass.
+- [x] No tests for the ViewModel or the scheduler. The scheduler's decisions now live in core (`Pass`) with their own tests; the ViewModel's parts have tests for state kept across a restart; series edits are tested against a real database.
+- [x] The scheduler decided and acted in one long function. It now carries out a plan from `Pass`.
 - [ ] Libraries are about two years old (Compose, Room, Kotlin).
-- [ ] A lapse shows only when the board comes back to the front.
+- [x] A lapse showed only when the board came back to the front. The board now checks every 30 seconds.
 - [x] The reason line said "Skipped 3 times, moved up", a counter. It now says "Moved up after a few skips".
 - [x] Pick-one rows ran off the screen with many options or large text. They now wrap.
 
@@ -397,10 +397,13 @@ Then, built:
 
 After v0.1, built:
 
-- The edit form: tap the Now card's title, or an item in the day queue, to change every field or remove it (with Undo). Changing how a recurring item repeats comes later; edits apply to that one time.
+- The edit form: tap the Now card's title, or an item in the day queue, to change every field or remove it (with Undo).
+- Repeating items in the form: make a one-off repeat, change how a series repeats, or stop it. For one time of a series, an edit covers this time or this and later.
 - Restore from a backup file in settings. What's there is saved first as initiative-before-restore.json.
-
-Still deferred: lapse and recopy timings in settings.
+- Lapse and recopy timings in settings: recap after 12 hours, 1 day, or 2 days; recopy every 1 or 2 weeks.
+- A calendar file of anchors, initiative-anchors.ics, written beside the nightly backup.
+- The recap shows full dates ("Tue, Oct 20").
+- A lapse or a due recopy shows while the board stays open, not only when it comes back to the front.
 
 **v0.2 — Close the loop**
 
@@ -426,8 +429,8 @@ After two weeks on v0.1, we review what got ignored, what annoyed you, and what 
 
 ## Open questions
 
-- [ ] **Launcher base.** Fork Olauncher, or write a minimal launcher from scratch? A fork brings working gestures and app handling. Scratch keeps the codebase small and fully understood.
-- [ ] **Build setup.** Android Studio on your PC, or a GitHub Actions job that produces the APK? The first keeps everything local. The second needs no install.
+- [x] **Launcher base.** Written from scratch, so the codebase stays small and fully understood.
+- [x] **Build setup.** GitHub Actions builds the APK and tests it on an Android 16 emulator; nothing to install.
 - [ ] **Partner rung.** Does your partner want Hard-wall texts, and for which anchors?
 - [ ] **Kids' lane.** Should the daughters' events get their own color or marker on the ledger line?
 - [ ] **Lapse threshold.** Is 24 hours right, or does a shorter window catch you sooner?

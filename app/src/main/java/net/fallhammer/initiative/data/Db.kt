@@ -153,6 +153,16 @@ interface ItemDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putAlarm(row: AlarmRow)
 
+    /**
+     * Removes a series' open times from [from] (a date) onward, except [keep], so
+     * they can be made again from the edited series. Done and missed times stay.
+     */
+    @Query(
+        "DELETE FROM items WHERE templateId = :templateId AND id != :keep AND status IN ('PENDING', 'ACTIVE') " +
+            "AND COALESCE(start, earliestStart) >= :from",
+    )
+    suspend fun deleteOpenInstances(templateId: Long, from: String, keep: Long)
+
     /** Forgets an anchor's alarm progress, so the ladder runs again for a new time. */
     @Query("DELETE FROM alarms WHERE itemId = :id")
     suspend fun clearAlarm(id: Long)

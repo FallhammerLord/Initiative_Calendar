@@ -12,8 +12,9 @@ object Recopy {
     const val EVERY_DAYS = 7L
     const val NUDGE_SKIPS = 3
 
-    fun due(lastRecopy: LocalDateTime?, now: LocalDateTime): Boolean =
-        lastRecopy != null && !now.isBefore(lastRecopy.plusDays(EVERY_DAYS))
+    /** Due [days] after the last recopy, a week by default. */
+    fun due(lastRecopy: LocalDateTime?, now: LocalDateTime, days: Long = EVERY_DAYS): Boolean =
+        lastRecopy != null && !now.isBefore(lastRecopy.plusDays(days))
 
     /** Open floats, oldest first. Anchors already have their times. */
     fun queue(items: List<Item>): List<Item> =

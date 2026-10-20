@@ -39,7 +39,7 @@ fun RecapScreen(
                 recap.passed.forEach { a ->
                     val start = a.start ?: return@forEach
                     val line = if (a.status == Status.DONE) R.string.recap_item_done else R.string.recap_item_passed
-                    Body(stringResource(line, a.title, Formats.weekday(start.toLocalDate()), Formats.clock(start)), color = Ink.text)
+                    Body(stringResource(line, a.title, Formats.day(start.toLocalDate()), Formats.clock(start)), color = Ink.text)
                 }
             }
             val handled = recap.rerolled.isNotEmpty() || recap.dropped.isNotEmpty() || recap.ask.isNotEmpty()
@@ -67,7 +67,7 @@ fun RecapScreen(
                 if (recap.ahead.isEmpty()) Body(stringResource(R.string.recap_nothing))
                 recap.ahead.forEach { a ->
                     val start = a.start ?: return@forEach
-                    Body(stringResource(R.string.recap_ahead_item, a.title, Formats.weekday(start.toLocalDate()), Formats.clock(start)), color = Ink.text)
+                    Body(stringResource(R.string.recap_ahead_item, a.title, Formats.day(start.toLocalDate()), Formats.clock(start)), color = Ink.text)
                 }
             }
         }

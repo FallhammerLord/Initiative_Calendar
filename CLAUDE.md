@@ -7,7 +7,8 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 ## Layout
 
 - `core/`: the scheduling engine in plain Kotlin (placement, priority, alarms
-  ladder, recurrence, parser, formatters). No Android code. Test with
+  ladder, recurrence, parser, formatters, and `Pass`, every decision the
+  scheduler makes). No Android code. Test with
   `./gradlew -p core test` (works without the Android SDK).
 - `app/`: the Android launcher. Services in `AppGraph.kt`; the board's state in
   `ui/BoardViewModel.kt`, with each feature in its own part (`RecapModel`,

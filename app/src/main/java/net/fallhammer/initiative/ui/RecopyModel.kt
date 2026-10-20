@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.Prefs
 import java.time.LocalDate
@@ -30,12 +32,16 @@ class RecopyModel(
     private val graph get() = parts.graph
     private val last = MutableStateFlow<LocalDateTime?>(null)
     private val laterUntil = MutableStateFlow<LocalDateTime?>(null)
+    private val everyDays = MutableStateFlow(Recopy.EVERY_DAYS)
+
+    // The board re-reads these on a timer; this keeps a read from undoing a write in flight.
+    private val lock = Mutex()
     private val ids = saved.getStateFlow(IDS, LongArray(0))
     private val index = saved.getStateFlow(INDEX, 0)
 
     /** The weekly recopy is due, and not put off with Later. */
-    val due: StateFlow<Boolean> = combine(clock, last, laterUntil) { now, lastRecopy, later ->
-        Recopy.due(lastRecopy, now) && (later == null || !now.isBefore(later))
+    val due: StateFlow<Boolean> = combine(clock, last, laterUntil, everyDays) { now, lastRecopy, later, days ->
+        Recopy.due(lastRecopy, now, days) && (later == null || !now.isBefore(later))
     }.stateIn(parts.scope, SharingStarted.Eagerly, false)
 
     /** The item the walk is on, or null when there's no walk. */
@@ -46,10 +52,11 @@ class RecopyModel(
     val walking: Boolean get() = ids.value.isNotEmpty()
 
     /** Starts the weekly clock on first run. Call off the main thread. */
-    fun load(prefs: Prefs, now: LocalDateTime) {
+    suspend fun load(prefs: Prefs, now: LocalDateTime) = lock.withLock {
         if (prefs.lastRecopy == null) prefs.lastRecopy = now
         last.value = prefs.lastRecopy
         laterUntil.value = prefs.recopyLaterUntil
+        everyDays.value = prefs.recopyDays.toLong()
     }
 
     fun start() {
@@ -62,7 +69,12 @@ class RecopyModel(
     fun later() {
         val until = LocalDate.now().plusDays(1).atTime(graph.window.start)
         laterUntil.value = until
-        parts.scope.launch(Dispatchers.IO) { graph.prefs.recopyLaterUntil = until }
+        parts.scope.launch(Dispatchers.IO) {
+            lock.withLock {
+                graph.prefs.recopyLaterUntil = until
+                laterUntil.value = until
+            }
+        }
     }
 
     fun keep() = next()
@@ -99,8 +111,12 @@ class RecopyModel(
         last.value = now
         laterUntil.value = null
         parts.scope.launch(Dispatchers.IO) {
-            graph.prefs.lastRecopy = now
-            graph.prefs.recopyLaterUntil = null
+            lock.withLock {
+                graph.prefs.lastRecopy = now
+                graph.prefs.recopyLaterUntil = null
+                last.value = now
+                laterUntil.value = null
+            }
         }
         parts.show(Flash(parts.text(R.string.recopy_finished)))
     }

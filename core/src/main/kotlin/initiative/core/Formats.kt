@@ -1,10 +1,12 @@
 package initiative.core
 
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -17,6 +19,8 @@ object Formats {
     private val CLOCK = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
     private val SHORT_DATE = DateTimeFormatter.ofPattern("MMM d", Locale.US)
     private val DAY = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US)
+    private val ICS_LOCAL = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss", Locale.US)
+    private val ICS_UTC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZoneOffset.UTC)
 
     fun clock(t: LocalTime): String = t.format(CLOCK)
     fun clock(t: LocalDateTime): String = clock(t.toLocalTime())
@@ -42,6 +46,12 @@ object Formats {
 
     /** "Tue, Oct 20" */
     fun day(d: LocalDate): String = d.format(DAY)
+
+    /** iCalendar floating local time: "20261020T150000". */
+    fun icsLocal(t: LocalDateTime): String = t.format(ICS_LOCAL)
+
+    /** iCalendar UTC time: "20261020T190000Z". */
+    fun icsUtc(t: Instant): String = ICS_UTC.format(t)
 
     fun wall(w: WallStrength): String = when (w) {
         WallStrength.SOFT -> "Soft"

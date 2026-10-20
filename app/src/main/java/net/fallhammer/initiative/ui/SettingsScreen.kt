@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import initiative.core.Formats
 import net.fallhammer.initiative.R
@@ -36,6 +37,10 @@ fun SettingsScreen(
     onLook: (String) -> Unit,
     quiet: QuietSetting,
     onQuiet: (QuietSetting) -> Unit,
+    lapseHours: Int,
+    onLapseHours: (Int) -> Unit,
+    recopyDays: Int,
+    onRecopyDays: (Int) -> Unit,
     backup: BackupState,
     onBackupFolder: (Uri) -> Unit,
     onBackUpNow: () -> Unit,
@@ -61,6 +66,20 @@ fun SettingsScreen(
             Section(stringResource(R.string.section_board)) {
                 SettingSwitch(stringResource(R.string.setting_board_after_unlock), unlock.enabled, onBoardOnUnlock)
                 SettingSwitch(stringResource(R.string.setting_lock_card), lockCard, onLockCard)
+                Spacer(Modifier.height(Space.s))
+                val lapses = (LAPSE_HOURS + lapseHours).distinct().sorted()
+                ChoiceRow(
+                    stringResource(R.string.setting_lapse),
+                    lapses.map { if (it % 24 == 0) pluralStringResource(R.plurals.days, it / 24, it / 24) else pluralStringResource(R.plurals.hours, it, it) },
+                    lapses.indexOf(lapseHours),
+                ) { onLapseHours(lapses[it]) }
+                Spacer(Modifier.height(Space.s))
+                val recopies = (RECOPY_DAYS + recopyDays).distinct().sorted()
+                ChoiceRow(
+                    stringResource(R.string.setting_recopy),
+                    recopies.map { if (it % 7 == 0) pluralStringResource(R.plurals.weeks, it / 7, it / 7) else pluralStringResource(R.plurals.days, it, it) },
+                    recopies.indexOf(recopyDays),
+                ) { onRecopyDays(recopies[it]) }
             }
             Section(stringResource(R.string.section_look)) {
                 ChoiceRow(
@@ -135,6 +154,10 @@ private fun Section(title: String, content: @Composable () -> Unit) {
     Spacer(Modifier.height(Space.xs))
     Column(Modifier.fillMaxWidth()) { content() }
 }
+
+// Choices for the lapse and recopy timings.
+private val LAPSE_HOURS = listOf(12, 24, 48)
+private val RECOPY_DAYS = listOf(7, 14)
 
 // Synced files don't always keep their JSON type, so the picker also offers plain files.
 private val BACKUP_TYPES = arrayOf("application/json", "application/octet-stream", "text/*")

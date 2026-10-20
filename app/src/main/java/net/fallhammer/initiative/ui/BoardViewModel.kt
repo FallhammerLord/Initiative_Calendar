@@ -110,7 +110,13 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         viewModelScope.launch {
             while (true) {
                 delay(TICK_MS)
-                clock.value = LocalDateTime.now()
+                val now = LocalDateTime.now()
+                clock.value = now
+                // A lapse or a due recopy shows even while the board stays open.
+                withContext(Dispatchers.IO) {
+                    recap.load(graph.prefs, now)
+                    recopy.load(graph.prefs, now)
+                }
             }
         }
         // Start the duration clock the first time a float shows as Now.

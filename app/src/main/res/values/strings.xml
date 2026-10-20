@@ -68,6 +68,20 @@
     <string name="quiet_to">To %1$s</string>
     <string name="setting_board_after_unlock">Board after unlock</string>
     <string name="setting_lock_card">Lock-screen card</string>
+    <string name="setting_lapse">Show the recap after no activity for</string>
+    <string name="setting_recopy">Recopy the list every</string>
+    <plurals name="hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="weeks">
+        <item quantity="one">%d week</item>
+        <item quantity="other">%d weeks</item>
+    </plurals>
     <string name="setting_theme">Theme</string>
     <string name="look_scifi">Sci-fi</string>
     <string name="look_classic">Classic</string>
@@ -76,8 +90,8 @@
     <!-- Previously on (lapse recap) -->
     <string name="recap_title">Previously on</string>
     <string name="recap_passed">What passed</string>
-    <string name="recap_item_done">%1$s, %2$s at %3$s: done</string>
-    <string name="recap_item_passed">%1$s, %2$s at %3$s: passed</string>
+    <string name="recap_item_done">%1$s on %2$s at %3$s: done</string>
+    <string name="recap_item_passed">%1$s on %2$s at %3$s: passed</string>
     <string name="recap_handled">What the app handled</string>
     <string name="recap_rerolled">Back in the queue: %1$s</string>
     <string name="recap_dropped">Moved to the archive: %1$s</string>
@@ -86,7 +100,7 @@
     <string name="recap_drop">Drop</string>
     <string name="recap_drop_all">Drop all</string>
     <string name="recap_ahead">What\'s ahead</string>
-    <string name="recap_ahead_item">%1$s, %2$s at %3$s</string>
+    <string name="recap_ahead_item">%1$s on %2$s at %3$s</string>
     <string name="recap_nothing">Nothing here.</string>
     <string name="recap_back">Back to the board</string>
 
@@ -122,7 +136,19 @@
     <string name="edit_type">Type</string>
     <string name="edit_anchor">Anchor</string>
     <string name="edit_float">Float</string>
-    <string name="edit_repeats">This one repeats. Changes here apply to this time only.</string>
+    <string name="edit_repeat">Repeats</string>
+    <string name="repeat_none">Doesn\'t repeat</string>
+    <string name="repeat_daily">Every day</string>
+    <string name="repeat_weekdays">Weekdays</string>
+    <string name="repeat_weekly">Every week</string>
+    <string name="repeat_biweekly">Every other week</string>
+    <string name="repeat_monthly">Every month</string>
+    <string name="repeat_yearly">Every year</string>
+    <string name="repeat_custom">As set</string>
+    <string name="edit_scope">Change</string>
+    <string name="scope_this">This time</string>
+    <string name="scope_later">This and later</string>
+    <string name="edit_repeat_hint">How it repeats changes from this time on.</string>
     <string name="edit_date">Date: %1$s</string>
     <string name="edit_starts">Starts %1$s</string>
     <string name="edit_ends">Ends %1$s</string>

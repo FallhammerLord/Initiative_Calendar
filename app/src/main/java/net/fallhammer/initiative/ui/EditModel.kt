@@ -1,8 +1,10 @@
 package net.fallhammer.initiative.ui
 
 import androidx.lifecycle.SavedStateHandle
+import initiative.core.Freq
 import initiative.core.Item
 import initiative.core.Kind
+import initiative.core.Recurrence
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +14,7 @@ import net.fallhammer.initiative.data.Backup
 import net.fallhammer.initiative.data.toItem
 import net.fallhammer.initiative.data.toRow
 import org.json.JSONObject
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -20,6 +23,10 @@ import java.time.LocalTime
  * The edit form: a draft of one item, saved in [saved] on every change so a
  * half-made edit survives a restart. Title and notes are typed in the screen
  * and handed over on Save.
+ *
+ * For a repeating item, the draft also holds how it repeats and whether the
+ * edit covers this time only or this and later times. A change to how it
+ * repeats always covers this and later.
  */
 class EditModel(
     private val parts: BoardParts,
@@ -32,11 +39,38 @@ class EditModel(
     /** The item being edited, with changes so far; null when the form is closed. */
     val draft: StateFlow<Item?> = _draft.asStateFlow()
 
+    private val _rule = MutableStateFlow(saved.get<String>(RULE)?.let(::decodeRule))
+    /** How the item repeats after the edit; null for a one-off. */
+    val rule: StateFlow<Recurrence?> = _rule.asStateFlow()
+
+    /** How it repeated when the form opened. */
+    val originalRule: Recurrence? get() = saved.get<String>(RULE_BEFORE)?.let(::decodeRule)
+
+    private val _later = MutableStateFlow(saved.get<Boolean>(LATER) ?: false)
+    /** For one time of a series: whether the edit covers this and later times. */
+    val later: StateFlow<Boolean> = _later.asStateFlow()
+
     val isOpen: Boolean get() = _draft.value != null
 
-    fun open(item: Item) = set(item)
+    fun open(item: Item) {
+        val repeats = current().firstOrNull { it.id == item.templateId }?.recurrence
+        saved[RULE_BEFORE] = encodeRule(repeats)
+        setRule(repeats)
+        setLater(false)
+        set(item)
+    }
 
     fun cancel() = set(null)
+
+    fun setRule(rule: Recurrence?) {
+        _rule.value = rule
+        saved[RULE] = encodeRule(rule)
+    }
+
+    fun setLater(later: Boolean) {
+        _later.value = later
+        saved[LATER] = later
+    }
 
     /** Changes one or more fields of the draft. */
     fun change(update: (Item) -> Item) = set(_draft.value?.let(update))
@@ -79,11 +113,14 @@ class EditModel(
             return
         }
         val old = current().firstOrNull { it.id == d.id }
+        val rule = _rule.value
+        val series = rule != originalRule || (old?.templateId != null && _later.value)
         set(null)
         if (old == null) return
         parts.acted()
         parts.scope.launch {
-            graph.repo.edit(old, d.copy(title = title.trim(), notes = notes.trim()))
+            val edited = d.copy(title = title.trim(), notes = notes.trim())
+            if (series) graph.repo.editSeries(old, edited, rule, LocalDateTime.now()) else graph.repo.edit(old, edited)
             parts.show(Flash(parts.text(R.string.edit_saved)))
         }
     }
@@ -114,5 +151,18 @@ class EditModel(
 
     private companion object {
         const val DRAFT = "edit_draft"
+        const val RULE = "edit_rule"
+        const val RULE_BEFORE = "edit_rule_before"
+        const val LATER = "edit_later"
+
+        // "WEEKLY:2:MONDAY,THURSDAY"; empty for a one-off.
+        fun encodeRule(rule: Recurrence?): String =
+            rule?.let { "${it.freq.name}:${it.interval}:${it.days.joinToString(",") { d -> d.name }}" }.orEmpty()
+
+        fun decodeRule(text: String): Recurrence? = runCatching {
+            if (text.isEmpty()) return@runCatching null
+            val (freq, interval, days) = text.split(":")
+            Recurrence(Freq.valueOf(freq), interval.toInt(), days.split(",").filter { it.isNotEmpty() }.map(DayOfWeek::valueOf).toSet())
+        }.getOrNull()
     }
 }

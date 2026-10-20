@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import initiative.core.Lapse
 import initiative.core.QuietHours
+import initiative.core.Recopy
 import initiative.core.Shown
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -109,6 +111,16 @@ class Prefs(private val context: Context) {
         get() = time(LAST_RECOPY)
         set(value) = putTime(LAST_RECOPY, value)
 
+    /** Hours with no action before the recap shows. */
+    var lapseHours: Int
+        get() = prefs.getInt(LAPSE_HOURS, Lapse.UNTOUCHED_HOURS.toInt())
+        set(value) = prefs.edit().putInt(LAPSE_HOURS, value).apply()
+
+    /** Days between weekly recopies. */
+    var recopyDays: Int
+        get() = prefs.getInt(RECOPY_DAYS, Recopy.EVERY_DAYS.toInt())
+        set(value) = prefs.edit().putInt(RECOPY_DAYS, value).apply()
+
     /** "Later" on the recopy card hides it until this time. */
     var recopyLaterUntil: LocalDateTime?
         get() = time(RECOPY_LATER)
@@ -166,6 +178,8 @@ class Prefs(private val context: Context) {
         const val SHOWN_NOT_BEFORE = "shownNotBefore"
         const val RECAP_SINCE = "recapSince"
         const val LAST_RECOPY = "lastRecopy"
+        const val LAPSE_HOURS = "lapseHours"
+        const val RECOPY_DAYS = "recopyDays"
         const val RECOPY_LATER = "recopyLater"
         const val BACKUP_FOLDER = "backupFolder"
         const val LAST_BACKUP = "lastBackup"

@@ -59,7 +59,7 @@ class BackupModel(private val parts: BoardParts) {
             val ok = withContext(Dispatchers.IO) {
                 val prefs = graph.prefs
                 val folder = prefs.backupFolder ?: return@withContext false
-                Backup.write(parts.app, graph.dao, Uri.parse(folder), now).also { if (it) prefs.lastBackup = now }
+                Backup.writeAll(parts.app, graph.dao, Uri.parse(folder), now).also { if (it) prefs.lastBackup = now }
                     .also { load(prefs) }
             }
             parts.show(Flash(parts.text(if (ok) R.string.backup_written else R.string.backup_failed)))

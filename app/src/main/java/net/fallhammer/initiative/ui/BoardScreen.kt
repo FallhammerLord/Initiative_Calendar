@@ -75,6 +75,8 @@ fun BoardScreen(vm: BoardViewModel) {
     val ask by vm.ask.collectAsStateWithLifecycle()
     val overlay by vm.overlay.collectAsStateWithLifecycle()
     val quiet by vm.settings.quiet.collectAsStateWithLifecycle()
+    val lapseHours by vm.settings.lapseHours.collectAsStateWithLifecycle()
+    val recopyDays by vm.settings.recopyDays.collectAsStateWithLifecycle()
     val apps by vm.launcher.installed.collectAsStateWithLifecycle()
     val pinned by vm.launcher.pinned.collectAsStateWithLifecycle()
     val unlock by vm.settings.unlock.collectAsStateWithLifecycle()
@@ -207,6 +209,10 @@ fun BoardScreen(vm: BoardViewModel) {
                 onLook = vm.settings::setLook,
                 quiet = quiet,
                 onQuiet = vm.settings::setQuiet,
+                lapseHours = lapseHours,
+                onLapseHours = vm.settings::setLapseHours,
+                recopyDays = recopyDays,
+                onRecopyDays = vm.settings::setRecopyDays,
                 backup = backup,
                 onBackupFolder = vm.backup::setFolder,
                 onBackUpNow = vm.backup::backUpNow,

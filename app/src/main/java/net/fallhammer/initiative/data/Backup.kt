@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.room.withTransaction
+import initiative.core.Ics
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDateTime
@@ -20,24 +21,37 @@ class Snapshot(
 /**
  * The nightly backup: everything in the database as one JSON file, written to a
  * folder the person picked, where Syncthing or anything else can copy it on.
- * The file is replaced each night; versions are the syncing tool's job.
+ * Beside it goes a calendar file of anchors, for any calendar app. The files
+ * are replaced each night; versions are the syncing tool's job.
  */
 object Backup {
     const val FILE_NAME = "initiative-backup.json"
+    const val CALENDAR_NAME = "initiative-anchors.ics"
 
     /** Written just before a restore, so a restore can itself be undone. */
     const val BEFORE_RESTORE = "initiative-before-restore.json"
     private const val MIME = "application/json"
+    private const val CALENDAR_MIME = "text/calendar"
     private const val FORMAT = 1
 
-    /** Writes the backup; returns false when the folder can't be reached. */
-    suspend fun write(context: Context, dao: ItemDao, folder: Uri, now: LocalDateTime, name: String = FILE_NAME): Boolean {
-        val text = json(dao.all(), dao.events(), dao.runs(), dao.alarms(), now).toString(2)
+    /** The nightly set: the JSON backup and the calendar file. False when either can't be written. */
+    suspend fun writeAll(context: Context, dao: ItemDao, folder: Uri, now: LocalDateTime): Boolean {
+        val items = dao.all()
+        val json = write(context, dao, folder, now)
+        val calendar = writeFile(context, folder, CALENDAR_NAME, CALENDAR_MIME, Ics.calendar(items.map { it.toItem() }, now))
+        return json && calendar
+    }
+
+    /** Writes the JSON backup; returns false when the folder can't be reached. */
+    suspend fun write(context: Context, dao: ItemDao, folder: Uri, now: LocalDateTime, name: String = FILE_NAME): Boolean =
+        writeFile(context, folder, name, MIME, json(dao.all(), dao.events(), dao.runs(), dao.alarms(), now).toString(2))
+
+    private fun writeFile(context: Context, folder: Uri, name: String, mime: String, text: String): Boolean {
         return runCatching {
             val resolver = context.contentResolver
             val treeId = DocumentsContract.getTreeDocumentId(folder)
             val file = findChild(context, folder, treeId, name)
-                ?: DocumentsContract.createDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(folder, treeId), MIME, name)
+                ?: DocumentsContract.createDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(folder, treeId), mime, name)
                 ?: return false
             resolver.openOutputStream(file, "wt")?.use { it.write(text.toByteArray()) } ?: return false
             true

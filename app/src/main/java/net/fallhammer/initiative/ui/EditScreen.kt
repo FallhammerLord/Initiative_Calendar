@@ -23,12 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import initiative.core.Effort
 import initiative.core.Formats
+import initiative.core.Freq
 import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.MissPolicy
 import initiative.core.Priority
+import initiative.core.Recurrence
 import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import java.time.Duration
@@ -45,6 +48,8 @@ fun EditScreen(
     edit: EditModel,
 ) {
     val context = LocalContext.current
+    val rule by edit.rule.collectAsStateWithLifecycle()
+    val later by edit.later.collectAsStateWithLifecycle()
     // Keyed by the item, so opening another item starts fresh; saved across a restart.
     var title by rememberSaveable(draft.id) { mutableStateOf(draft.title) }
     var notes by rememberSaveable(draft.id) { mutableStateOf(draft.notes) }
@@ -66,17 +71,30 @@ fun EditScreen(
             Field(stringResource(R.string.edit_title), title, { title = it }, singleLine = true)
             Spacer(Modifier.height(Space.s))
             Field(stringResource(R.string.edit_notes), notes, { notes = it }, singleLine = false)
-            if (draft.templateId != null) {
-                Spacer(Modifier.height(Space.s))
-                Body(stringResource(R.string.edit_repeats), style = Type.bodySmall)
-            }
-
             Part {
                 ChoiceRow(
                     stringResource(R.string.edit_type),
                     listOf(stringResource(R.string.edit_anchor), stringResource(R.string.edit_float)),
                     if (draft.isAnchor) 0 else 1,
                 ) { edit.setKind(if (it == 0) Kind.ANCHOR else Kind.FLOAT) }
+            }
+
+            Part {
+                // The usual rules, plus the item's own when it's something else (say, every other Tuesday).
+                val presets = REPEATS.map { it.second }.let { if (rule in it) it else it + rule }
+                val labels = REPEATS.map { stringResource(it.first) } + if (presets.size > REPEATS.size) listOf(stringResource(R.string.repeat_custom)) else emptyList()
+                ChoiceRow(stringResource(R.string.edit_repeat), labels, presets.indexOf(rule)) { edit.setRule(presets[it]) }
+                if (draft.templateId != null) {
+                    if (rule == edit.originalRule) {
+                        ChoiceRow(
+                            stringResource(R.string.edit_scope),
+                            listOf(stringResource(R.string.scope_this), stringResource(R.string.scope_later)),
+                            if (later) 1 else 0,
+                        ) { edit.setLater(it == 1) }
+                    } else {
+                        Body(stringResource(R.string.edit_repeat_hint), style = Type.bodySmall)
+                    }
+                }
             }
 
             val start = draft.start
@@ -200,4 +218,14 @@ private fun Part(content: @Composable () -> Unit) {
 private fun minutes(n: Int): String = Formats.countdown(Duration.ofMinutes(n.toLong()))
 
 private val LEADS = listOf(5, 10, 15, 30, 60)
+
+private val REPEATS: List<Pair<Int, Recurrence?>> = listOf(
+    R.string.repeat_none to null,
+    R.string.repeat_daily to Recurrence(Freq.DAILY),
+    R.string.repeat_weekdays to Recurrence(Freq.WEEKDAYS),
+    R.string.repeat_weekly to Recurrence(Freq.WEEKLY),
+    R.string.repeat_biweekly to Recurrence(Freq.WEEKLY, interval = 2),
+    R.string.repeat_monthly to Recurrence(Freq.MONTHLY_DATE),
+    R.string.repeat_yearly to Recurrence(Freq.YEARLY),
+)
 private val DURATIONS = listOf(15, 30, 45, 60, 90, 120)
