@@ -73,16 +73,16 @@ fun BoardScreen(vm: BoardViewModel) {
     val flash by vm.flash.collectAsStateWithLifecycle()
     val ask by vm.ask.collectAsStateWithLifecycle()
     val overlay by vm.overlay.collectAsStateWithLifecycle()
-    val quiet by vm.quiet.collectAsStateWithLifecycle()
-    val apps by vm.appList.collectAsStateWithLifecycle()
-    val pinned by vm.pinned.collectAsStateWithLifecycle()
-    val unlock by vm.unlock.collectAsStateWithLifecycle()
-    val setup by vm.setup.collectAsStateWithLifecycle()
-    val lockCard by vm.lockCard.collectAsStateWithLifecycle()
-    val recap by vm.recap.collectAsStateWithLifecycle()
-    val recopyDue by vm.recopyDue.collectAsStateWithLifecycle()
-    val recopyItem by vm.recopyItem.collectAsStateWithLifecycle()
-    val backup by vm.backup.collectAsStateWithLifecycle()
+    val quiet by vm.settings.quiet.collectAsStateWithLifecycle()
+    val apps by vm.launcher.installed.collectAsStateWithLifecycle()
+    val pinned by vm.launcher.pinned.collectAsStateWithLifecycle()
+    val unlock by vm.settings.unlock.collectAsStateWithLifecycle()
+    val setup by vm.settings.setup.collectAsStateWithLifecycle()
+    val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
+    val recap by vm.recap.state.collectAsStateWithLifecycle()
+    val recopyDue by vm.recopy.due.collectAsStateWithLifecycle()
+    val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
+    val backup by vm.backup.state.collectAsStateWithLifecycle()
     val look = LocalLook.current
     val opened by vm.opened.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -94,7 +94,7 @@ fun BoardScreen(vm: BoardViewModel) {
     // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
         when {
-            overlay != Overlay.NONE -> vm.back()
+            overlay != Overlay.NONE || recopyItem != null -> vm.back()
             expanded -> expanded = false
         }
     }
@@ -103,29 +103,29 @@ fun BoardScreen(vm: BoardViewModel) {
     // the setup line opens Settings instead.
     val notificationPrompt = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refresh() }
     fun openStep(step: SetupStep) {
-        if (step == SetupStep.NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vm.useNotificationPrompt()) {
+        if (step == SetupStep.NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vm.settings.useNotificationPrompt()) {
             notificationPrompt.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            vm.openSetup(step)
+            vm.settings.openSetup(step)
         }
     }
 
     Box(Modifier.fillMaxSize().background(Ink.bg)) {
         val focusView = ui.focus
         val shownRecap = recap
-        val walkItem = recopyItem.takeIf { overlay == Overlay.RECOPY }
+        val walkItem = recopyItem
         // Each of these takes the board's place, so nothing hides underneath:
         // "Previously on" after a lapse, then the recopy walk, then focus.
         if (shownRecap != null) {
-            RecapScreen(shownRecap, onKeep = vm::keepAsked, onDrop = vm::dropAsked, onDropAll = vm::dropAllAsked, onBack = vm::closeRecap)
+            RecapScreen(shownRecap, onKeep = vm.recap::keep, onDrop = vm.recap::drop, onDropAll = vm.recap::dropAll, onBack = vm.recap::close)
         } else if (walkItem != null) {
             RecopyScreen(
                 walkItem,
-                onKeep = vm::recopyKeep,
-                onThisWeek = vm::recopyLaterThisWeek,
-                onNextWeek = vm::recopyNextWeek,
-                onDrop = vm::recopyDrop,
-                onStop = vm::stopRecopy,
+                onKeep = { vm.recopy.keep() },
+                onThisWeek = vm.recopy::laterThisWeek,
+                onNextWeek = vm.recopy::nextWeek,
+                onDrop = vm.recopy::drop,
+                onStop = vm.recopy::stop,
             )
         } else if (focusView != null) {
             FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
@@ -148,7 +148,7 @@ fun BoardScreen(vm: BoardViewModel) {
             Spacer(Modifier.height(Space.m))
             // The weekly recopy waits while an anchor is Now.
             if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
-                RecopyCard(onStart = vm::startRecopy, onLater = vm::recopyLater)
+                RecopyCard(onStart = vm.recopy::start, onLater = vm.recopy::later)
                 Spacer(Modifier.height(Space.m))
             }
             ask?.let { parsed ->
@@ -179,9 +179,9 @@ fun BoardScreen(vm: BoardViewModel) {
                 apps = apps,
                 pinned = pinned,
                 onLaunch = vm::launch,
-                onTogglePin = vm::togglePin,
-                onSettings = vm::openSettings,
-                onHomeChooser = vm::openHomeChooser,
+                onTogglePin = vm.launcher::togglePin,
+                onSettings = vm.launcher::openSettings,
+                onHomeChooser = vm.launcher::openHomeChooser,
                 onAppSettings = vm::showSettings,
                 onClose = { vm.setDrawer(false) },
             )
@@ -194,16 +194,16 @@ fun BoardScreen(vm: BoardViewModel) {
         ) {
             SettingsScreen(
                 unlock = unlock,
-                onBoardOnUnlock = vm::setBoardOnUnlock,
+                onBoardOnUnlock = vm.settings::setBoardOnUnlock,
                 lockCard = lockCard,
-                onLockCard = vm::setLockCard,
+                onLockCard = vm.settings::setLockCard,
                 lookId = look.id,
-                onLook = vm::setLook,
+                onLook = vm.settings::setLook,
                 quiet = quiet,
-                onQuiet = vm::setQuiet,
+                onQuiet = vm.settings::setQuiet,
                 backup = backup,
-                onBackupFolder = vm::setBackupFolder,
-                onBackUpNow = vm::backUpNow,
+                onBackupFolder = vm.backup::setFolder,
+                onBackUpNow = vm.backup::backUpNow,
                 onClose = vm::back,
             )
         }

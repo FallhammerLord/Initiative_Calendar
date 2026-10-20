@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            val look by vm.look.collectAsStateWithLifecycle()
+            val look by vm.settings.look.collectAsStateWithLifecycle()
             InitiativeTheme(Looks.byId(look)) { BoardScreen(vm) }
         }
     }
@@ -37,9 +37,9 @@ class MainActivity : ComponentActivity() {
         vm.refresh()
     }
 
-    // Pressing Home while already home closes the drawer.
+    // Pressing Home while already home goes back to the board.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        vm.setDrawer(false)
+        vm.home()
     }
 }

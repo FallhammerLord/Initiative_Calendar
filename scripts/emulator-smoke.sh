@@ -88,11 +88,33 @@ PY
 
 see() { find_node "$1" "${2:-contains}" > /dev/null; }
 
-expect_text() { see "$1" && pass "shows '$1'" || fail "expected '$1' on screen"; }
+# Screens settle at different speeds, so checks wait rather than look once.
+# wait_for: up to $3 seconds (default 6) for text to appear.
+wait_for() {
+  local end=$((SECONDS + ${3:-6}))
+  until see "$1" "${2:-contains}"; do
+    [ $SECONDS -ge $end ] && return 1
+    sleep 0.5
+  done
+}
+
+# wait_gone: up to $3 seconds (default 6) for text to go away.
+wait_gone() {
+  local end=$((SECONDS + ${3:-6}))
+  while see "$1" "${2:-contains}"; do
+    [ $SECONDS -ge $end ] && return 1
+    sleep 0.5
+  done
+}
+
+expect_text() { wait_for "$1" && pass "shows '$1'" || fail "expected '$1' on screen"; }
 
 tap() {
-  local xy
-  xy=$(find_node "$1" "${2:-contains}") || fail "can't find '$1' to tap"
+  local xy end=$((SECONDS + 6))
+  until xy=$(find_node "$1" "${2:-contains}"); do
+    [ $SECONDS -ge $end ] && fail "can't find '$1' to tap"
+    sleep 0.5
+  done
   adb shell input tap $xy
   sleep 1.5
 }
@@ -163,14 +185,14 @@ open_drawer() {
   hide_keyboard
   adb shell input swipe 540 1700 540 500 250
   sleep 2
-  if ! see "Change home app" exact; then
+  if ! wait_for "Change home app" exact 3; then
     adb shell dumpsys input_method > "$OUT/ime.txt"
     log "note: swipe didn't open the drawer; pressing Back once and retrying"
     adb shell input keyevent KEYCODE_BACK
     sleep 1
     adb shell input swipe 540 1700 540 500 250
     sleep 2
-    see "Change home app" exact || fail "swipe up didn't open the app drawer"
+    wait_for "Change home app" exact || fail "swipe up didn't open the app drawer"
   fi
 }
 
@@ -221,7 +243,7 @@ set_clock() {
 open_settings() {
   open_drawer
   tap "Initiative settings" exact
-  see "Quiet hours" exact || fail "Initiative settings didn't open"
+  wait_for "Quiet hours" exact || fail "Initiative settings didn't open"
 }
 
 crash_check() {
@@ -310,7 +332,7 @@ adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow
 adb shell appops set $PKG USE_FULL_SCREEN_INTENT allow
 adb shell dumpsys deviceidle whitelist +$PKG > /dev/null
 home
-if see "Setup:"; then fail "setup line still showing after every grant"; fi
+wait_gone "Setup:" || fail "setup line still showing after every grant"
 pass "setup line clears once everything is granted"
 
 quick_add "call landlord"
@@ -347,7 +369,7 @@ expect_text "anchor or float"
 shot ask-chips
 tap Float exact
 hide_keyboard
-see "anchor or float" && fail "ask chips didn't close"
+wait_gone "anchor or float" || fail "ask chips didn't close"
 pass "ask chips close"
 
 adb shell input keyevent KEYCODE_BACK
@@ -467,7 +489,7 @@ tap Classic exact
 shot classic-settings
 adb shell input keyevent KEYCODE_BACK
 sleep 1
-see "Change home app" exact || fail "Back from settings should return to the drawer"
+wait_for "Change home app" exact || fail "Back from settings should return to the drawer"
 pass "Back from settings returns to the drawer"
 adb shell input keyevent KEYCODE_BACK
 sleep 1
@@ -479,10 +501,10 @@ tap "Quiet hours" exact
 expect_text "From 10:00 PM"
 shot quiet-hours
 tap "Quiet hours" exact
-see "From 10:00 PM" && fail "quiet-hour times still showing after switching off"
+wait_gone "From 10:00 PM" || fail "quiet-hour times still showing after switching off"
 pass "quiet hours switch on and off"
 home
-see "Quiet hours" exact && fail "Home should close settings"
+wait_gone "Quiet hours" exact || fail "Home should close settings"
 pass "Home closes settings"
 shot scifi-board
 pass "theme switches both ways"
@@ -543,7 +565,7 @@ expect_text "What passed"
 expect_text "pickup"
 shot recap
 tap "Back to the board" exact
-see "Previously on" && fail "recap still showing after Back to the board"
+wait_gone "Previously on" || fail "recap still showing after Back to the board"
 pass "Back to the board closes the recap"
 expect_text "Recopy the list"
 shot recopy-card
@@ -561,8 +583,8 @@ for _ in 1 2 3 4 5 6; do
 done
 [ $finished = yes ] || fail "expected 'List recopied' after the last Keep"
 pass "shows 'List recopied'"
-see "Later this week" exact && fail "recopy walk still showing after the last item"
-see "Recopy the list" && fail "recopy card still showing after the walk"
+wait_gone "Later this week" exact || fail "recopy walk still showing after the last item"
+wait_gone "Recopy the list" || fail "recopy card still showing after the walk"
 pass "the recopy walk finishes and the card clears"
 shot after-recopy
 crash_check

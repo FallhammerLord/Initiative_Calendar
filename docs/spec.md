@@ -282,6 +282,8 @@ Three rule sets every change follows. Under each, the checklist names the gaps f
 ### Android engineering
 
 - **Layers.** Screens talk to a ViewModel, the ViewModel to the repository, the repository to the database. Scheduling rules stay in `core/`, with no Android code.
+- **Small parts.** The board's ViewModel holds the board, focus, quick-add, and which screen is open. Each other feature (recap, recopy, backup, settings, app list) is its own small class that shares the ViewModel's scope.
+- **Wall-clock times.** Stored times have no zone: 3:00 PM stays 3:00 PM wherever the phone is. `core/.../WallClock.kt` is the one place they become real moments, for alarms and countdowns, so daylight-saving changes are handled once.
 - **One of each service.** The database, repository, scheduler, and settings come from one app container, created once in `InitiativeApp`.
 - **Main thread for the screen only.** Database work, app-list queries, and file work run in the background.
 - **Survive being closed by Android.** What you typed or opened comes back after the system reclaims the app.
@@ -301,6 +303,17 @@ Gaps today:
 - [x] Nothing is saved for process restarts. An expanded ledger or half-typed quick-add is lost if Android reclaims the app.
 - [x] No lint in CI, code shrinking is off, and there's no version catalog.
 - [x] The notification permission sends you to Settings. Android 13 and newer have a one-tap system prompt.
+
+Second pass, after v0.1:
+
+- [x] The board's ViewModel had grown to 518 lines covering seven features. It's split into parts.
+- [x] The open screen and a recopy walk were lost if Android reclaimed the app. Both are now saved.
+- [x] Countdowns across a daylight-saving change were an hour off. They now count real time, with tests for both changes.
+- [x] The emulator test looked once for each thing, so slow screens failed it. Checks now wait up to a few seconds.
+- [ ] No tests for the ViewModel or the scheduler; the emulator test covers them late.
+- [ ] The scheduler runs alarms, the lock-screen card, automatic skips, and the backup in one pass.
+- [ ] Libraries are about two years old (Compose, Room, Kotlin).
+- [ ] A lapse shows only when the board comes back to the front.
 
 ### UI and UX
 

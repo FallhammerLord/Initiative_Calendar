@@ -9,7 +9,9 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 - `core/`: the scheduling engine in plain Kotlin (placement, priority, alarms
   ladder, recurrence, parser, formatters). No Android code. Test with
   `./gradlew -p core test` (works without the Android SDK).
-- `app/`: the Android launcher. Services in `AppGraph.kt`; design system in
+- `app/`: the Android launcher. Services in `AppGraph.kt`; the board's state in
+  `ui/BoardViewModel.kt`, with each feature in its own part (`RecapModel`,
+  `RecopyModel`, `BackupModel`, `SettingsModel`, `LauncherModel`); design system in
   `ui/Design.kt` (tokens and components) and `ui/Theme.kt` (themes: colors,
   shapes, outlines, pattern, font); wording in `res/values/strings.xml`.
   Read colors through `Ink` inside composables; capture them into locals
@@ -46,7 +48,12 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 - Slow work (database, package queries, files) off the main thread.
 - The backup folder picker (Android's file picker) can't be automated; check it
   by hand on the phone.
-- State a person typed or opened survives a process restart (`rememberSaveable`).
+- State a person typed or opened survives a process restart (`rememberSaveable`
+  in screens, `SavedStateHandle` in the view model).
+- Times are wall-clock with no zone; turn them into real moments only through
+  `WallClock` in `core/`.
+- In `emulator-smoke.sh`, check with `expect_text`, `wait_for`, and `wait_gone`,
+  which wait for the screen to settle, rather than a single `see`.
 
 ## Working on this repo
 

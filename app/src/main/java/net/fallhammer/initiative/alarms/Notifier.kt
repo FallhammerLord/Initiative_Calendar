@@ -18,12 +18,12 @@ import initiative.core.Escalation
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.Rung
+import initiative.core.WallClock
 import net.fallhammer.initiative.MainActivity
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.TAG
 import java.time.Duration
 import java.time.LocalDateTime
-import java.time.ZoneId
 
 /** The lock-screen card and the rung notifications. No badges anywhere. */
 object Notifier {
@@ -165,5 +165,5 @@ object Notifier {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    fun millis(t: LocalDateTime): Long = t.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    fun millis(t: LocalDateTime): Long = WallClock.instant(t).toEpochMilli()
 }

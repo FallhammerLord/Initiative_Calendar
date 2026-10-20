@@ -4,6 +4,7 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -27,7 +28,9 @@ object Formats {
         return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
 
-    fun countdown(from: LocalDateTime, to: LocalDateTime): String = countdown(Duration.between(from, to))
+    /** Real time left, so a countdown across a daylight-saving change stays right. */
+    fun countdown(from: LocalDateTime, to: LocalDateTime, zone: ZoneId = ZoneId.systemDefault()): String =
+        countdown(WallClock.between(from, to, zone))
 
     fun weekday(d: LocalDate): String = d.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.US)
     fun shortDate(d: LocalDate): String = d.format(SHORT_DATE)
