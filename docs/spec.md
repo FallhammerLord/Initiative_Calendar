@@ -417,6 +417,8 @@ After v0.1, built:
 
 **Parked: icon drawer.** The app drawer as rows of icons, five to a row, seated by use: the most-used five in the top row, the next five below. Seats never move by themselves; new apps take the next empty seat, and only a drag or a "Sort by use" tap reorders. Counts come from launches through Initiative, so no Usage access permission. Parked because the dock and search cover the need for now. (Adaptive menus that reorder by use tend to slow people down; stable seats avoid that. Findlater and McGrenere, CHI 2004, cited from memory.)
 
+**Parked: tasks by text.** Texts from one chosen number that start with a phrase such as "task:" become tasks: the words up to the first period are the title, the rest the description, and any time in the message is read as in quick-add (a time that lands on an anchor moves to just after it; anchors win). Each one shows "Added from a text" with Undo, since a sender's number can be faked. To weigh when it's built: reading texts is a restricted permission (the same "Allow restricted settings" unlock), and Google Messages' RCS chat messages never reach other apps the way SMS does, so RCS would need the Messages notification read instead (another restricted permission, matched by contact name). One "Partner" number could serve this and the partner alert rung.
+
 **v0.2 — Close the loop**
 
 - The Log: planning beyond today (below)
