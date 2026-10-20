@@ -399,6 +399,20 @@ expect_text "taxes"
 expect_text "High priority"
 expect_text "Next: call landlord"
 shot two-floats
+# Closing the keyboard lets go of the field: it doesn't stay highlighted.
+xy=$(find_node android.widget.EditText class) || fail "no quick-add field"
+adb shell input tap $xy
+for _ in 1 2 3 4; do ime_shown && break; sleep 1; done
+ime_shown || fail "tapping quick-add should open the keyboard"
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+ui > "$OUT/focus.xml"
+python3 - "$OUT/focus.xml" <<'PY' || fail "quick-add stayed focused after the keyboard closed"
+import sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+sys.exit(1 if any(n.get("class") == "android.widget.EditText" and n.get("focused") == "true" for n in root.iter("node")) else 0)
+PY
+pass "closing the keyboard releases the quick-add field"
 # Swipe up on the Next line opens the day panel; a tap outside it folds it.
 xy=$(find_node "Next: call landlord" exact) || fail "no Next line"
 x=${xy% *}; y=${xy#* }
