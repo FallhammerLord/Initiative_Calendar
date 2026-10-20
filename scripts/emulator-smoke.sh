@@ -115,9 +115,32 @@ quick_add() {
   xy=$(find_node android.widget.EditText class) || fail "no quick-add field"
   adb shell input tap $xy
   sleep 1
-  adb shell input text "${1// /%s}"
+  # The emulator now and then drops a keystroke, so check the field before
+  # saving and retype if it doesn't match.
+  for _ in 1 2 3; do
+    adb shell input text "${1// /%s}"
+    sleep 0.5
+    [ "$(field_text)" = "$1" ] && break
+    adb shell input keyevent KEYCODE_MOVE_END
+    adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq 40))
+  done
+  [ "$(field_text)" = "$1" ] || fail "couldn't type '$1' into quick-add"
   adb shell input keyevent KEYCODE_ENTER
   sleep 2
+}
+
+# What the quick-add field holds right now.
+field_text() {
+  ui > "$OUT/field.xml"
+  python3 - "$OUT/field.xml" <<'PY'
+import sys, xml.etree.ElementTree as ET
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except Exception:
+    sys.exit(0)
+fields = [n for n in root.iter("node") if n.get("class") == "android.widget.EditText"]
+print(fields[-1].get("text") or "" if fields else "")
+PY
 }
 
 # The keyboard is up. (Not "mIsInputViewShown": the keyboard app keeps that
