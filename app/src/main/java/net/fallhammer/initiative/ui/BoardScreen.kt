@@ -14,7 +14,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -49,9 +50,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
@@ -102,6 +108,10 @@ fun BoardScreen(vm: BoardViewModel) {
     // Coming back home should show the board, not an open keyboard.
     LaunchedEffect(opened) { focus.clearFocus() }
 
+    // Where the quick-add field sits, so a touch outside it can let it go.
+    var fieldArea by remember { mutableStateOf(Rect.Zero) }
+    var boardAt by remember { mutableStateOf(Offset.Zero) }
+
     // Hiding the keyboard lets go of the text field, so it doesn't stay lit.
     val keyboardUp = WindowInsets.isImeVisible
     LaunchedEffect(keyboardUp) { if (!keyboardUp) focus.clearFocus() }
@@ -151,8 +161,18 @@ fun BoardScreen(vm: BoardViewModel) {
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
             } else Box(Modifier.fillMaxSize()) {
-                // A tap on empty board lets go of the text field too.
-                Screen(Modifier.pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }) {
+                // A touch anywhere but the text field lets go of it. It only watches,
+                // so the touch still reaches whatever it landed on.
+                Screen(
+                    Modifier
+                        .onGloballyPositioned { boardAt = it.positionInRoot() }
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                if (!fieldArea.contains(down.position + boardAt)) focus.clearFocus()
+                            }
+                        },
+                ) {
                     NowCard(
                         ui = ui,
                         flash = flash,
@@ -182,7 +202,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     }
                     // One setup step at a time, until all are done.
                     setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
-                    QuickAdd(onSubmit = vm::submit)
+                    QuickAdd(onSubmit = vm::submit, modifier = Modifier.onGloballyPositioned { fieldArea = it.boundsInRoot() })
                     Spacer(Modifier.height(Space.inside))
                     // The way to the app drawer: a swipe up that starts in this bottom band,
                     // which sits above Android's own gesture strip, or the Apps handle.
@@ -518,7 +538,7 @@ private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -
 }
 
 @Composable
-private fun QuickAdd(onSubmit: (String) -> Boolean) {
+private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifier) {
     // Saved across process restarts, so a half-typed line survives.
     var text by rememberSaveable { mutableStateOf("") }
     OutlinedTextField(
@@ -535,7 +555,7 @@ private fun QuickAdd(onSubmit: (String) -> Boolean) {
         } else {
             { QuietButton(stringResource(R.string.quick_add_button), { if (onSubmit(text)) text = "" }, color = Ink.accent) }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
