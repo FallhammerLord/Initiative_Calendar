@@ -46,6 +46,7 @@ fail() {
   adb shell dumpsys notification --noredact > "$OUT/notifications.txt"
   adb exec-out screencap -p > "$OUT/zz-failure.png"
   ui > "$OUT/zz-failure-ui.xml" || true
+  adb shell dumpsys input_method > "$OUT/ime-at-failure.txt" || true
   adb logcat -d > "$OUT/logcat.txt"
   exit 1
 }
@@ -119,19 +120,34 @@ quick_add() {
   sleep 2
 }
 
+# Android has reported keyboard visibility under different names across
+# versions; any of these means it's up.
+ime_shown() {
+  adb shell dumpsys input_method | grep -qE "mInputShown=true|mImeWindowVis=[1-9]|isInputViewShown=true|mIsInputViewShown=true|imeVisible=true"
+}
+
 hide_keyboard() {
-  if adb shell dumpsys input_method | grep -q "mInputShown=true"; then
+  if ime_shown; then
     adb shell input keyevent KEYCODE_BACK
     sleep 1
   fi
 }
 
-# Swipe up on the board; the drawer must open.
+# Swipe up on the board; the drawer must open. If a keyboard the check missed
+# swallowed the swipe, Back closes it (on the board Back does nothing else).
 open_drawer() {
   hide_keyboard
   adb shell input swipe 540 1700 540 500 250
   sleep 2
-  see "Change home app" exact || fail "swipe up didn't open the app drawer"
+  if ! see "Change home app" exact; then
+    adb shell dumpsys input_method > "$OUT/ime.txt"
+    log "note: swipe didn't open the drawer; pressing Back once and retrying"
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+    adb shell input swipe 540 1700 540 500 250
+    sleep 2
+    see "Change home app" exact || fail "swipe up didn't open the app drawer"
+  fi
 }
 
 locked() { adb shell dumpsys window | grep -qiE "keyguardShowing=true|mShowingLockscreen=true"; }
@@ -318,7 +334,7 @@ tap "Phone settings" exact
 expect_front com.android.settings "Phone settings opens Settings"
 home
 expect_front $PKG "Home returns to the board from Settings"
-adb shell dumpsys input_method | grep -q "mInputShown=true" && fail "keyboard opened by itself on returning home"
+ime_shown && fail "keyboard opened by itself on returning home"
 pass "keyboard stays closed on returning home"
 shot back-home
 
