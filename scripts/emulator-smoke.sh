@@ -149,12 +149,11 @@ quick_add() {
   # saving and retype if it doesn't match.
   for _ in 1 2 3; do
     adb shell input text "${1// /%s}"
-    sleep 0.5
-    [ "$(field_text)" = "$1" ] && break
+    wait_for "$1" field 4 && break
     adb shell input keyevent KEYCODE_MOVE_END
     adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq 40))
   done
-  [ "$(field_text)" = "$1" ] || fail "couldn't type '$1' into quick-add"
+  wait_for "$1" field 2 || fail "couldn't type '$1' into quick-add (field holds '$(field_text)')"
   adb shell input keyevent KEYCODE_ENTER
   sleep 2
 }
