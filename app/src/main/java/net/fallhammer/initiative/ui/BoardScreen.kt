@@ -196,10 +196,13 @@ private fun NowCard(
 ) {
     val board = ui.board
     val item = board?.now?.item
-    // Scrolls when the system font is large, so the buttons are never pushed off the card.
+    // Scrolls only when its content overflows (large system fonts), so the buttons
+    // are never pushed off the card. Otherwise a swipe up on the card passes
+    // through to open the drawer, since a scrollable area catches every swipe.
+    val scroll = rememberScrollState()
     BoxWithConstraints(modifier.fillMaxWidth()) {
         Card(
-            Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+            Modifier.verticalScroll(scroll, enabled = scroll.maxValue > 0).heightIn(min = maxHeight),
             arrangement = Arrangement.SpaceBetween,
         ) {
             // Holding the title area starts focus; the Focus button is the visible twin.
