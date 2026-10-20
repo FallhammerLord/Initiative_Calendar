@@ -762,11 +762,14 @@ read -r _ wtop _ wbottom < <(node_bounds "water plants") || fail "no water plant
 read -r rx1 rtop rx2 _ < <(node_bounds "read mail") || fail "no read mail in the forecast"
 [ "$wtop" -gt "$rtop" ] || fail "expected water plants below read mail before the drag"
 drag $(( (rx1 + rx2) / 2 )) $(( (wtop + wbottom) / 2 )) $(( rtop + 4 ))
-expect_text "Moved to"
+# Dropped on read mail's top edge: between dentist call and read mail.
+sleep 1
+read -r _ dtop _ _ < <(node_bounds "dentist call")
 read -r _ wtop _ _ < <(node_bounds "water plants")
 read -r _ rtop _ _ < <(node_bounds "read mail")
-[ "$wtop" -lt "$rtop" ] || fail "water plants should now come before read mail"
-pass "dragging a task moves it in the forecast"
+log "     after the drag: dentist call $dtop, water plants $wtop, read mail $rtop"
+[ "$dtop" -lt "$wtop" ] && [ "$wtop" -lt "$rtop" ] || fail "water plants should land between dentist call and read mail"
+pass "dragging a task moves it to where it's dropped"
 shot forecast-after-drag
 adb shell input keyevent KEYCODE_BACK
 wait_gone "Today's line" || fail "Back should fold the day panel"

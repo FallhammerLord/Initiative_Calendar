@@ -25,7 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -52,7 +52,8 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
         Body(stringResource(R.string.queue_empty), modifier = Modifier.padding(Space.s))
         return
     }
-    // Each entry's top and bottom within the list, for working out where a drag ends.
+    // Each entry's top and bottom on screen, for working out where a drag ends.
+    // Measured before the drag's own offset, so a moving row keeps its home position.
     val bounds = remember { mutableStateMapOf<Long, ClosedFloatingPointRange<Float>>() }
     var dragging by remember { mutableStateOf<Long?>(null) }
     var dragY by remember { mutableFloatStateOf(0f) }
@@ -102,14 +103,14 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
         }
         Row(
             Modifier
+                .onGloballyPositioned { c ->
+                    val top = c.positionInRoot().y
+                    bounds[item.id] = top..(top + c.size.height)
+                }
                 .fillMaxWidth()
                 .heightIn(min = Tap.min)
                 .zIndex(if (dragging == item.id) 1f else 0f)
                 .graphicsLayer { translationY = if (dragging == item.id) dragY else 0f }
-                .onGloballyPositioned { c ->
-                    val top = c.positionInParent().y
-                    bounds[item.id] = top..(top + c.size.height)
-                }
                 .then(drag)
                 .clickable(onClickLabel = edit) { onEdit(item) }
                 .semantics { customActions = actions }

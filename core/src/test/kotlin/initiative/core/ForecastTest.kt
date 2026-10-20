@@ -85,5 +85,14 @@ class ForecastTest {
         assertEquals(at(14, 15), engine.dropTime(f.slots, 1, at(14)))
         // After pickup: its end.
         assertEquals(at(15, 30), engine.dropTime(f.slots, 3, at(14)))
+        // Partway through a minute: the next whole one.
+        assertEquals(at(14, 1), engine.dropTime(f.slots, 0, at(14).plusSeconds(20)))
+    }
+
+    @Test fun aPinnedNowStillShowsWhatsNext() {
+        val pinned = task(2).copy(pinnedSlot = at(9))
+        val b = engine.board(listOf(pinned, task(3, created = 8)), at(9, 5))
+        assertEquals(2L, b.now.item?.id)
+        assertEquals(3L, b.next?.id)
     }
 }

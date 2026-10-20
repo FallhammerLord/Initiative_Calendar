@@ -72,7 +72,10 @@ class Placement(private val window: DayWindow = DayWindow()) {
         floats.firstOrNull { f ->
             val slot = f.pinnedSlot ?: return@firstOrNull false
             !now.isBefore(slot) && now.isBefore(slot.plusMinutes(f.durationMinutes.toLong()))
-        }?.let { return Board(NowPick(it, "Pinned to this slot"), nextAnchor) }
+        }?.let { pin ->
+            val after = rank(eligible(floats - pin, now), today, order).firstOrNull()
+            return Board(NowPick(pin, "Pinned to this slot"), nextAnchor ?: after)
+        }
 
         if (now.toLocalTime() !in window) {
             val why = if (now.toLocalTime().isBefore(window.start)) "Day starts at ${Formats.clock(window.start)}" else "Day's done"
@@ -194,9 +197,14 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * entry before it, or now when dropped first.
      */
     fun dropTime(slots: List<Slot>, index: Int, now: LocalDateTime): LocalDateTime {
-        val start = now.withSecond(0).withNano(0)
-        val before = slots.getOrNull(index - 1) ?: return start
-        return maxOf(before.end, start)
+        val before = slots.getOrNull(index - 1)
+        return wholeMinute(if (before == null) now else maxOf(before.end, now))
+    }
+
+    // Up to the next whole minute, so the entry before keeps all of its time.
+    private fun wholeMinute(t: LocalDateTime): LocalDateTime {
+        val base = t.withSecond(0).withNano(0)
+        return if (base == t) base else base.plusMinutes(1)
     }
 
     /**

@@ -186,8 +186,9 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
      * otherwise it stays put. Its new place also becomes the tie breaker.
      */
     fun moveTask(item: Item, index: Int) {
+        // Worked out afresh: the forecast on screen can be up to a tick old.
         val now = LocalDateTime.now()
-        val others = ui.value.forecast.slots.filter { it.item.id != item.id }
+        val others = placement.forecast(items, now, order.value).slots.filter { it.item.id != item.id }
         val at = placement.dropTime(others, index, now)
         if (!placement.canPin(item, items, at, now)) {
             show(Flash(text(R.string.doesnt_fit)))
