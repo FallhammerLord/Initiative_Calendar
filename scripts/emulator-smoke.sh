@@ -528,11 +528,17 @@ tap Start exact
 expect_text "Later this week"
 expect_text "dentist"
 shot recopy-walk
+# The closing note shows for 4 seconds, so look for it right after each Keep.
+finished=no
 for _ in 1 2 3 4 5 6; do
-  see "Later this week" exact || break
-  tap Keep exact
+  xy=$(find_node Keep exact) || break
+  adb shell input tap $xy
+  sleep 0.5
+  if see "List recopied"; then finished=yes; break; fi
 done
-expect_text "List recopied"
+[ $finished = yes ] || fail "expected 'List recopied' after the last Keep"
+pass "shows 'List recopied'"
+see "Later this week" exact && fail "recopy walk still showing after the last item"
 see "Recopy the list" && fail "recopy card still showing after the walk"
 pass "the recopy walk finishes and the card clears"
 shot after-recopy
