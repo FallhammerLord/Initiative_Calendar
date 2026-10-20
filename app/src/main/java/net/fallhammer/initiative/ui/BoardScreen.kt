@@ -15,7 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,7 +67,6 @@ import initiative.core.Item
 import initiative.core.MarkKind
 import initiative.core.WallStrength
 import net.fallhammer.initiative.R
-import net.fallhammer.initiative.data.AppEntry
 import net.fallhammer.initiative.data.SetupStep
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -84,6 +82,9 @@ fun BoardScreen(vm: BoardViewModel) {
     val recopyDays by vm.settings.recopyDays.collectAsStateWithLifecycle()
     val apps by vm.launcher.installed.collectAsStateWithLifecycle()
     val pinned by vm.launcher.pinned.collectAsStateWithLifecycle()
+    val dock by vm.launcher.dock.collectAsStateWithLifecycle()
+    val icons by vm.launcher.icons.collectAsStateWithLifecycle()
+    val pickSlot by vm.pickSlot.collectAsStateWithLifecycle()
     val unlock by vm.settings.unlock.collectAsStateWithLifecycle()
     val setup by vm.settings.setup.collectAsStateWithLifecycle()
     val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
@@ -186,7 +187,7 @@ fun BoardScreen(vm: BoardViewModel) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Bottom,
                     ) {
-                        PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
+                        Dock(dock, icons, onTap = vm::tapSlot, onHold = vm::holdSlot)
                         QuietButton(stringResource(R.string.apps_button), onClick = { vm.setDrawer(true) })
                     }
                 }
@@ -195,6 +196,25 @@ fun BoardScreen(vm: BoardViewModel) {
                     DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) })
                 }
             }
+        }
+
+        AnimatedVisibility(
+            visible = overlay == Overlay.PICK,
+            enter = slideInVertically { it },
+            exit = slideOutVertically { it },
+        ) {
+            AppDrawer(
+                apps = apps,
+                pinned = pinned,
+                onLaunch = vm::pickApp,
+                onTogglePin = {},
+                onSettings = {},
+                onHomeChooser = {},
+                onAppSettings = {},
+                onClose = { vm.setDrawer(false) },
+                picking = true,
+                onClearSlot = if (dock.getOrNull(pickSlot) != null) vm::clearSlot else null,
+            )
         }
 
         AnimatedVisibility(
@@ -530,17 +550,6 @@ private fun QuickAdd(onSubmit: (String) -> Boolean) {
         keyboardActions = KeyboardActions(onDone = { if (onSubmit(text)) text = "" }),
         modifier = Modifier.fillMaxWidth(),
     )
-}
-
-@Composable
-private fun PinnedRow(apps: List<AppEntry>, onLaunch: (AppEntry) -> Unit) {
-    if (apps.isEmpty()) return
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = Space.s),
-        horizontalArrangement = Arrangement.spacedBy(Space.xs),
-    ) {
-        apps.forEach { app -> QuietButton(app.label, { onLaunch(app) }, color = Ink.text) }
-    }
 }
 
 /** A swipe up of at least [travel]. */

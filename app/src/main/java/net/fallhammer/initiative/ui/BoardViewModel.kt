@@ -47,7 +47,7 @@ data class BoardUi(
 data class FocusView(val item: Item, val until: LocalDateTime, val wall: Item?)
 
 /** What's drawn over the board. */
-enum class Overlay { NONE, DRAWER, SETTINGS }
+enum class Overlay { NONE, DRAWER, SETTINGS, PICK }
 
 /** A short note after an action. [undo] holds the item as it was, when the action can be taken back. */
 data class Flash(val text: String, val undo: Item? = null)
@@ -101,6 +101,9 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
 
     /** Kept across a restart, so the drawer or settings reopen where they were. */
     val overlay: StateFlow<Overlay> = saved.getStateFlow(OVERLAY, Overlay.NONE)
+
+    /** The dock slot an app is being picked for, while the picker is open. */
+    val pickSlot: StateFlow<Int> = saved.getStateFlow(PICK_SLOT, -1)
 
     private val _opened = MutableStateFlow(0)
     /** Bumps each time the board comes to the front, so the screen can reset focus. */
@@ -250,6 +253,30 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         }
     }
 
+    /** A dock slot: an app opens; an empty slot opens the picker. */
+    fun tapSlot(slot: Int) {
+        val app = launcher.dock.value.getOrNull(slot)
+        if (app != null) launch(app) else pick(slot)
+    }
+
+    /** Holding a dock slot opens the picker to change or empty it. */
+    fun holdSlot(slot: Int) = pick(slot)
+
+    fun pickApp(entry: AppEntry) {
+        launcher.setSlot(pickSlot.value, entry)
+        saved[OVERLAY] = Overlay.NONE
+    }
+
+    fun clearSlot() {
+        launcher.setSlot(pickSlot.value, null)
+        saved[OVERLAY] = Overlay.NONE
+    }
+
+    private fun pick(slot: Int) {
+        saved[PICK_SLOT] = slot
+        saved[OVERLAY] = Overlay.PICK
+    }
+
     fun launch(entry: AppEntry) {
         saved[OVERLAY] = Overlay.NONE
         launcher.launch(entry)
@@ -303,5 +330,6 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val FLASH_MS = 4_000L
         const val UNDO_MS = 8_000L
         const val OVERLAY = "overlay"
+        const val PICK_SLOT = "pick_slot"
     }
 }

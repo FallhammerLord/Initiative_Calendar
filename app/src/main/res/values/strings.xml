@@ -59,7 +59,7 @@
     <string name="drawer_search">Search apps</string>
     <string name="drawer_phone_settings">Phone settings</string>
     <string name="drawer_change_home">Change home app</string>
-    <string name="drawer_pinned">%1$s, pinned</string>
+    <string name="drawer_pinned">%1$s, in the dock</string>
     <string name="drawer_app_settings">Initiative settings</string>
 
     <!-- Settings -->
@@ -90,7 +90,12 @@
     <string name="setting_theme">Theme</string>
     <string name="look_scifi">Sci-fi</string>
     <string name="look_classic">Classic</string>
-    <string name="drawer_pin_hint">Hold an app to pin it to the board.</string>
+    <string name="drawer_pin_hint">Hold an app to add it to the dock, or take it out.</string>
+    <string name="pick_title">Pick an app</string>
+    <string name="pick_clear">Empty this space</string>
+    <string name="dock_add">Add an app</string>
+    <string name="dock_add_mark">+</string>
+    <string name="dock_change">Change</string>
 
     <!-- Previously on (lapse recap) -->
     <string name="recap_title">Previously on</string>

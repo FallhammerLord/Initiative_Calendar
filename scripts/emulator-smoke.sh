@@ -107,6 +107,20 @@ PY
 
 see() { find_node "$1" "${2:-contains}" > /dev/null; }
 
+# Bounds of the first node whose text or description is exactly $1: "x1 y1 x2 y2".
+node_bounds() {
+  ui > "$OUT/ui.xml"
+  python3 - "$OUT/ui.xml" "$1" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+for n in root.iter("node"):
+    if sys.argv[2] in ((n.get("text") or ""), (n.get("content-desc") or "")):
+        print(*re.findall(r"\d+", n.get("bounds")))
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
 # Screens settle at different speeds, so checks wait rather than look once.
 # wait_for: up to $3 seconds (default 6) for text to appear.
 wait_for() {
@@ -462,6 +476,12 @@ crash_check
 
 adb shell locksettings set-pin 1234 > /dev/null || fail "couldn't set a test PIN"
 adb shell locksettings verify --old 1234 > /dev/null 2>&1 && pass "test PIN set"
+# Off by default; switch it on.
+open_settings
+xy=$(find_node "Board after unlock" exact) || fail "no board-after-unlock switch"
+adb shell input tap 980 "${xy#* }"
+sleep 1
+home
 adb shell am start -a android.settings.SETTINGS > /dev/null
 sleep 2
 lock_screen
@@ -486,6 +506,35 @@ unlock_with_pin
 expect_front com.android.settings "With the switch off, unlock returns to the last app"
 adb shell locksettings clear --old 1234 > /dev/null
 home
+crash_check
+
+# --- Dock -----------------------------------------------------------------------
+# Six slots along the bottom. An empty one opens the picker; a filled one opens
+# its app; holding one lets it be emptied. In the Sci-fi look the slots are
+# nested hexagon trios, so a tap on a tile's point, which lies inside the next
+# tile's box, must still open that tile's app.
+
+home
+expect_text "Add an app"
+shot dock-empty
+tap "Add an app"
+wait_for "Pick an app" exact || fail "an empty dock space should open the picker"
+shot dock-picker
+tap Settings exact
+wait_gone "Pick an app" exact || fail "picking an app should close the picker"
+read -r x1 y1 x2 y2 < <(node_bounds "Settings") || fail "no Settings tile in the dock"
+# 1.65 of the tile's 1.75 hexagon widths: inside its point, inside the next tile's box.
+x=$(( x1 + (x2 - x1) * 165 / 175 )); y=$(( (y1 + y2) / 2 ))
+adb shell input tap $x $y
+expect_front com.android.settings "a tap on a tile's point opens that tile's app"
+home
+read -r x1 y1 x2 y2 < <(node_bounds "Settings") || fail "Settings tile gone after Home"
+adb shell input swipe $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) 900
+wait_for "Empty this space" exact || fail "holding a tile should open the picker with Empty"
+tap "Empty this space" exact
+wait_gone "Pick an app" exact || fail "Empty should close the picker"
+wait_gone "Settings" exact 3 || fail "the emptied space still shows Settings"
+pass "a held tile can be emptied"
 crash_check
 
 # --- Alarms ---------------------------------------------------------------------

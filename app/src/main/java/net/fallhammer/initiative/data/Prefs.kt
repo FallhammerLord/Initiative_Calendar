@@ -29,9 +29,13 @@ class Prefs(private val context: Context) {
         prefs.all
     }
 
-    /** Bring the board forward after every unlock. On by default. */
+    /**
+     * Bring the board forward after every unlock. Off by default: as the Home app
+     * the board is one press away, and this needs "Display over other apps",
+     * which Android blocks for sideloaded apps.
+     */
     var boardOnUnlock: Boolean
-        get() = prefs.getBoolean(BOARD_ON_UNLOCK, true)
+        get() = prefs.getBoolean(BOARD_ON_UNLOCK, false)
         set(value) = prefs.edit().putBoolean(BOARD_ON_UNLOCK, value).apply()
 
     /** The silent Now card on the lock screen. On by default. */

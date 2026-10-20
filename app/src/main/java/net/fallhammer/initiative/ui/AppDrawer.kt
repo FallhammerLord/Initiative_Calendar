@@ -34,6 +34,9 @@ import net.fallhammer.initiative.data.AppEntry
 /**
  * Every installed app, plus the two exits to the normal phone: its Settings,
  * and the system screen for switching back to another home app.
+ *
+ * With [picking], it's the dock's picker instead: tapping an app puts it in the
+ * slot, [onClearSlot] empties the slot, and the exits are hidden.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -46,6 +49,8 @@ fun AppDrawer(
     onHomeChooser: () -> Unit,
     onAppSettings: () -> Unit,
     onClose: () -> Unit,
+    picking: Boolean = false,
+    onClearSlot: (() -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val shown = apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
@@ -53,8 +58,8 @@ fun AppDrawer(
     // Catch taps on empty space so they never reach the board underneath.
     Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
         Row(Modifier.fillMaxWidth().onSwipeDown(onClose), verticalAlignment = Alignment.CenterVertically) {
-            Title(stringResource(R.string.drawer_title), style = Type.title, modifier = Modifier.weight(1f))
-            QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
+            Title(stringResource(if (picking) R.string.pick_title else R.string.drawer_title), style = Type.title, modifier = Modifier.weight(1f))
+            if (!picking) QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
             QuietButton(stringResource(R.string.drawer_close), onClose)
         }
         OutlinedTextField(
@@ -68,9 +73,13 @@ fun AppDrawer(
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(Space.s))
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            SecondaryButton(stringResource(R.string.drawer_phone_settings), onSettings, height = Tap.min)
-            SecondaryButton(stringResource(R.string.drawer_change_home), onHomeChooser, height = Tap.min)
+        if (!picking) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                SecondaryButton(stringResource(R.string.drawer_phone_settings), onSettings, height = Tap.min)
+                SecondaryButton(stringResource(R.string.drawer_change_home), onHomeChooser, height = Tap.min)
+            }
+        } else if (onClearSlot != null) {
+            SecondaryButton(stringResource(R.string.pick_clear), onClearSlot, height = Tap.min)
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
             items(shown, key = { it.key }) { app ->
@@ -83,12 +92,12 @@ fun AppDrawer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = Tap.min)
-                        .combinedClickable(onClick = { onLaunch(app) }, onLongClick = { onTogglePin(app) })
+                        .combinedClickable(onClick = { onLaunch(app) }, onLongClick = if (picking) null else ({ onTogglePin(app) }))
                         .semantics { contentDescription = spoken }
                         .padding(vertical = Space.m),
                 )
             }
         }
-        Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim)
+        if (!picking) Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim)
     }
 }

@@ -20,7 +20,8 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 
 - Registers as a home app, with an app drawer, search, pinned apps, and exits to phone Settings and the home-app chooser
 - The board: Now card with Done / Skip / Tomorrow, the reason line, Next peek, ledger line that expands into the day queue
-- Board after unlock
+- Board after unlock (off by default; the Home button does the job, and Android blocks the permission for sideloaded apps)
+- A dock of six favourite apps along the bottom, as hexagon trios in the Sci-fi look
 - Initiative settings (from the drawer): board after unlock, lock-screen card, theme, quiet hours, backup folder
 - Focus mode: hold the card or tap Focus; a countdown to the next Firm or Hard wall, Soft alarms silent
 - Alarms: the escalation ladder, rungs 1 to 3, with On it and Snooze, a full-screen alarm over the lock screen, and re-arming after a restart

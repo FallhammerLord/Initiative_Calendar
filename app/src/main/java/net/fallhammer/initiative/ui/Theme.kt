@@ -10,12 +10,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import initiative.core.Trio
 import net.fallhammer.initiative.R
 
 /*
@@ -55,7 +61,22 @@ data class Look(
     val hexGrid: Boolean,
     /** Small labels like "Now" drawn in the accent color instead of dim. */
     val accentLabels: Boolean,
+    /** Dock tiles as nested hexagon trios; otherwise a plain row of [buttonShape] squares. */
+    val dockTrio: Boolean,
 )
+
+/** The dock's trio tile; see core's Trio. Sized to the tile's box, which is 1.75 hexagons wide. */
+object TrioShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val points = Trio.outline(size.width / 1.75f)
+        val path = Path().apply {
+            moveTo(points[0].first, points[0].second)
+            points.drop(1).forEach { (x, y) -> lineTo(x, y) }
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
 
 object Looks {
     /** Navy panels, teal frames, cut corners, a faint hex grid. After the quest log. */
@@ -77,6 +98,7 @@ object Looks {
         framed = true,
         hexGrid = true,
         accentLabels = true,
+        dockTrio = true,
     )
 
     /** Black and amber, rounded. The first look. */
@@ -98,6 +120,7 @@ object Looks {
         framed = false,
         hexGrid = false,
         accentLabels = false,
+        dockTrio = false,
     )
 
     val all = listOf(SciFi, Classic)
