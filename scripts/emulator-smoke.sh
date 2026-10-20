@@ -29,10 +29,21 @@ try:
 except Exception:
     sys.exit(0)  # no dump (lock screen, transition): nothing to check
 pkg = sys.argv[2]
+import re
 def spoken(n):
     return any((m.get(a) or "").strip() for m in n.iter("node") for a in ("text", "content-desc", "hint"))
+def box(n):
+    return tuple(map(int, re.findall(r"\d+", n.get("bounds") or "[0,0][0,0]")))
+# A control running past the top or bottom edge of a scrolling list has its
+# label scrolled out of view; TalkBack scrolls it in, so it isn't unlabelled.
+# A control squeezed flat inside the screen still fails.
+scrollers = [box(n) for n in root.iter("node") if n.get("scrollable") == "true"]
+def scrolled_off(n):
+    x1, y1, x2, y2 = box(n)
+    return any(sx1 <= x1 and x2 <= sx2 and (y2 > sy2 or y1 < sy1) for sx1, sy1, sx2, sy2 in scrollers)
 bad = [n for n in root.iter("node")
-       if n.get("package") == pkg and (n.get("clickable") == "true" or n.get("long-clickable") == "true") and not spoken(n)]
+       if n.get("package") == pkg and (n.get("clickable") == "true" or n.get("long-clickable") == "true")
+       and not spoken(n) and not scrolled_off(n)]
 for n in bad:
     print("    unlabelled", n.get("class"), n.get("bounds"))
 sys.exit(1 if bad else 0)
