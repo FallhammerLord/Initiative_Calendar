@@ -16,6 +16,14 @@ class PlacementTest {
     private fun float(id: Long, title: String, mins: Int = 30, deadline: LocalDate? = null, createdAt: LocalDateTime = created) =
         Item(id = id, title = title, kind = Kind.FLOAT, durationMinutes = mins, deadline = deadline, createdAt = createdAt)
 
+    @Test fun freeTimeSaysWhyHonestly() {
+        // Skipped until 3:30, and one for tomorrow: nothing is due yet, so not "Nothing fits".
+        val skipped = float(2, "taxes", mins = 15).copy(notBefore = at(15, 30))
+        val later = float(3, "dentist", mins = 15).copy(earliestStart = day.plusDays(1))
+        assertEquals("Back at 3:30 PM: taxes", engine.board(listOf(pickup, skipped, later), at(12)).now.reason)
+        assertEquals("Nothing else is due today", engine.board(listOf(pickup, later), at(12)).now.reason)
+    }
+
     @Test fun anchorInProgressIsNow() {
         val b = engine.board(listOf(pickup, float(2, "call")), at(15, 10))
         assertEquals(pickup.id, b.now.item?.id)

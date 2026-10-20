@@ -24,6 +24,8 @@ check() {
 
 check "Font sizes and line heights come from Type in Design.kt" \
   '[0-9]+(\.[0-9]+)?\.sp\b|fontSize *=' "$UI_SYSTEM"
+check "Spacing comes from Space in Design.kt (zone, inside, and the steps)" \
+  '(padding|spacedBy|Spacer\(Modifier\.(height|width))\([^)]*[0-9]+\.dp' "$UI_SYSTEM"
 check "Colors come from the theme in Theme.kt" \
   'Color\(0x|Color\.(Black|White|Red|Gray|Yellow|Blue|Green)' "$APP/ui/Theme.kt"
 check "Corner shapes come from the theme in Theme.kt" \

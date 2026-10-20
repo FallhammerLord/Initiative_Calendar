@@ -32,7 +32,7 @@
     <string name="ask_anchor">Anchor…</string>
     <string name="ask_cancel">Cancel</string>
     <string name="quick_add_hint">Add anything: dentist thu 3pm</string>
-    <string name="apps_button">Apps ⌃</string>
+    <string name="apps_open">Apps</string>
     <string name="flash_done">Done</string>
     <string name="flash_added">Added: %1$s</string>
     <string name="flash_anchor_skipped">Off today\'s board</string>

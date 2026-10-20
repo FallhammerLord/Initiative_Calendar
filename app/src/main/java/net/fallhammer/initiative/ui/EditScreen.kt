@@ -211,8 +211,9 @@ private fun DateLine(set: String?, unset: String, onPick: () -> Unit, onClear: (
 
 @Composable
 private fun Part(content: @Composable () -> Unit) {
+    // Form fields sit Space.l apart; the controls of one field, Space.inside.
     Spacer(Modifier.height(Space.l))
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.s)) { content() }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.inside)) { content() }
 }
 
 private fun minutes(n: Int): String = Formats.countdown(Duration.ofMinutes(n.toLong()))

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -158,10 +159,10 @@ fun BoardScreen(vm: BoardViewModel) {
                         onFocus = vm::startFocus,
                         onEdit = vm.edit::open,
                     )
-                    Spacer(Modifier.height(Space.m))
+                    Spacer(Modifier.height(Space.zone))
                     // Folded, the day panel is just the Next line: swipe it up or tap it to open.
                     DayBar(ui, open = false, onToggle = { expanded = true }, modifier = Modifier.onSwipeUp { expanded = true })
-                    Spacer(Modifier.height(Space.s))
+                    Spacer(Modifier.height(Space.zone))
                     // The weekly recopy waits while an anchor is Now.
                     if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
                         RecopyPrompt(onStart = vm.recopy::start, onLater = vm.recopy::later)
@@ -177,18 +178,20 @@ fun BoardScreen(vm: BoardViewModel) {
                     // One setup step at a time, until all are done.
                     setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
                     QuickAdd(onSubmit = vm::submit)
+                    Spacer(Modifier.height(Space.inside))
                     // The way to the app drawer: a swipe up that starts in this bottom band,
-                    // which sits above Android's own gesture strip, or the Apps button.
+                    // which sits above Android's own gesture strip, or the Apps handle.
                     Column(
                         Modifier
                             .fillMaxWidth()
                             .heightIn(min = DRAWER_BAND)
                             .onSwipeUp(DRAWER_SWIPE) { vm.setDrawer(true) },
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom,
+                        verticalArrangement = Arrangement.spacedBy(Space.inside, Alignment.Bottom),
                     ) {
                         Dock(dock, icons, onTap = vm::tapSlot, onHold = vm::holdSlot)
-                        QuietButton(stringResource(R.string.apps_button), onClick = { vm.setDrawer(true) })
+                        // The Apps button, as a slim pull tab: the swipe's visible twin.
+                        Handle(stringResource(R.string.day_open_mark), stringResource(R.string.apps_open), onClick = { vm.setDrawer(true) })
                     }
                 }
                 // Open, the day panel lies over the board, so the Now card keeps its shape.
@@ -385,6 +388,7 @@ private fun FocusScreen(focus: FocusView, now: LocalDateTime, onDone: (Item) -> 
  */
 @Composable
 private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    // Folded, it's a framed strip lined up with the Now card; open, it heads the sheet.
     val next = ui.board?.next
     val start = next?.start
     val text = when {
@@ -392,14 +396,8 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
         next.isAnchor && start != null -> stringResource(R.string.next_anchor, next.title, Formats.countdown(ui.now, start))
         else -> stringResource(R.string.next_float, next.title)
     }
-    Row(
-        modifier
-            .fillMaxWidth()
-            .heightIn(min = Tap.min)
-            .clickable(onClickLabel = stringResource(if (open) R.string.day_close else R.string.day_open), onClick = onToggle)
-            .padding(horizontal = Space.xs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val tap = modifier.clickable(onClickLabel = stringResource(if (open) R.string.day_close else R.string.day_open), onClick = onToggle)
+    val content: @Composable RowScope.() -> Unit = {
         Body(text, Modifier.weight(1f), color = Ink.text)
         Text(
             stringResource(if (open) R.string.day_close_mark else R.string.day_open_mark),
@@ -407,6 +405,11 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
             color = Ink.accent,
             modifier = Modifier.clearAndSetSemantics { },
         )
+    }
+    if (open) {
+        Row(tap.fillMaxWidth().heightIn(min = Tap.min), verticalAlignment = Alignment.CenterVertically, content = content)
+    } else {
+        Strip(tap, content)
     }
 }
 

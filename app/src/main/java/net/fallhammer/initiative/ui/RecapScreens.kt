@@ -119,8 +119,8 @@ fun RecopyScreen(
 
 @Composable
 private fun Part(title: String, content: @Composable () -> Unit) {
-    Spacer(Modifier.height(Space.l))
+    Spacer(Modifier.height(Space.zone))
     Label(title)
     Spacer(Modifier.height(Space.xs))
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xs)) { content() }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.inside)) { content() }
 }

@@ -25,7 +25,7 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 
 - Engine tests, the app's migration test, and lint errors.
 - `ThemeContrastTest`: every theme keeps text at 7:1 and outlines at 3:1.
-- `scripts/design-guard.sh`: no hand-set font sizes outside `Design.kt`, no
+- `scripts/design-guard.sh`: no hand-set font sizes or spacing outside `Design.kt`, no
   colors or corner shapes outside `Theme.kt`; no wording outside `strings.xml`; no time
   formatting outside `core/.../Formats.kt`; no service built outside `AppGraph`;
   no all-caps labels. Run it locally before pushing.
@@ -40,8 +40,9 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 
 ## Rules CI can't fully check
 
-- Build new screens from `Screen`, `Card`, the buttons, and the type scale.
-  One primary button per screen.
+- Build new screens from `Screen`, `Card`, `Strip`, the buttons, and the type scale.
+  One primary button per screen. Space panels with `Space.zone` (24dp, between
+  zones) and `Space.inside` (8dp, within one); see the spec's Layout rhythm.
 - Readability: Atkinson Hyperlegible, sentence case, body text 18 sp or more,
   plain neutral words, no blame or counters.
 - Every new screen gets emulator steps in `emulator-smoke.sh` (with `shot`, so

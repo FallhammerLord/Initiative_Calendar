@@ -149,7 +149,7 @@ fun SettingsScreen(
 /** A labelled group of settings. */
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Spacer(Modifier.height(Space.l))
+    Spacer(Modifier.height(Space.zone))
     Label(title)
     Spacer(Modifier.height(Space.xs))
     Column(Modifier.fillMaxWidth()) { content() }

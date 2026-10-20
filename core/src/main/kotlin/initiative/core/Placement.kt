@@ -66,9 +66,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val current = gaps.firstOrNull { now in it } ?: return Board(NowPick(null, "Nothing fits right now"), nextAnchor)
         val longest = gaps.maxOf { it.minutes }
 
-        val ranked = rank(eligible(floats, now).filter { fits(it, current, longest) }, today)
-        val top = ranked.firstOrNull()
-            ?: return Board(NowPick(null, if (floats.isEmpty()) "Nothing needs doing" else "Nothing fits before ${current.after?.title ?: "the day ends"}"), nextAnchor)
+        val ready = eligible(floats, now)
+        val ranked = rank(ready.filter { fits(it, current, longest) }, today)
+        val top = ranked.firstOrNull() ?: return Board(NowPick(null, idleReason(floats, ready, current, now)), nextAnchor)
 
         val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today)
         return Board(NowPick(top, reason), nextAnchor ?: ranked.getOrNull(1), until = current.end)
@@ -214,6 +214,22 @@ class Placement(private val window: DayWindow = DayWindow()) {
                 .thenBy(nullsLast()) { it.deadline }
                 .thenBy { it.createdAt },
         )
+
+    /**
+     * Why Now is Free time. "Nothing fits" only when a task could be shown but
+     * none fits this gap; otherwise when the next one is back, or that nothing
+     * else is due today.
+     */
+    private fun idleReason(floats: List<Item>, ready: List<Item>, current: Gap, now: LocalDateTime): String {
+        if (floats.isEmpty()) return "Nothing needs doing"
+        if (ready.isNotEmpty()) return "Nothing fits before ${current.after?.title ?: "the day ends"}"
+        val today = now.toLocalDate()
+        val back = floats
+            .filter { f -> f.pinnedSlot == null && (f.earliestStart == null || !f.earliestStart.isAfter(today)) }
+            .mapNotNull { f -> f.notBefore?.takeIf { it.isAfter(now) && it.toLocalDate() == today }?.let { f to it } }
+            .minByOrNull { it.second }
+        return back?.let { (f, at) -> "Back at ${Formats.clock(at)}: ${f.title}" } ?: "Nothing else is due today"
+    }
 
     private fun reasonFor(top: Item, second: Item?, gap: Gap, longest: Long, today: LocalDate): String {
         val p = top.resolvePriority(today)

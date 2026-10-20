@@ -94,7 +94,7 @@ Top to bottom:
 2. **Next peek.** One small line under the card. For an anchor it shows a countdown: "School pickup in 1h 40m." It is also the handle of the day panel: tap it or swipe it up to open the panel; swipe down, tap outside, or press Back to fold it.
 3. **Ledger line.** Inside the day panel, above today's queue: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. The open panel lies over the board as a sheet, so the Now card never shrinks to make room.
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
-5. **Apps.** A dock of six fixed slots for favourite apps runs along the bottom. Tap a slot to open its app; an empty slot shows + and opens a picker; hold a slot to change or empty it. Holding an app in the drawer adds it to the first empty slot. In the Sci-fi look the slots are nested hexagon trios (two stacked, one tucked to the right, each tile's point in the next one's notch); taps go by each tile's real outline, not its box. In Classic they're plain squares. A swipe up that starts in this bottom band (the dock and the Apps button, above Android's own gesture strip) opens the app list; a swipe anywhere else on the board doesn't. The Apps button does the same with a tap.
+5. **Apps.** Below the dock, a slim ⌃ pull tab opens the app list with a tap; it's the visible twin of the swipe. A dock of six fixed slots for favourite apps runs along the bottom. Tap a slot to open its app; an empty slot shows + and opens a picker; hold a slot to change or empty it. Holding an app in the drawer adds it to the first empty slot. In the Sci-fi look the slots are nested hexagon trios (two stacked, one tucked to the right, each tile's point in the next one's notch); taps go by each tile's real outline, not its box. In Classic they're plain squares. A swipe up that starts in this bottom band (the dock and the Apps button, above Android's own gesture strip) opens the app list; a swipe anywhere else on the board doesn't. The pull tab does the same with a tap.
 
 **Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on, the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission, which Android 15 and later block for sideloaded apps until "Allow restricted settings" is chosen in the app's info page. So it's off by default: as the Home app, the board is one press of Home away, which tested well on the owner's phone. The switch is in Initiative settings; when on, the board shows a one-line prompt until the permission is granted.
 
@@ -347,6 +347,14 @@ One source for every look, phrase, and format, so new screens are assembled from
 - **Screen template.** One scaffold handles system bars, keyboard space, margins, and background. The board, drawer, alarm screen, recap, and recopy all use it.
 - **Formatters.** One place formats clock times, countdowns, dates, and wall labels for the board, notifications, and alarm screen alike.
 - **Copy.** All wording in string resources, grouped by screen. The rotating rung phrasings in v0.2 go in the same file.
+- **Layout rhythm.** Panels group by distance, so the eye sees the board's three jobs at a glance: what's Now, the day, and getting to things (quick-add, dock, apps).
+  - Every gap and size is a multiple of 4 dp; side margins are 16 dp.
+  - Between zones: `Space.zone`, 24 dp. Inside a zone: `Space.inside`, 8 dp. Form fields: 16 dp apart.
+  - Touch targets are at least 48 dp, with at least 8 dp between neighbours. The dock's trio tiles touch, so their taps go by outline instead.
+  - One text edge: panel text sits 24 dp in from the panel's side, in the Now card, the day strip, and the open day sheet alike.
+  - Panels look like panels: the folded day panel is a framed strip (`Strip`), matching the card and the sheet it opens into.
+  - The design guard fails on a hand-typed spacing value outside `Design.kt`.
+  - Sources: SAP Fiori for Android, following Material 3 ([layout basics](https://www.sap.com/design-system/fiori-design-android/v26-4/foundations/adaptive-layout/layout-basics)); Material's older metrics and keylines ([m1.material.io](https://m1.material.io/layout/metrics-keylines.html)).
 - **Notification templates.** One builder per rung, sharing layout and actions. The notifier already works this way.
 
 Gaps today:

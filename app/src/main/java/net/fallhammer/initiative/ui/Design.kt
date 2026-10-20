@@ -3,13 +3,16 @@ package net.fallhammer.initiative.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -30,11 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -63,6 +68,14 @@ object Space {
     val l = 16.dp
     val xl = 24.dp
     val xxl = 32.dp
+
+    /*
+     * Layout rhythm. Panels group by distance: a wide gap between zones (what's
+     * Now, the day, getting to things), a narrow one inside a zone. Form fields
+     * sit [l] apart. Touch targets keep at least [inside] between them.
+     */
+    val zone = xl
+    val inside = s
 }
 
 /** Touch-target heights. */
@@ -102,6 +115,44 @@ fun Screen(modifier: Modifier = Modifier, content: @Composable ColumnScope.() ->
             .padding(horizontal = Space.l, vertical = Space.m),
         content = content,
     )
+}
+
+/**
+ * A one-line panel, framed like a [Card], with the same side padding so its text
+ * lines up with the card's. The folded day panel is one.
+ */
+@Composable
+fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    val look = LocalLook.current
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.min)
+            .clip(look.cardShape)
+            .background(Ink.surface)
+            .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
+            .padding(horizontal = Space.xl, vertical = Space.s),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
+}
+
+/**
+ * A slim pull tab along the bottom edge: just a mark, with a full-size touch
+ * target and a spoken [label].
+ */
+@Composable
+fun Handle(mark: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.min)
+            .clickable(onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(mark, style = Type.title, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
+    }
 }
 
 /** The raised surface the Now card and alarm sit on. */
