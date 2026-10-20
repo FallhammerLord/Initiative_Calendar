@@ -435,7 +435,8 @@ After v0.1, built:
 
 **v0.4 — Desktop and voice**
 
-- Desktop counterpart app with the full board and editing, styled after the Fallhammer quest log: planning happens at the desk, and the timeline is pushed to the phone, which stays the interface
+- Desktop counterpart app with the full board and editing: planning happens at the desk, and the timeline is pushed to the phone, which stays the interface
+- Its task log takes the Fallhammer quest log's interface as the primary design reference (repo `FallhammerLord/fallhammer_quest_log`): the list and folder layout, parent and child entries, search, the read and edit views, status buttons with icon and label, and its themes. The code differs (a Foundry VTT module versus a desktop app); the look and flow carry over.
 - Phone and desktop sync over home Wi-Fi, no cloud
 - Voice capture with offline speech recognition
 
