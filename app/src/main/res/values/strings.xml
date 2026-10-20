@@ -12,8 +12,13 @@
     <string name="action_undo">Undo</string>
     <string name="next_anchor">Next: %1$s in %2$s</string>
     <string name="next_float">Next: %1$s</string>
-    <string name="ledger_hint">Today · tap for the queue</string>
-    <string name="ledger_description">Today\'s line. %1$s %2$s Tap for the queue.</string>
+    <string name="ledger_hint">Today</string>
+    <string name="day_open">Show today</string>
+    <string name="day_close">Hide today</string>
+    <string name="day_open_mark">⌃</string>
+    <string name="day_close_mark">⌄</string>
+    <string name="nothing_next">Nothing else today</string>
+    <string name="ledger_description">Today\'s line. %1$s %2$s</string>
     <string name="ledger_walls">Walls: %1$s.</string>
     <string name="ledger_no_walls">No walls left today.</string>
     <string name="ledger_wall">%1$s at %2$s, %3$s</string>
@@ -46,7 +51,7 @@
     <string name="setup_exact_alarms">Setup: tap to let alarms fire on the minute.</string>
     <string name="setup_full_screen">Setup: tap to allow full-screen alarms for Firm and Hard walls.</string>
     <string name="setup_battery">Setup: tap so battery saving can\'t delay alarms. Choose Allow.</string>
-    <string name="setup_overlay">Setup: tap to let the board appear after you unlock. Allow “Display over other apps”.</string>
+    <string name="setup_overlay">Setup: tap to let the board appear after you unlock. If Android blocks it: Settings, Apps, Initiative, ⋮, Allow restricted settings. Or switch off Board after unlock in Initiative settings.</string>
 
     <!-- App drawer -->
     <string name="drawer_title">Apps</string>
@@ -105,9 +110,7 @@
     <string name="recap_back">Back to the board</string>
 
     <!-- Weekly recopy -->
-    <string name="recopy_title">Recopy the list</string>
-    <string name="recopy_hint">Walk the open list, oldest first. Keep, move, or drop each one.</string>
-    <string name="recopy_start">Start</string>
+    <string name="recopy_prompt">Recopy the list: tap to walk it, oldest first</string>
     <string name="recopy_later">Later</string>
     <string name="recopy_label">Recopy</string>
     <string name="recopy_nudge">This one keeps coming back. Dropping it is fine.</string>

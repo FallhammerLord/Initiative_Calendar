@@ -1,6 +1,7 @@
 package net.fallhammer.initiative.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,18 +77,12 @@ fun RecapScreen(
     }
 }
 
-/** The weekly recopy card on the board: Start or Later. */
+/** The weekly recopy on the board, as one line so the Now card keeps its room: tap to start, or Later. */
 @Composable
-fun RecopyCard(onStart: () -> Unit, onLater: () -> Unit) {
-    Card {
-        Title(stringResource(R.string.recopy_title), style = Type.title)
-        Spacer(Modifier.height(Space.xs))
-        Body(stringResource(R.string.recopy_hint), style = Type.bodySmall)
-        Spacer(Modifier.height(Space.m))
-        ActionRow(
-            Action { SecondaryButton(stringResource(R.string.recopy_start), onStart, it, height = Tap.min) },
-            Action { QuietButton(stringResource(R.string.recopy_later), onLater, it) },
-        )
+fun RecopyPrompt(onStart: () -> Unit, onLater: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) { PromptLine(stringResource(R.string.recopy_prompt), onStart) }
+        QuietButton(stringResource(R.string.recopy_later), onLater)
     }
 }
 

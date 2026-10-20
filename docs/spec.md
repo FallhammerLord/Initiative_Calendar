@@ -91,10 +91,10 @@ The board is a hybrid. It uses Board B's single card and buttons, and folds Boar
 Top to bottom:
 
 1. **Now card.** Fills most of the screen. One item in large type. A one-line reason under the title, such as "Due tomorrow, fits before pickup." Three buttons: **Done**, **Skip**, **Tomorrow**.
-2. **Next peek.** One small line under the card. For an anchor it shows a countdown: "School pickup in 1h 40m."
-3. **Ledger line.** A single line pinned near the bottom that shows the day: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. Tapping it expands to the full day queue.
+2. **Next peek.** One small line under the card. For an anchor it shows a countdown: "School pickup in 1h 40m." It is also the handle of the day panel: tap it or swipe it up to open the panel; swipe down, tap outside, or press Back to fold it.
+3. **Ledger line.** Inside the day panel, above today's queue: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. The open panel lies over the board as a sheet, so the Now card never shrinks to make room.
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
-5. **Apps.** Swipe up for the app list. A short row of pinned apps sits at the bottom.
+5. **Apps.** A swipe up that starts in the bottom band (the pinned apps and the Apps button, above Android's own gesture strip) opens the app list; a swipe anywhere else on the board doesn't. The Apps button does the same with a tap.
 
 **Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on (the default), the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission; the board shows a one-line prompt until it's granted. The switch is in Initiative settings.
 

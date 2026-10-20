@@ -196,19 +196,19 @@ hide_keyboard() {
   fi
 }
 
-# Swipe up on the board, starting on the Now card; the drawer must open. If a
-# keyboard the check missed swallowed the swipe, Back closes it (on the board
-# Back does nothing else).
+# Swipe up from the board's bottom band (the Apps button), above Android's own
+# gesture strip; the drawer must open. If a keyboard the check missed swallowed
+# the swipe, Back closes it (on the board Back does nothing else).
 open_drawer() {
   hide_keyboard
-  adb shell input swipe 540 1700 540 500 250
+  adb shell input swipe 540 2200 540 1000 250
   sleep 2
   if ! wait_for "Change home app" exact 3; then
     adb shell dumpsys input_method > "$OUT/ime.txt"
     log "note: swipe didn't open the drawer; pressing Back once and retrying"
     adb shell input keyevent KEYCODE_BACK
     sleep 1
-    adb shell input swipe 540 1700 540 500 250
+    adb shell input swipe 540 2200 540 1000 250
     sleep 2
     wait_for "Change home app" exact || fail "swipe up didn't open the app drawer"
   fi
@@ -341,8 +341,20 @@ home
 expect_front $PKG "Home opens the board"
 expect_text "Free time"
 expect_text "Setup:"
-expect_text "Today's line"
+expect_text "Nothing else today"
 shot board-first-run
+# The day panel: folded to the Next line; tap opens it, Back folds it.
+tap "Nothing else today" exact
+expect_text "Today's line"
+shot day-panel
+adb shell input keyevent KEYCODE_BACK
+wait_gone "Today's line" || fail "Back should fold the day panel"
+pass "the day panel opens and folds"
+# A swipe up mid-board is not the drawer.
+adb shell input swipe 540 1200 540 300 250
+sleep 2
+wait_gone "Change home app" exact 2 || fail "a swipe up mid-board opened the drawer"
+pass "only the bottom band opens the drawer"
 
 # Grant what a person grants through the setup line.
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
@@ -360,6 +372,15 @@ expect_text "taxes"
 expect_text "High priority"
 expect_text "Next: call landlord"
 shot two-floats
+# Swipe up on the Next line opens the day panel; a tap outside it folds it.
+xy=$(find_node "Next: call landlord" exact) || fail "no Next line"
+x=${xy% *}; y=${xy#* }
+adb shell input swipe $x $y $x $((y - 400)) 250
+expect_text "Today's line"
+expect_text "taxes"
+adb shell input tap 540 300
+wait_gone "Today's line" || fail "a tap outside should fold the day panel"
+pass "swipe up opens the day panel; a tap outside folds it"
 expect_notification "Now: taxes" "lock-screen card shows the Now card"
 
 tap Skip exact
@@ -528,6 +549,11 @@ pass "quiet hours switch on and off"
 home
 wait_gone "Quiet hours" exact || fail "Home should close settings"
 pass "Home closes settings"
+open_settings
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+wait_gone "Change home app" exact 2 || fail "Close should go to the board, not the drawer"
+pass "Close in settings goes to the board"
 shot scifi-board
 pass "theme switches both ways"
 
@@ -591,7 +617,7 @@ wait_gone "Previously on" || fail "recap still showing after Back to the board"
 pass "Back to the board closes the recap"
 expect_text "Recopy the list"
 shot recopy-card
-tap Start exact
+tap "Recopy the list"
 expect_text "Later this week"
 expect_text "dentist"
 shot recopy-walk

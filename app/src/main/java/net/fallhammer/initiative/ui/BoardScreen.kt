@@ -10,12 +10,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +60,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import initiative.core.Formats
@@ -140,46 +144,56 @@ fun BoardScreen(vm: BoardViewModel) {
                 EditScreen(editing, vm.edit)
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
-            } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
-                NowCard(
-                    ui = ui,
-                    flash = flash,
-                    modifier = Modifier.weight(1f),
-                    onDone = vm::done,
-                    onSkip = vm::skip,
-                    onTomorrow = vm::tomorrow,
-                    onUndo = vm::undo,
-                    onFocus = vm::startFocus,
-                    onEdit = vm.edit::open,
-                )
-                Spacer(Modifier.height(Space.m))
-                NextPeek(ui)
-                Spacer(Modifier.height(Space.s))
-                LedgerLine(ui, onClick = { expanded = !expanded })
-                if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp), onEdit = vm.edit::open)
-                Spacer(Modifier.height(Space.m))
-                // The weekly recopy waits while an anchor is Now.
-                if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
-                    RecopyCard(onStart = vm.recopy::start, onLater = vm.recopy::later)
-                    Spacer(Modifier.height(Space.m))
-                }
-                ask?.let { parsed ->
-                    AskChips(
-                        title = parsed.item.title,
-                        onFloat = vm::answerFloat,
-                        onAnchor = vm::answerAnchor,
-                        onCancel = vm::cancelAsk,
+            } else Box(Modifier.fillMaxSize()) {
+                Screen {
+                    NowCard(
+                        ui = ui,
+                        flash = flash,
+                        modifier = Modifier.weight(1f),
+                        onDone = vm::done,
+                        onSkip = vm::skip,
+                        onTomorrow = vm::tomorrow,
+                        onUndo = vm::undo,
+                        onFocus = vm::startFocus,
+                        onEdit = vm.edit::open,
                     )
+                    Spacer(Modifier.height(Space.m))
+                    // Folded, the day panel is just the Next line: swipe it up or tap it to open.
+                    DayBar(ui, open = false, onToggle = { expanded = true }, modifier = Modifier.onSwipeUp { expanded = true })
+                    Spacer(Modifier.height(Space.s))
+                    // The weekly recopy waits while an anchor is Now.
+                    if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
+                        RecopyPrompt(onStart = vm.recopy::start, onLater = vm.recopy::later)
+                    }
+                    ask?.let { parsed ->
+                        AskChips(
+                            title = parsed.item.title,
+                            onFloat = vm::answerFloat,
+                            onAnchor = vm::answerAnchor,
+                            onCancel = vm::cancelAsk,
+                        )
+                    }
+                    // One setup step at a time, until all are done.
+                    setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
+                    QuickAdd(onSubmit = vm::submit)
+                    // The way to the app drawer: a swipe up that starts in this bottom band,
+                    // which sits above Android's own gesture strip, or the Apps button.
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = DRAWER_BAND)
+                            .onSwipeUp(DRAWER_SWIPE) { vm.setDrawer(true) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                    ) {
+                        PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
+                        QuietButton(stringResource(R.string.apps_button), onClick = { vm.setDrawer(true) })
+                    }
                 }
-                // One setup step at a time, until all are done.
-                setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
-                QuickAdd(onSubmit = vm::submit)
-                PinnedRow(apps.filter { it.key in pinned }, onLaunch = vm::launch)
-                QuietButton(
-                    stringResource(R.string.apps_button),
-                    onClick = { vm.setDrawer(true) },
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
+                // Open, the day panel lies over the board, so the Now card keeps its shape.
+                if (expanded) {
+                    DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) })
+                }
             }
         }
 
@@ -224,7 +238,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 onRestoreFile = vm.backup::pickRestore,
                 onRestoreConfirm = vm.backup::confirmRestore,
                 onRestoreCancel = vm.backup::cancelRestore,
-                onClose = vm::back,
+                // Close goes to the board; the Back gesture steps back to the drawer.
+                onClose = { vm.setDrawer(false) },
             )
         }
 
@@ -344,21 +359,69 @@ private fun FocusScreen(focus: FocusView, now: LocalDateTime, onDone: (Item) -> 
     }
 }
 
+/**
+ * The day panel's handle: the Next line, with a mark showing it opens or folds.
+ * Tap it, or swipe it, to open or fold the panel.
+ */
 @Composable
-private fun NextPeek(ui: BoardUi) {
-    val next = ui.board?.next ?: return
-    val start = next.start
-    val text = if (next.isAnchor && start != null) {
-        stringResource(R.string.next_anchor, next.title, Formats.countdown(ui.now, start))
-    } else {
-        stringResource(R.string.next_float, next.title)
+private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val next = ui.board?.next
+    val start = next?.start
+    val text = when {
+        next == null -> stringResource(R.string.nothing_next)
+        next.isAnchor && start != null -> stringResource(R.string.next_anchor, next.title, Formats.countdown(ui.now, start))
+        else -> stringResource(R.string.next_float, next.title)
     }
-    Body(text, color = Ink.text, modifier = Modifier.padding(horizontal = Space.xs))
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.min)
+            .clickable(onClickLabel = stringResource(if (open) R.string.day_close else R.string.day_open), onClick = onToggle)
+            .padding(horizontal = Space.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Body(text, Modifier.weight(1f), color = Ink.text)
+        Text(
+            stringResource(if (open) R.string.day_close_mark else R.string.day_open_mark),
+            style = Type.body,
+            color = Ink.accent,
+            modifier = Modifier.clearAndSetSemantics { },
+        )
+    }
 }
 
-/** The day as one line: done ticks, walls as markers, a bar for now. Tap to expand. */
+/**
+ * The open day panel: Next, today's line, and the queue, on a sheet over the
+ * board. Swipe its handle down, tap outside it, or press Back to fold it.
+ */
 @Composable
-private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
+private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit) {
+    val closeLabel = stringResource(R.string.day_close)
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable(remember { MutableInteractionSource() }, indication = null, onClickLabel = closeLabel, onClick = onClose)
+                .semantics { contentDescription = closeLabel },
+        )
+        BoxWithConstraints(
+            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = Space.l, vertical = Space.m),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Card(Modifier.heightIn(max = maxHeight * SHEET_SHARE)) {
+                DayBar(ui, open = true, onToggle = onClose, modifier = Modifier.onSwipeDown(onClose))
+                Spacer(Modifier.height(Space.s))
+                LedgerLine(ui)
+                Spacer(Modifier.height(Space.s))
+                DayQueue(ui.queue, Modifier.weight(1f, fill = false), onEdit)
+            }
+        }
+    }
+}
+
+/** The day as one line: done ticks, walls as markers, a bar for now. */
+@Composable
+private fun LedgerLine(ui: BoardUi) {
     val startMin = ui.window.start.toSecondOfDay() / 60f
     val endMin = ui.window.end.toSecondOfDay() / 60f
     fun frac(t: LocalDateTime): Float = ((t.toLocalTime().toSecondOfDay() / 60f - startMin) / (endMin - startMin)).coerceIn(0f, 1f)
@@ -382,7 +445,6 @@ private fun LedgerLine(ui: BoardUi, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = description }
             .padding(horizontal = Space.xs, vertical = Space.xs),
     ) {
@@ -481,16 +543,13 @@ private fun PinnedRow(apps: List<AppEntry>, onLaunch: (AppEntry) -> Unit) {
     }
 }
 
-/*
- * Swipe up opens the drawer. The board sits above the system's gesture area, so
- * a swipe from the very bottom edge goes to Android instead; the Apps button is
- * the always-visible way in.
- */
-private fun Modifier.onSwipeUp(action: () -> Unit) = pointerInput(Unit) {
+/** A swipe up of at least [travel]. */
+private fun Modifier.onSwipeUp(travel: Dp = SWIPE, action: () -> Unit) = pointerInput(Unit) {
+    val need = travel.toPx()
     var total = 0f
     detectVerticalDragGestures(
         onDragStart = { total = 0f },
-        onDragEnd = { if (total < -SWIPE_PX) action() },
+        onDragEnd = { if (total < -need) action() },
     ) { _, dy -> total += dy }
 }
 
@@ -503,3 +562,15 @@ internal fun Modifier.onSwipeDown(action: () -> Unit) = pointerInput(Unit) {
 }
 
 private const val SWIPE_PX = 150f
+private val SWIPE = 48.dp
+
+/*
+ * The drawer opens only from a swipe that starts in the bottom band and travels
+ * about a thumb's length. The band sits above Android's gesture strip, which
+ * keeps swipes from the very bottom edge for Home and Back.
+ */
+private val DRAWER_BAND = 72.dp
+private val DRAWER_SWIPE = 64.dp
+
+/** The open day panel takes at most this share of the screen. */
+private const val SHEET_SHARE = 0.7f
