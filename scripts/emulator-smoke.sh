@@ -597,11 +597,11 @@ shot after-recopy
 crash_check
 
 # --- Edit form ---------------------------------------------------------------------
-# Tap the Now title to edit. Rename, Save, then Remove with Undo, then Back to cancel.
+# Tap the Now title to edit. "Type" marks the form; lower fields scroll off screen. Rename, Save, then Remove with Undo, then Back to cancel.
 
 home
 tap "dentist" exact
-expect_text "If it's missed"
+wait_for Type exact || fail "edit form didn't open"
 expect_text "Remove"
 shot edit-form
 xy=$(find_node "dentist" field) || fail "no title field holding 'dentist'"
@@ -614,7 +614,7 @@ hide_keyboard
 tap Save exact
 expect_text "Saved"
 expect_text "dentist call"
-wait_gone "If it's missed" || fail "edit form still open after Save"
+wait_gone Type exact || fail "edit form still open after Save"
 pass "Save renames the item and returns to the board"
 
 tap "dentist call" exact
@@ -627,9 +627,9 @@ expect_text "dentist call"
 pass "Remove takes it off the board, and Undo puts it back"
 
 tap "dentist call" exact
-expect_text "If it's missed"
+wait_for Type exact || fail "edit form didn't open"
 adb shell input keyevent KEYCODE_BACK
-wait_gone "If it's missed" || fail "Back should close the edit form"
+wait_gone Type exact || fail "Back should close the edit form"
 expect_text "dentist call"
 pass "Back closes the edit form without saving"
 crash_check
