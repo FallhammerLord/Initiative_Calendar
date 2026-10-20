@@ -2,7 +2,7 @@
 
 GitHub builds the app for you on every push. You don't need Android Studio for this.
 
-Before a build becomes a release, GitHub installs it on an Android emulator as the home app and checks that the phone stays usable: Home works, the app drawer opens, Settings and the home-app chooser are reachable, PIN unlock works, and nothing crashes. A build that fails any check is never released. Each release includes `screens-<number>.zip`, the emulator's screenshots of every step.
+Before a build becomes a release, GitHub installs it on an Android 16 emulator, the same version as a Pixel 9 Pro, as the home app and checks that the phone stays usable: Home works, the app drawer opens, Settings and the home-app chooser are reachable, PIN unlock works, and nothing crashes. A build that fails any check is never released. Each release includes `screens-<number>.zip`, the emulator's screenshots of every step.
 
 ## First install
 

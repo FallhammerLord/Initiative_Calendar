@@ -29,7 +29,7 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 - A changed saved database layout fails. Raise the version, add a `Migration`,
   extend `MigrationTest`, and commit the new `app/schemas/.../N.json` (CI prints
   it as a warning the first time).
-- The emulator test: Home and every way back to the normal phone, the lock
+- The emulator test runs on Android 16 (the owner's Pixel 9 Pro): Home and every way back to the normal phone, the lock
   screen and PIN, alarms rung 1 to 3, Undo, 200% font, a TalkBack-label sweep
   of every screen it visits, and StrictMode (main-thread writes, network, and
   leaked handles fail).
