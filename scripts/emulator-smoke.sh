@@ -702,9 +702,10 @@ expect_text "Remove"
 shot edit-form
 xy=$(find_node "dentist" field) || fail "no title field holding 'dentist'"
 adb shell input tap $xy
+# Add to the end: the field capitalizes a sentence's first letter, so retyping
+# from empty would give "Dentist call".
 adb shell input keyevent KEYCODE_MOVE_END
-adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq 12))
-adb shell input text "dentist%scall"
+adb shell input text "%scall"
 wait_for "dentist call" field || fail "couldn't rename in the title field"
 hide_keyboard
 tap "Every day" exact
