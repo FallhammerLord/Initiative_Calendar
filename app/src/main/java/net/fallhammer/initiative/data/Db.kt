@@ -163,6 +163,16 @@ interface ItemDao {
     )
     suspend fun deleteOpenInstances(templateId: Long, from: String, keep: Long)
 
+    /**
+     * Once, when Quick tasks' default dropped to 15 minutes: open Quick tasks still
+     * on the old default move down, unless a real length has been learned for them.
+     */
+    @Query(
+        "UPDATE items SET durationMinutes = :to WHERE effort = 'QUICK' AND durationMinutes = :from " +
+            "AND status IN ('PENDING', 'ACTIVE') AND titleKey NOT IN (SELECT titleKey FROM runs)",
+    )
+    suspend fun shortenQuickDefaults(from: Int, to: Int)
+
     /** Forgets an anchor's alarm progress, so the ladder runs again for a new time. */
     @Query("DELETE FROM alarms WHERE itemId = :id")
     suspend fun clearAlarm(id: Long)

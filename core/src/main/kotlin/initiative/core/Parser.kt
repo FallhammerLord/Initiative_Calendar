@@ -258,7 +258,7 @@ object Parser {
             Item(
                 title = title,
                 kind = Kind.FLOAT,
-                durationMinutes = duration ?: Item.DEFAULT_DURATION,
+                durationMinutes = duration ?: Item.defaultMinutes(effort ?: Effort.QUICK),
                 earliestStart = if (date != null || rule != null) base else null,
                 deadline = deadline,
                 priority = priority,

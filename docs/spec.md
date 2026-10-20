@@ -49,7 +49,7 @@ Every entry is an Item, and every Item is either an Anchor or a Float.
 | Wall strength | Anchor | Soft, Firm, Hard |
 | Lead time | Anchor | Minutes of warning before start, default 15 |
 | Partner alert | Anchor | On or off, Hard only |
-| Duration | Float | Estimate in minutes, default 30, learned over time |
+| Duration | Float | Estimate in minutes: 15 for Quick tasks, 30 for Focus; learned over time |
 | Earliest start | Float | Optional date |
 | Deadline | Float | Optional date |
 | Priority | Float | Auto (default), or Low, Normal, High set by hand |
@@ -368,7 +368,7 @@ Built and passing the emulator check:
 - Launcher with the hybrid Board: Now card, Next peek, ledger line, app list
 - Anchors and floats, with daily, weekday, weekly, monthly, and yearly recurrence, including every-other options
 - Placement logic with reason lines, Auto priority, and skip reslot
-- Duration learning with a 30-minute default
+- Duration learning, from a 15-minute default for Quick tasks and 30 for Focus (Quick was 30 until the first phone test, when a 25-minute gap before an anchor showed "Nothing fits")
 - Escalation rungs 0 to 3, with the lock-screen card on the same scheduler
 - Board after unlock
 - Quick-add with the basic parser

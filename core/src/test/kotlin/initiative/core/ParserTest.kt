@@ -26,8 +26,14 @@ class ParserTest {
         assertEquals(Kind.FLOAT, r.item.kind)
         assertEquals("call landlord", r.item.title)
         assertEquals(Priority.AUTO, r.item.priority)
-        assertEquals(30, r.item.durationMinutes)
+        assertEquals(15, r.item.durationMinutes)
         assertEquals(false, r.unsureKind)
+    }
+
+    @Test fun focusTasksStartAtHalfAnHour() {
+        assertEquals(Effort.FOCUS, p("taxes focus").item.effort)
+        assertEquals(30, p("taxes focus").item.durationMinutes)
+        assertEquals(15, p("taxes quick").item.durationMinutes)
     }
 
     @Test fun recurringHardPickup() {

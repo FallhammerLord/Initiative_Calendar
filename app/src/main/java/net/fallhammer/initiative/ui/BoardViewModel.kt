@@ -151,6 +151,10 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val prefs = graph.prefs
+                if (!prefs.quickDefaultsShortened) {
+                    graph.dao.shortenQuickDefaults(Item.DEFAULT_DURATION, Item.QUICK_DURATION)
+                    prefs.quickDefaultsShortened = true
+                }
                 settings.load(prefs)
                 backup.load(prefs)
                 recopy.load(prefs, now)

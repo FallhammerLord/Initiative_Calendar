@@ -56,6 +56,12 @@ data class Item(
 
     companion object {
         const val DEFAULT_DURATION = 30
+
+        /** Quick tasks start smaller, so they fit the gaps between walls with time to spare. */
+        const val QUICK_DURATION = 15
+
+        /** A new task's estimate before any runs are learned. */
+        fun defaultMinutes(effort: Effort): Int = if (effort == Effort.QUICK) QUICK_DURATION else DEFAULT_DURATION
         const val DEFAULT_LEAD = 15
         const val DEFAULT_ANCHOR_MINUTES = 30L
 

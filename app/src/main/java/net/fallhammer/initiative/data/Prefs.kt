@@ -115,6 +115,11 @@ class Prefs(private val context: Context) {
         get() = time(LAST_RECOPY)
         set(value) = putTime(LAST_RECOPY, value)
 
+    /** Whether open Quick tasks have been moved to the 15-minute default; see ItemDao.shortenQuickDefaults. */
+    var quickDefaultsShortened: Boolean
+        get() = prefs.getBoolean(QUICK_SHORTENED, false)
+        set(value) = prefs.edit().putBoolean(QUICK_SHORTENED, value).apply()
+
     /** Hours with no action before the recap shows. */
     var lapseHours: Int
         get() = prefs.getInt(LAPSE_HOURS, Lapse.UNTOUCHED_HOURS.toInt())
@@ -183,6 +188,7 @@ class Prefs(private val context: Context) {
         const val RECAP_SINCE = "recapSince"
         const val LAST_RECOPY = "lastRecopy"
         const val LAPSE_HOURS = "lapseHours"
+        const val QUICK_SHORTENED = "quickDefaultsShortened"
         const val RECOPY_DAYS = "recopyDays"
         const val RECOPY_LATER = "recopyLater"
         const val BACKUP_FOLDER = "backupFolder"

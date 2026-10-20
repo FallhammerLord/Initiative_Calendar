@@ -520,8 +520,14 @@ shot dock-empty
 tap "Add an app"
 wait_for "Pick an app" exact || fail "an empty dock space should open the picker"
 shot dock-picker
+# The list runs past the screen; search for the app, as a person would.
+xy=$(find_node android.widget.EditText class) || fail "no search box in the picker"
+adb shell input tap $xy
+sleep 1
+adb shell input text Settings
 tap Settings exact
 wait_gone "Pick an app" exact || fail "picking an app should close the picker"
+hide_keyboard
 read -r x1 y1 x2 y2 < <(node_bounds "Settings") || fail "no Settings tile in the dock"
 # 1.65 of the tile's 1.75 hexagon widths: inside its point, inside the next tile's box.
 x=$(( x1 + (x2 - x1) * 165 / 175 )); y=$(( (y1 + y2) / 2 ))
