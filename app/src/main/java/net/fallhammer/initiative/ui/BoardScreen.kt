@@ -329,7 +329,8 @@ private fun NowCard(
                     FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
                     Spacer(Modifier.height(Space.m))
                 }
-                if (item != null) {
+                // A done anchor still showing until its end has nothing left to act on.
+                if (item != null && item.isOpen) {
                     val done = stringResource(R.string.action_done)
                     val skip = stringResource(R.string.action_skip)
                     val tomorrow = stringResource(R.string.action_tomorrow)

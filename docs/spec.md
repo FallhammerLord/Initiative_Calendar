@@ -133,7 +133,7 @@ The clickable prototype keeps Board A and Board B side by side for comparison by
 
 The app picks the Now card for you, every time you look, using a fixed and explainable rule.
 
-1. If an anchor is in progress, it is Now.
+1. If an anchor is in progress, it is Now. That holds after it's marked Done on arrival: it stays Now, with no buttons, until its end ("Under way until 4:00 PM"), since you're still there. Skip frees the time instead.
 2. If the next anchor's lead-time warning has passed, that anchor is Now: "Starts in 10 min."
 3. If a float is pinned to this slot, it is Now.
 4. Otherwise, find the current gap: the time until the next anchor's lead-time warning, or the end of the day window.
@@ -430,7 +430,7 @@ After v0.1, built:
 - *Series as parents.* A repeating item opens to its times, past and coming, the way a quest opens to its subquests.
 - *Tap to edit.* Any item opens the edit form. Put back returns a done or dropped item to the board.
 
-**Subtasks.** One level of steps inside an item, shown as a short checklist on its card and in the form. The board still shows one item; its next open step is the line under the title. Breaking work into steps is a core skill in adult ADHD treatment, so this ranks with the Log.
+**Subtasks.** One level of steps inside an item, shown as a short checklist on its card and in the form. An anchor can hold steps too: "school pickup" from 2:30 to 4:00 holds "pick up" and "playtime", like a quest holding its objectives. The board still shows one item; its next open step is the line under the title. Breaking work into steps is a core skill in adult ADHD treatment, so this ranks with the Log.
 
 **Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
 

@@ -44,6 +44,13 @@ class Placement(private val window: DayWindow = DayWindow()) {
             return Board(NowPick(it, "Happening now"), upcoming.firstOrNull())
         }
 
+        // An anchor marked Done on arrival still holds its time: it stays Now until it ends.
+        live.firstOrNull {
+            it.isAnchor && it.status == Status.DONE && it.start != null && !it.start.isAfter(now) && now.isBefore(it.anchorEnd!!)
+        }?.let {
+            return Board(NowPick(it, "Under way until ${Formats.clock(it.anchorEnd!!)}"), upcoming.firstOrNull())
+        }
+
         upcoming.firstOrNull()?.takeIf { !now.isBefore(it.warnAt!!) }?.let {
             val mins = Duration.between(now, it.start!!).toMinutes().coerceAtLeast(1)
             return Board(NowPick(it, "Starts in $mins min"), upcoming.getOrNull(1))
