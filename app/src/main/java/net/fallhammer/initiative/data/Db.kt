@@ -137,6 +137,16 @@ interface ItemDao {
     @Query("SELECT * FROM alarms")
     suspend fun alarms(): List<AlarmRow>
 
+    @Query("SELECT * FROM events ORDER BY id")
+    suspend fun events(): List<EventRow>
+
+    @Query("SELECT * FROM runs ORDER BY id")
+    suspend fun runs(): List<RunRow>
+
+    /** Items that got a given event note since a time, such as automatic skips. */
+    @Query("SELECT DISTINCT itemId FROM events WHERE note = :note AND at >= :since")
+    suspend fun itemsWithNote(note: String, since: String): List<Long>
+
     @Query("SELECT * FROM alarms WHERE itemId = :id")
     suspend fun alarm(id: Long): AlarmRow?
 

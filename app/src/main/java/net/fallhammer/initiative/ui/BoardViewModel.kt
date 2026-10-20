@@ -1,6 +1,8 @@
 package net.fallhammer.initiative.ui
 
 import android.app.Application
+import android.content.Intent
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +12,10 @@ import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.LedgerMark
 import initiative.core.Parsed
+import initiative.core.Lapse
 import initiative.core.Parser
+import initiative.core.Recap
+import initiative.core.Recopy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,6 +31,7 @@ import kotlinx.coroutines.withContext
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.AppEntry
+import net.fallhammer.initiative.data.Backup
 import net.fallhammer.initiative.data.Focus
 import net.fallhammer.initiative.data.QuietSetting
 import net.fallhammer.initiative.data.SetupStep
@@ -48,7 +54,13 @@ data class BoardUi(
 data class FocusView(val item: Item, val until: LocalDateTime, val wall: Item?)
 
 /** What's drawn over the board. */
-enum class Overlay { NONE, DRAWER, SETTINGS }
+enum class Overlay { NONE, DRAWER, SETTINGS, RECOPY }
+
+/** The recopy walk: the items to visit, oldest first, and where it's up to. */
+data class RecopyWalk(val ids: List<Long>, val index: Int = 0)
+
+/** The backup setting as shown: the chosen folder's short name and the last backup. */
+data class BackupState(val folder: String? = null, val last: LocalDateTime? = null)
 
 /** Board on unlock: whether it's switched on, and whether Android allows it yet. */
 data class UnlockSetting(val enabled: Boolean = true, val permitted: Boolean = true)
@@ -113,6 +125,33 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     private val _lockCard = MutableStateFlow(true)
     val lockCard: StateFlow<Boolean> = _lockCard.asStateFlow()
 
+    private val _recapSince = MutableStateFlow<LocalDateTime?>(null)
+    private val _autoSkipped = MutableStateFlow<Set<Long>>(emptySet())
+    /** Ask items already answered in this recap. */
+    private val _answered = MutableStateFlow<Set<Long>>(emptySet())
+
+    /** "Previously on": shown after a lapse until Back to the board. */
+    val recap: StateFlow<Recap?> = combine(repo.items, clock, _recapSince, _autoSkipped, _answered) { all, now, since, skipped, answered ->
+        since?.let { Lapse.recap(all, skipped, it, now).let { r -> r.copy(ask = r.ask.filter { a -> a.id !in answered }) } }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val _lastRecopy = MutableStateFlow<LocalDateTime?>(null)
+    private val _recopyLater = MutableStateFlow<LocalDateTime?>(null)
+
+    /** The weekly recopy is due, and not put off with Later. */
+    val recopyDue: StateFlow<Boolean> = combine(clock, _lastRecopy, _recopyLater) { now, last, later ->
+        Recopy.due(last, now) && (later == null || !now.isBefore(later))
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _walk = MutableStateFlow<RecopyWalk?>(null)
+    /** The item the recopy walk is on, or null when there's no walk. */
+    val recopyItem: StateFlow<Item?> = combine(repo.items, _walk) { all, walk ->
+        walk?.ids?.getOrNull(walk.index)?.let { id -> all.firstOrNull { it.id == id } }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val _backup = MutableStateFlow(BackupState())
+    val backup: StateFlow<BackupState> = _backup.asStateFlow()
+
     private val _quiet = MutableStateFlow(QuietSetting())
     val quiet: StateFlow<QuietSetting> = _quiet.asStateFlow()
 
@@ -163,6 +202,19 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
                 _look.value = prefs.lookId
                 _quiet.value = prefs.quiet
                 _focus.value = prefs.focus
+                _backup.value = BackupState(prefs.backupFolder?.let(Backup::folderName), prefs.lastBackup)
+                // First run: start the clocks for lapses and the weekly recopy.
+                if (prefs.lastAction == null) prefs.lastAction = now
+                if (prefs.lastRecopy == null) prefs.lastRecopy = now
+                _lastRecopy.value = prefs.lastRecopy
+                _recopyLater.value = prefs.recopyLaterUntil
+                // A lapse, noticed once: the recap covers everything since the last action.
+                if (prefs.recapSince == null && Lapse.started(prefs.lastAction, prefs.autoSkipStreak, now)) {
+                    prefs.recapSince = prefs.lastAction ?: now
+                }
+                val since = prefs.recapSince
+                _autoSkipped.value = since?.let { graph.dao.itemsWithNote(Scheduler.AUTO_SKIP, it.toString()).toSet() }.orEmpty()
+                _recapSince.value = since
                 _apps.value = graph.apps.installed()
             }
         }
@@ -176,11 +228,134 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     fun skip(item: Item) = act(item) { repo.skip(item, items, it) ?: text(R.string.flash_anchor_skipped) }
     fun tomorrow(item: Item) = act(item) { repo.tomorrow(item, it) }
 
+    /** Any action on the board: the lapse clock restarts and automatic skips stop counting. */
+    private fun acted() {
+        viewModelScope.launch(Dispatchers.IO) {
+            graph.prefs.lastAction = LocalDateTime.now()
+            graph.prefs.autoSkipStreak = 0
+        }
+    }
+
+    // --- Lapse recap ---
+
+    fun keepAsked(item: Item) {
+        _answered.value = _answered.value + item.id
+    }
+
+    fun dropAsked(item: Item) {
+        _answered.value = _answered.value + item.id
+        viewModelScope.launch { repo.drop(item, note = "recap: dropped") }
+    }
+
+    fun dropAllAsked() {
+        recap.value?.ask?.forEach(::dropAsked)
+    }
+
+    /** Back to the board: Drop-policy items go to the archive, and the lapse is over. */
+    fun closeRecap() {
+        val r = recap.value
+        _recapSince.value = null
+        _answered.value = emptySet()
+        viewModelScope.launch {
+            r?.dropped?.forEach { repo.drop(it, note = "recap: archived") }
+            withContext(Dispatchers.IO) { graph.prefs.recapSince = null }
+            acted()
+        }
+    }
+
+    // --- Weekly recopy ---
+
+    fun startRecopy() {
+        val ids = Recopy.queue(items).map { it.id }
+        if (ids.isEmpty()) {
+            finishRecopy()
+            return
+        }
+        _walk.value = RecopyWalk(ids)
+        _overlay.value = Overlay.RECOPY
+        acted()
+    }
+
+    /** Hides the recopy card until tomorrow morning. */
+    fun recopyLater() {
+        val until = LocalDate.now().plusDays(1).atTime(graph.window.start)
+        _recopyLater.value = until
+        viewModelScope.launch(Dispatchers.IO) { graph.prefs.recopyLaterUntil = until }
+    }
+
+    fun recopyKeep(item: Item) = recopyNext()
+
+    fun recopyLaterThisWeek(item: Item) {
+        viewModelScope.launch { repo.moveTo(item, Recopy.laterThisWeek(LocalDateTime.now(), graph.window), note = "recopy: later this week") }
+        recopyNext()
+    }
+
+    fun recopyNextWeek(item: Item) {
+        viewModelScope.launch { repo.moveTo(item, Recopy.nextWeek(LocalDateTime.now(), graph.window), note = "recopy: next week") }
+        recopyNext()
+    }
+
+    fun recopyDrop(item: Item) {
+        viewModelScope.launch { repo.drop(item, note = "recopy: dropped") }
+        recopyNext()
+    }
+
+    /** Stop partway; the card stays until the walk is finished. */
+    fun stopRecopy() {
+        _walk.value = null
+        _overlay.value = Overlay.NONE
+    }
+
+    private fun recopyNext() {
+        val walk = _walk.value ?: return
+        if (walk.index + 1 >= walk.ids.size) finishRecopy() else _walk.value = walk.copy(index = walk.index + 1)
+    }
+
+    private fun finishRecopy() {
+        val now = LocalDateTime.now()
+        _walk.value = null
+        _overlay.value = Overlay.NONE
+        _lastRecopy.value = now
+        _recopyLater.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            graph.prefs.lastRecopy = now
+            graph.prefs.recopyLaterUntil = null
+        }
+        show(Flash(text(R.string.recopy_finished)))
+    }
+
+    // --- Backup ---
+
+    fun setBackupFolder(folder: Uri) {
+        val app = getApplication<Application>()
+        runCatching {
+            app.contentResolver.takePersistableUriPermission(folder, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { graph.prefs.backupFolder = folder.toString() }
+            backUpNow()
+        }
+    }
+
+    fun backUpNow() {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val now = LocalDateTime.now()
+            val ok = withContext(Dispatchers.IO) {
+                val folder = graph.prefs.backupFolder ?: return@withContext false
+                Backup.write(app, graph.dao, Uri.parse(folder), now).also { if (it) graph.prefs.lastBackup = now }
+            }
+            _backup.value = withContext(Dispatchers.IO) { BackupState(graph.prefs.backupFolder?.let(Backup::folderName), graph.prefs.lastBackup) }
+            show(Flash(text(if (ok) R.string.backup_written else R.string.backup_failed)))
+        }
+    }
+
     /** Focus on [item] until the next Firm or Hard wall. Soft alarms stay silent meanwhile. */
     fun startFocus(item: Item) {
         val focus = Focus(item.id, placement.focusEnd(items, LocalDateTime.now()))
         _focus.value = focus
         saveFocus(focus)
+        acted()
     }
 
     fun endFocus() {
@@ -250,9 +425,10 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Back from settings returns to the drawer; from the drawer, to the board. */
     fun back() {
-        _overlay.value = when (_overlay.value) {
-            Overlay.SETTINGS -> Overlay.DRAWER
-            else -> Overlay.NONE
+        when (_overlay.value) {
+            Overlay.SETTINGS -> _overlay.value = Overlay.DRAWER
+            Overlay.RECOPY -> stopRecopy()
+            else -> _overlay.value = Overlay.NONE
         }
     }
 
@@ -307,6 +483,7 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     fun openHomeChooser() = graph.apps.openHomeChooser()
 
     private fun save(parsed: Parsed) {
+        acted()
         viewModelScope.launch {
             repo.add(parsed, LocalDateTime.now())
             show(Flash(getApplication<Application>().getString(R.string.flash_added, parsed.item.title)))
@@ -314,6 +491,7 @@ class BoardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun act(before: Item, block: suspend (LocalDateTime) -> String) {
+        acted()
         viewModelScope.launch {
             val now = LocalDateTime.now()
             show(Flash(block(now), undo = before))

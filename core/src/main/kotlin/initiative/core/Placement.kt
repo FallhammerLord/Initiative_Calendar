@@ -17,7 +17,8 @@ data class Gap(
 
 data class NowPick(val item: Item?, val reason: String)
 
-data class Board(val now: NowPick, val next: Item?)
+/** [until] is when a float's window as Now closes: the end of its gap. Null for anchors and Free time. */
+data class Board(val now: NowPick, val next: Item?, val until: LocalDateTime? = null)
 
 enum class MarkKind { DONE, SOFT, FIRM, HARD }
 
@@ -70,7 +71,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
             ?: return Board(NowPick(null, if (floats.isEmpty()) "Nothing needs doing" else "Nothing fits before ${current.after?.title ?: "the day ends"}"), nextAnchor)
 
         val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today)
-        return Board(NowPick(top, reason), nextAnchor ?: ranked.getOrNull(1))
+        return Board(NowPick(top, reason), nextAnchor ?: ranked.getOrNull(1), until = current.end)
     }
 
     /** Today's remaining walls and open floats in board order, for the expanded ledger. */

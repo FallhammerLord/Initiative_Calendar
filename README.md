@@ -21,7 +21,7 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 - Registers as a home app, with an app drawer, search, pinned apps, and exits to phone Settings and the home-app chooser
 - The board: Now card with Done / Skip / Tomorrow, the reason line, Next peek, ledger line that expands into the day queue
 - Board after unlock
-- Initiative settings (from the drawer): board after unlock, lock-screen card, theme, quiet hours
+- Initiative settings (from the drawer): board after unlock, lock-screen card, theme, quiet hours, backup folder
 - Focus mode: hold the card or tap Focus; a countdown to the next Firm or Hard wall, Soft alarms silent
 - Alarms: the escalation ladder, rungs 1 to 3, with On it and Snooze, a full-screen alarm over the lock screen, and re-arming after a restart
 - Lock-screen card: a silent Now card with a live countdown to the next anchor
@@ -31,6 +31,12 @@ An Android home screen that runs your day like a GM runs a session. You see the 
 - Quick-add with the rule-based parser, including "Anchor or float?" chips
 - Placement, Auto priority, skip reslot, recurrence instances, duration learning
 
-Not yet: lapse recap, weekly recopy, editing form, nightly export.
+- "Previously on": after a day untouched (or three missed floats in a row), a recap of what passed, what the app handled, and what's ahead
+- Weekly recopy: once a week, walk the open list oldest first and keep, move, or drop each item
+- Nightly backup: one JSON file to a folder you pick in settings (for Syncthing)
+- Missed floats skip themselves when their window closes
+- Built for Android 16 (API 36)
+
+Not yet: restore from backup, editing form, .ics export.
 
 Font: Atkinson Hyperlegible, SIL Open Font License ([docs/OFL-AtkinsonHyperlegible.txt](docs/OFL-AtkinsonHyperlegible.txt)).

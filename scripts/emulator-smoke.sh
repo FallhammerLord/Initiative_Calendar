@@ -497,5 +497,39 @@ expect_text "Free time"
 pass "Done with it finishes the task and returns to the board"
 crash_check
 
+# --- Lapse recap and weekly recopy -----------------------------------------------
+# Eight days on with no action: a lapse, so "Previously on" comes first. The
+# weekly recopy is due too. The recap is checked when the board comes back to
+# the front, so leave and return. (Backup needs a folder picked by hand in
+# Android's file picker, which the test can't drive.)
+
+adb shell date "$(date -u -d '+8 days' +%m%d)1200$(date -u -d '+8 days' +%Y).00" > /dev/null
+sleep 4
+adb shell am start -a android.settings.SETTINGS > /dev/null
+sleep 2
+home
+expect_text "Previously on"
+expect_text "What passed"
+expect_text "pickup"
+shot recap
+tap "Back to the board" exact
+see "Previously on" && fail "recap still showing after Back to the board"
+pass "Back to the board closes the recap"
+expect_text "Recopy the list"
+shot recopy-card
+tap Start exact
+expect_text "Later this week"
+expect_text "dentist"
+shot recopy-walk
+for _ in 1 2 3 4 5 6; do
+  see "Later this week" exact || break
+  tap Keep exact
+done
+expect_text "List recopied"
+see "Recopy the list" && fail "recopy card still showing after the walk"
+pass "the recopy walk finishes and the card clears"
+shot after-recopy
+crash_check
+
 adb logcat -d > "$OUT/logcat.txt"
 log "all checks passed"

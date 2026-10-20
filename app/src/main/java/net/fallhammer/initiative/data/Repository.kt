@@ -81,6 +81,16 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         update(current, before, note = "undo")
     }
 
+    /** Off the board for good, into the archive. */
+    suspend fun drop(item: Item, note: String) {
+        update(item, item.copy(status = Status.DROPPED, pinnedSlot = null), note = note)
+    }
+
+    /** Back on the board from [notBefore]. */
+    suspend fun moveTo(item: Item, notBefore: LocalDateTime, note: String) {
+        update(item, item.copy(notBefore = notBefore, status = Status.PENDING, pinnedSlot = null, activeSince = null), note = note)
+    }
+
     /** First time a float becomes Now, start its clock. */
     suspend fun markActive(item: Item, now: LocalDateTime) {
         if (item.activeSince != null || item.isAnchor) return

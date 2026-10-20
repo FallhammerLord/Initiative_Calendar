@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "net.fallhammer.initiative"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "net.fallhammer.initiative"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         // Each GitHub build gets a higher number, so a new APK installs over the old one.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "0.1.0"

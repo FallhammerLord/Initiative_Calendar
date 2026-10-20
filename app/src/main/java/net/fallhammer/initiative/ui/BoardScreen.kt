@@ -79,6 +79,10 @@ fun BoardScreen(vm: BoardViewModel) {
     val unlock by vm.unlock.collectAsStateWithLifecycle()
     val setup by vm.setup.collectAsStateWithLifecycle()
     val lockCard by vm.lockCard.collectAsStateWithLifecycle()
+    val recap by vm.recap.collectAsStateWithLifecycle()
+    val recopyDue by vm.recopyDue.collectAsStateWithLifecycle()
+    val recopyItem by vm.recopyItem.collectAsStateWithLifecycle()
+    val backup by vm.backup.collectAsStateWithLifecycle()
     val look = LocalLook.current
     val opened by vm.opened.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -108,7 +112,11 @@ fun BoardScreen(vm: BoardViewModel) {
 
     Box(Modifier.fillMaxSize().background(Ink.bg)) {
         val focusView = ui.focus
-        if (focusView != null) {
+        val shownRecap = recap
+        // After a lapse, "Previously on" comes first, then focus, then the board.
+        if (shownRecap != null) {
+            RecapScreen(shownRecap, onKeep = vm::keepAsked, onDrop = vm::dropAsked, onDropAll = vm::dropAllAsked, onBack = vm::closeRecap)
+        } else if (focusView != null) {
             FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
         } else Screen(Modifier.onSwipeUp { vm.setDrawer(true) }) {
             NowCard(
@@ -127,6 +135,11 @@ fun BoardScreen(vm: BoardViewModel) {
             LedgerLine(ui, onClick = { expanded = !expanded })
             if (expanded) DayQueue(ui.queue, Modifier.heightIn(max = 240.dp))
             Spacer(Modifier.height(Space.m))
+            // The weekly recopy waits while an anchor is Now.
+            if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
+                RecopyCard(onStart = vm::startRecopy, onLater = vm::recopyLater)
+                Spacer(Modifier.height(Space.m))
+            }
             ask?.let { parsed ->
                 AskChips(
                     title = parsed.item.title,
@@ -177,7 +190,22 @@ fun BoardScreen(vm: BoardViewModel) {
                 onLook = vm::setLook,
                 quiet = quiet,
                 onQuiet = vm::setQuiet,
+                backup = backup,
+                onBackupFolder = vm::setBackupFolder,
+                onBackUpNow = vm::backUpNow,
                 onClose = vm::back,
+            )
+        }
+
+        val walkItem = recopyItem
+        if (overlay == Overlay.RECOPY && walkItem != null) {
+            RecopyScreen(
+                walkItem,
+                onKeep = vm::recopyKeep,
+                onThisWeek = vm::recopyLaterThisWeek,
+                onNextWeek = vm::recopyNextWeek,
+                onDrop = vm::recopyDrop,
+                onStop = vm::stopRecopy,
             )
         }
     }

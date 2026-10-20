@@ -1,6 +1,9 @@
 package net.fallhammer.initiative.ui
 
 import android.app.TimePickerDialog
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import initiative.core.Formats
 import net.fallhammer.initiative.R
+import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.QuietSetting
 import java.time.LocalTime
 
@@ -32,9 +36,13 @@ fun SettingsScreen(
     onLook: (String) -> Unit,
     quiet: QuietSetting,
     onQuiet: (QuietSetting) -> Unit,
+    backup: BackupState,
+    onBackupFolder: (Uri) -> Unit,
+    onBackUpNow: () -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { it?.let(onBackupFolder) }
     fun pickTime(initial: LocalTime, onPicked: (LocalTime) -> Unit) {
         TimePickerDialog(context, { _, h, m -> onPicked(LocalTime.of(h, m)) }, initial.hour, initial.minute, false).show()
     }
@@ -74,6 +82,18 @@ fun SettingsScreen(
                             Modifier.weight(1f),
                             height = Tap.min,
                         )
+                    }
+                }
+            }
+            Section(stringResource(R.string.section_backup)) {
+                Body(stringResource(R.string.backup_hint, Formats.clock(Scheduler.BACKUP_AT)), style = Type.bodySmall)
+                Body(backup.folder?.let { stringResource(R.string.backup_folder, it) } ?: stringResource(R.string.backup_no_folder), color = Ink.text)
+                backup.last?.let { Body(stringResource(R.string.backup_last, Formats.shortDate(it.toLocalDate()), Formats.clock(it)), style = Type.bodySmall) }
+                Spacer(Modifier.height(Space.s))
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
+                    SecondaryButton(stringResource(R.string.backup_choose), { pickFolder.launch(null) }, Modifier.weight(1f), height = Tap.min)
+                    if (backup.folder != null) {
+                        SecondaryButton(stringResource(R.string.backup_now), onBackUpNow, Modifier.weight(1f), height = Tap.min)
                     }
                 }
             }

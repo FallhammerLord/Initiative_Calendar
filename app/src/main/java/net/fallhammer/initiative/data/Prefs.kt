@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import initiative.core.QuietHours
+import initiative.core.Shown
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -70,6 +71,66 @@ class Prefs(private val context: Context) {
             edit.apply()
         }
 
+    /** The last time the person did something on the board; a day without one is a lapse. */
+    var lastAction: LocalDateTime?
+        get() = time(LAST_ACTION)
+        set(value) = putTime(LAST_ACTION, value)
+
+    /** Automatic skips in a row; three is a lapse. Any action resets it. */
+    var autoSkipStreak: Int
+        get() = prefs.getInt(AUTO_SKIPS, 0)
+        set(value) = prefs.edit().putInt(AUTO_SKIPS, value).apply()
+
+    /** The float last shown as Now, for automatic skips. */
+    var shown: Shown?
+        get() {
+            val id = prefs.getLong(SHOWN_ITEM, -1)
+            val until = time(SHOWN_UNTIL) ?: return null
+            if (id < 0) return null
+            return Shown(id, until, prefs.getInt(SHOWN_SKIPS, 0), time(SHOWN_NOT_BEFORE))
+        }
+        set(value) {
+            val edit = prefs.edit()
+            if (value == null) {
+                edit.remove(SHOWN_ITEM).remove(SHOWN_UNTIL).remove(SHOWN_SKIPS).remove(SHOWN_NOT_BEFORE)
+            } else {
+                edit.putLong(SHOWN_ITEM, value.itemId).putString(SHOWN_UNTIL, value.until.toString())
+                    .putInt(SHOWN_SKIPS, value.skipCount).putString(SHOWN_NOT_BEFORE, value.notBefore?.toString())
+            }
+            edit.apply()
+        }
+
+    /** Set when a lapse is noticed: the recap covers everything since then. Cleared when it closes. */
+    var recapSince: LocalDateTime?
+        get() = time(RECAP_SINCE)
+        set(value) = putTime(RECAP_SINCE, value)
+
+    var lastRecopy: LocalDateTime?
+        get() = time(LAST_RECOPY)
+        set(value) = putTime(LAST_RECOPY, value)
+
+    /** "Later" on the recopy card hides it until this time. */
+    var recopyLaterUntil: LocalDateTime?
+        get() = time(RECOPY_LATER)
+        set(value) = putTime(RECOPY_LATER, value)
+
+    /** The folder chosen for the nightly backup, as a document-tree address. */
+    var backupFolder: String?
+        get() = prefs.getString(BACKUP_FOLDER, null)
+        set(value) = prefs.edit().putString(BACKUP_FOLDER, value).apply()
+
+    var lastBackup: LocalDateTime?
+        get() = time(LAST_BACKUP)
+        set(value) = putTime(LAST_BACKUP, value)
+
+    private fun time(key: String): LocalDateTime? = prefs.getString(key, null)?.let(LocalDateTime::parse)
+
+    private fun putTime(key: String, value: LocalDateTime?) {
+        val edit = prefs.edit()
+        if (value == null) edit.remove(key) else edit.putString(key, value.toString())
+        edit.apply()
+    }
+
     /** Whether the one-tap notification prompt has been shown; after that, Settings is the only way. */
     var askedNotifications: Boolean
         get() = prefs.getBoolean(ASKED_NOTIFICATIONS, false)
@@ -97,5 +158,16 @@ class Prefs(private val context: Context) {
         const val QUIET_END = "quietEnd"
         const val FOCUS_ITEM = "focusItem"
         const val FOCUS_UNTIL = "focusUntil"
+        const val LAST_ACTION = "lastAction"
+        const val AUTO_SKIPS = "autoSkipStreak"
+        const val SHOWN_ITEM = "shownItem"
+        const val SHOWN_UNTIL = "shownUntil"
+        const val SHOWN_SKIPS = "shownSkips"
+        const val SHOWN_NOT_BEFORE = "shownNotBefore"
+        const val RECAP_SINCE = "recapSince"
+        const val LAST_RECOPY = "lastRecopy"
+        const val RECOPY_LATER = "recopyLater"
+        const val BACKUP_FOLDER = "backupFolder"
+        const val LAST_BACKUP = "lastBackup"
     }
 }

@@ -28,7 +28,7 @@ A sideloaded Android app in Kotlin that runs the same on stock Android today and
 - **Home network sync.** The phone is the primary home of all data. The desktop counterpart is a secondary window that syncs over home Wi-Fi and sends its edits back to the phone. The app talks only to addresses on the local network and makes no internet requests. Android's network permission is all-or-nothing, so this is enforced in the app's code, not by the OS.
 - **Distribution.** A signed APK you install directly. Updates are a new APK over the old one.
 - **Model files.** Speech and language models ship as separate files the app loads from a folder you pick, so APK updates stay small. Syncthing can deliver them.
-- **Target.** Android 10 or newer, so most phones from the last six years qualify.
+- **Target.** Android 10 or newer, so most phones from the last six years qualify. Built for and tested on Android 16 (API 36).
 
 **On-device language model (optional).** The rule-based parser is the baseline. Phrases it can't handle fall back to a small Qwen model, run by llama.cpp with a grammar constraint that only allows valid task fields. No Claude or other cloud AI.
 
@@ -375,12 +375,12 @@ Then, built:
 
 - Initiative settings screen, with quiet hours
 - Focus mode
-
-Still to build:
-
-- Lapse recap with miss policies
+- Lapse recap with miss policies ("Previously on")
 - Weekly recopy
-- Nightly JSON export
+- Nightly JSON export to a folder you pick (the .ics half comes in v0.2)
+- Targets Android 16 (API 36), tested on an Android 16 emulator
+
+Deferred from v0.1: restore from the backup file, and lapse and recopy timings in settings.
 
 **v0.2 — Close the loop**
 

@@ -73,6 +73,48 @@
     <string name="look_classic">Classic</string>
     <string name="drawer_pin_hint">Hold an app to pin it to the board.</string>
 
+    <!-- Previously on (lapse recap) -->
+    <string name="recap_title">Previously on</string>
+    <string name="recap_passed">What passed</string>
+    <string name="recap_item_done">%1$s, %2$s at %3$s: done</string>
+    <string name="recap_item_passed">%1$s, %2$s at %3$s: passed</string>
+    <string name="recap_handled">What the app handled</string>
+    <string name="recap_rerolled">Back in the queue: %1$s</string>
+    <string name="recap_dropped">Moved to the archive: %1$s</string>
+    <string name="recap_ask">Keep these?</string>
+    <string name="recap_keep">Keep</string>
+    <string name="recap_drop">Drop</string>
+    <string name="recap_drop_all">Drop all</string>
+    <string name="recap_ahead">What\'s ahead</string>
+    <string name="recap_ahead_item">%1$s, %2$s at %3$s</string>
+    <string name="recap_nothing">Nothing here.</string>
+    <string name="recap_back">Back to the board</string>
+
+    <!-- Weekly recopy -->
+    <string name="recopy_title">Recopy the list</string>
+    <string name="recopy_hint">Walk the open list, oldest first. Keep, move, or drop each one.</string>
+    <string name="recopy_start">Start</string>
+    <string name="recopy_later">Later</string>
+    <string name="recopy_label">Recopy</string>
+    <string name="recopy_nudge">This one keeps coming back. Dropping it is fine.</string>
+    <string name="recopy_keep">Keep</string>
+    <string name="recopy_this_week">Later this week</string>
+    <string name="recopy_next_week">Next week</string>
+    <string name="recopy_drop">Drop</string>
+    <string name="recopy_stop">Stop for now</string>
+    <string name="recopy_finished">List recopied</string>
+
+    <!-- Backup -->
+    <string name="section_backup">Backup</string>
+    <string name="backup_hint">Each night after %1$s, everything is saved as one file in this folder.</string>
+    <string name="backup_folder">Folder: %1$s</string>
+    <string name="backup_no_folder">No folder chosen</string>
+    <string name="backup_choose">Choose folder</string>
+    <string name="backup_now">Back up now</string>
+    <string name="backup_last">Last backup: %1$s at %2$s</string>
+    <string name="backup_written">Backup saved</string>
+    <string name="backup_failed">The folder couldn\'t be reached</string>
+
     <!-- Alarms -->
     <string name="alarm_on_it">On it</string>
     <plurals name="alarm_snooze_left">
