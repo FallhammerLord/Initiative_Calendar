@@ -18,6 +18,7 @@ import initiative.core.Effort
 import initiative.core.Freq
 import initiative.core.Item
 import initiative.core.Kind
+import initiative.core.MarkIcon
 import initiative.core.MissPolicy
 import initiative.core.Priority
 import initiative.core.Recurrence
@@ -63,6 +64,8 @@ data class ItemRow(
     val steps: String = "",
     val waitUntil: String? = null,
     val workedMinutes: Int = 0,
+    /** A marker's icon; see core's MarkIcon. */
+    val icon: String = "FLAG",
 )
 
 /** The event log: every status change, with a timestamp. */
@@ -212,7 +215,7 @@ interface ItemDao {
     suspend fun insertAlarms(rows: List<AlarmRow>)
 }
 
-@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 4, exportSchema = true)
+@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 5, exportSchema = true)
 abstract class InitiativeDb : RoomDatabase() {
     abstract fun items(): ItemDao
 
@@ -241,9 +244,15 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        internal val ADD_MARKS = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `icon` TEXT NOT NULL DEFAULT 'FLAG'")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS)
                 .build()
                 .also { instance = it }
         }
@@ -281,6 +290,7 @@ fun Item.toRow() = ItemRow(
     steps = Steps.encode(steps),
     waitUntil = waitUntil?.toString(),
     workedMinutes = workedMinutes,
+    icon = icon.name,
 )
 
 fun ItemRow.toItem() = Item(
@@ -317,4 +327,5 @@ fun ItemRow.toItem() = Item(
     steps = Steps.decode(steps),
     waitUntil = waitUntil?.let(LocalDateTime::parse),
     workedMinutes = workedMinutes,
+    icon = runCatching { MarkIcon.valueOf(icon) }.getOrDefault(MarkIcon.FLAG),
 )

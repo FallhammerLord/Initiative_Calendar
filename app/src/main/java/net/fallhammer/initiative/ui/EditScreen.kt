@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -35,6 +36,8 @@ import initiative.core.Formats
 import initiative.core.Freq
 import initiative.core.Item
 import initiative.core.Kind
+import initiative.core.MINUTES_A_DAY
+import initiative.core.MarkIcon
 import initiative.core.MissPolicy
 import initiative.core.Priority
 import initiative.core.Recurrence
@@ -96,7 +99,8 @@ fun EditScreen(
             Field(stringResource(R.string.edit_title), title, { title = it }, singleLine = true)
             Spacer(Modifier.height(Space.s))
             Field(stringResource(R.string.edit_notes), notes, { notes = it }, singleLine = false)
-            Part {
+            // A marker is context, not work: no steps.
+            if (!draft.isMark) Part {
                 Text(stringResource(R.string.edit_steps), style = Type.bodySmall, color = Ink.text)
                 steps.forEachIndexed { i, line ->
                     val step = Steps.parse(line)
@@ -133,11 +137,12 @@ fun EditScreen(
                 )
             }
             Part {
+                val kinds = listOf(Kind.ANCHOR, Kind.FLOAT, Kind.MARK)
                 ChoiceRow(
                     stringResource(R.string.edit_type),
-                    listOf(stringResource(R.string.edit_anchor), stringResource(R.string.edit_float)),
-                    if (draft.isAnchor) 0 else 1,
-                ) { edit.setKind(if (it == 0) Kind.ANCHOR else Kind.FLOAT) }
+                    listOf(stringResource(R.string.edit_anchor), stringResource(R.string.edit_float), stringResource(R.string.edit_marker)),
+                    kinds.indexOf(draft.kind),
+                ) { edit.setKind(kinds[it]) }
             }
 
             Part {
@@ -159,7 +164,34 @@ fun EditScreen(
             }
 
             val start = draft.start
-            if (draft.isAnchor && start != null) {
+            if (draft.isMark && start != null) {
+                // A marker: its day or days, its icon, and how far ahead it shows.
+                Part {
+                    PickButton(stringResource(R.string.edit_mark_on, Formats.day(start.toLocalDate()))) {
+                        pickDate(start.toLocalDate(), edit::setMarkDay)
+                    }
+                    DateLine(
+                        set = draft.end?.let { stringResource(R.string.edit_mark_until, Formats.day(it.toLocalDate())) },
+                        unset = stringResource(R.string.edit_mark_one_day),
+                        onPick = { pickDate((draft.end ?: start).toLocalDate()) { d -> edit.setMarkUntil(d) } },
+                        onClear = { edit.setMarkUntil(null) },
+                    )
+                }
+                Part {
+                    val icons = MarkIcon.entries
+                    ChoiceRow(stringResource(R.string.edit_icon), icons.map { stringResource(iconName(it)) }, icons.indexOf(draft.icon)) { i ->
+                        edit.change { it.copy(icon = icons[i]) }
+                    }
+                }
+                Part {
+                    val ahead = (HEADS_UP + draft.headsUpDays).distinct().sorted()
+                    ChoiceRow(
+                        stringResource(R.string.edit_heads_up),
+                        ahead.map { if (it == 0) stringResource(R.string.edit_heads_up_none) else pluralStringResource(R.plurals.days, it, it) },
+                        ahead.indexOf(draft.headsUpDays),
+                    ) { i -> edit.change { it.copy(leadMinutes = ahead[i] * MINUTES_A_DAY) } }
+                }
+            } else if (draft.isAnchor && start != null) {
                 Part {
                     PickButton(stringResource(R.string.edit_date, Formats.day(start.toLocalDate()))) {
                         pickDate(start.toLocalDate(), edit::setDate)
@@ -224,7 +256,7 @@ fun EditScreen(
                 }
             }
 
-            Part {
+            if (!draft.isMark) Part {
                 val policies = MissPolicy.entries
                 val labels = listOf(R.string.miss_reroll, R.string.miss_drop, R.string.miss_ask)
                 ChoiceRow(stringResource(R.string.edit_missed), labels.map { stringResource(it) }, policies.indexOf(draft.missPolicy)) { i ->
@@ -249,6 +281,17 @@ fun EditScreen(
                 Action { SecondaryButton(stringResource(R.string.remove_this), { edit.remove(later = false) }, it) },
                 Action { SecondaryButton(stringResource(R.string.remove_later), { edit.remove(later = true) }, it) },
                 onCancel = { asking = false },
+            )
+            // A marker can't be done: it only informs.
+            draft.isMark && draft.isOpen -> ActionRow(
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action {
+                    SecondaryButton(
+                        stringResource(R.string.edit_remove),
+                        { if (draft.templateId != null) asking = true else edit.remove() },
+                        it,
+                    )
+                },
             )
             draft.isOpen -> ActionRow(
                 Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
@@ -349,3 +392,16 @@ private val REPEATS: List<Pair<Int, Recurrence?>> = listOf(
     R.string.repeat_yearly to Recurrence(Freq.YEARLY),
 )
 private val DURATIONS = listOf(15, 30, 45, 60, 90, 120)
+
+/** How far ahead a marker can show, in days. */
+private val HEADS_UP = listOf(0, 1, 2, 3, 7)
+
+/** A marker icon's name, as the edit form lists it. */
+internal fun iconName(icon: MarkIcon): Int = when (icon) {
+    MarkIcon.STAR -> R.string.icon_star
+    MarkIcon.CAKE -> R.string.icon_cake
+    MarkIcon.DOOR -> R.string.icon_door
+    MarkIcon.PLANE -> R.string.icon_plane
+    MarkIcon.COIN -> R.string.icon_coin
+    MarkIcon.FLAG -> R.string.icon_flag
+}

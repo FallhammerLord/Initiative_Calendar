@@ -18,7 +18,7 @@ object Recopy {
 
     /** Open floats, oldest first. Anchors already have their times. */
     fun queue(items: List<Item>): List<Item> =
-        items.filter { !it.isTemplate && !it.isAnchor && it.isOpen }.sortedBy { it.createdAt }
+        items.filter { !it.isTemplate && !it.isAnchor && !it.isMark && it.isOpen }.sortedBy { it.createdAt }
 
     /** Skipped often enough to suggest dropping it or giving it a real time. */
     fun nudge(item: Item): Boolean = item.skipCount >= NUDGE_SKIPS

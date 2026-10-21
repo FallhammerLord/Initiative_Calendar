@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
 import initiative.core.Formats
+import initiative.core.Item
 import initiative.core.Outcome
 import initiative.core.ReportLine
 import net.fallhammer.initiative.R
@@ -49,7 +50,14 @@ import java.time.LocalDate
  * menu; Save PDF uses Android's print screen. Nothing is ever sent by itself.
  */
 @Composable
-fun ReportScreen(day: LocalDate, lines: List<ReportLine>, notes: Boolean, onNotes: (Boolean) -> Unit, onClose: () -> Unit) {
+fun ReportScreen(
+    day: LocalDate,
+    lines: List<ReportLine>,
+    notes: Boolean,
+    onNotes: (Boolean) -> Unit,
+    onClose: () -> Unit,
+    marks: List<Item> = emptyList(),
+) {
     val context = LocalContext.current
     Screen {
         Strip {
@@ -58,6 +66,11 @@ fun ReportScreen(day: LocalDate, lines: List<ReportLine>, notes: Boolean, onNote
         }
         Spacer(Modifier.height(Space.panel))
         Card(Modifier.weight(1f), inner = Space.l) {
+            // The day's markers first: what kind of day it was.
+            if (marks.isNotEmpty()) {
+                Body(stringResource(R.string.report_marks, marks.joinToString(", ") { it.title }), color = Ink.accent, style = Type.bodySmall)
+                Spacer(Modifier.height(Space.s))
+            }
             if (lines.isEmpty()) {
                 Body(stringResource(R.string.report_empty), style = Type.bodySmall)
             } else {
@@ -70,8 +83,8 @@ fun ReportScreen(day: LocalDate, lines: List<ReportLine>, notes: Boolean, onNote
         Card(inner = Space.l) { SettingSwitch(stringResource(R.string.report_notes), notes, onNotes) }
         Spacer(Modifier.height(Space.panel))
         ActionRow(
-            Action(2f) { PrimaryButton(stringResource(R.string.report_share), { shareReport(context, day, lines, notes) }, it) },
-            Action { SecondaryButton(stringResource(R.string.report_pdf), { printReport(context, day, lines, notes) }, it) },
+            Action(2f) { PrimaryButton(stringResource(R.string.report_share), { shareReport(context, day, lines, notes, marks) }, it) },
+            Action { SecondaryButton(stringResource(R.string.report_pdf), { printReport(context, day, lines, notes, marks) }, it) },
         )
     }
 }
@@ -123,8 +136,9 @@ private fun outcomeOf(context: Context, line: ReportLine): String = when (line.o
 /** One line of the report as text: [indent] 1 for an item's steps and note. */
 private data class ReportText(val text: String, val indent: Int = 0, val heading: Boolean = false)
 
-private fun reportText(context: Context, day: LocalDate, lines: List<ReportLine>, notes: Boolean): List<ReportText> = buildList {
+private fun reportText(context: Context, day: LocalDate, lines: List<ReportLine>, notes: Boolean, marks: List<Item>): List<ReportText> = buildList {
     add(ReportText(context.getString(R.string.report_heading, Formats.day(day)), heading = true))
+    if (marks.isNotEmpty()) add(ReportText(context.getString(R.string.report_marks, marks.joinToString(", ") { it.title })))
     if (lines.isEmpty()) add(ReportText(context.getString(R.string.report_empty)))
     lines.forEach { line ->
         add(ReportText(context.getString(R.string.report_line, timeOf(context, line), line.item.title, outcomeOf(context, line))))
@@ -136,8 +150,8 @@ private fun reportText(context: Context, day: LocalDate, lines: List<ReportLine>
 }
 
 /** Share as plain text, through Android's share menu: the person picks the app. */
-private fun shareReport(context: Context, day: LocalDate, lines: List<ReportLine>, notes: Boolean) {
-    val rows = reportText(context, day, lines, notes)
+private fun shareReport(context: Context, day: LocalDate, lines: List<ReportLine>, notes: Boolean, marks: List<Item>) {
+    val rows = reportText(context, day, lines, notes, marks)
     val text = rows.joinToString("\n") { "  ".repeat(it.indent) + it.text }
     val send = Intent(Intent.ACTION_SEND)
         .setType("text/plain")
@@ -147,9 +161,9 @@ private fun shareReport(context: Context, day: LocalDate, lines: List<ReportLine
 }
 
 /** Save as PDF through Android's print screen, which asks where it goes. */
-private fun printReport(context: Context, day: LocalDate, lines: List<ReportLine>, notes: Boolean) {
+private fun printReport(context: Context, day: LocalDate, lines: List<ReportLine>, notes: Boolean, marks: List<Item>) {
     val printing = context.getSystemService(PrintManager::class.java) ?: return
-    val rows = reportText(context, day, lines, notes)
+    val rows = reportText(context, day, lines, notes, marks)
     printing.print(rows.first().text, ReportPrintAdapter(context.applicationContext, rows), null)
 }
 

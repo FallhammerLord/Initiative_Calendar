@@ -59,6 +59,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * left in today's order, Next is the next anchor, if there is one.
      */
     fun board(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Board {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         var b = pick(items, now, order)
         // A task back from a wait says so, rather than why it ranks.
         b.now.item?.takeIf { it.ready(now) }?.let { back ->
@@ -134,6 +137,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
 
     /** Today's remaining walls and open floats in board order, for the expanded ledger. */
     fun dayQueue(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): List<Item> {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
@@ -146,6 +152,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
     }
 
     fun ledger(items: List<Item>, date: LocalDate): List<LedgerMark> {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         val live = items.filter { !it.isTemplate }
         val done = live.mapNotNull { i -> i.doneAt?.takeIf { it.toLocalDate() == date }?.let { LedgerMark(it, MarkKind.DONE, i) } }
         val walls = openAnchors(live).filter { it.start!!.toLocalDate() == date }.map {
@@ -161,6 +170,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
 
     /** Gaps on [date] from [from] onward, between anchor lead-time warnings and anchor ends. */
     fun gaps(date: LocalDate, items: List<Item>, from: LocalDateTime): List<Gap> {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         val dayStart = date.atTime(window.start)
         val dayEnd = date.atTime(window.end)
         val walls = items
@@ -190,6 +202,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * [Forecast.later]. A forecast, not a promise: it reshuffles as the day goes.
      */
     fun forecast(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Forecast {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
@@ -223,6 +238,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * time, clear of every anchor's warning and time and of other pinned tasks.
      */
     fun canPin(item: Item, items: List<Item>, at: LocalDateTime, now: LocalDateTime): Boolean {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         if (item.isAnchor || at.toLocalDate() != now.toLocalDate()) return false
         val others = items.filter { !it.isTemplate && it.id != item.id }
         val pinned = others.filter { !it.isAnchor && it.isOpen && pinHolds(it, now) }
@@ -280,6 +298,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * than an hour away, as a safety net.
      */
     fun nextChange(items: List<Item>, now: LocalDateTime): LocalDateTime {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         val live = items.filter { !it.isTemplate && it.isOpen }
         val today = now.toLocalDate()
         val times = mutableListOf<LocalDateTime>()
@@ -296,7 +317,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
 
     /** The next Firm or Hard anchor still to start: the wall that ends a focus session. */
     fun nextWall(items: List<Item>, now: LocalDateTime): Item? =
-        items.filter { !it.isTemplate && it.isAnchor && it.isOpen && it.start != null && it.wall != WallStrength.SOFT }
+        items.work().filter { !it.isTemplate && it.isAnchor && it.isOpen && it.start != null && it.wall != WallStrength.SOFT }
             .filter { it.start!!.isAfter(now) }
             .minByOrNull { it.start!! }
 
@@ -305,6 +326,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * else at the end of the day window. Past the window, two hours from now.
      */
     fun focusEnd(items: List<Item>, now: LocalDateTime): LocalDateTime {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         nextWall(items, now)?.start?.let { return it }
         val dayEnd = now.toLocalDate().atTime(window.end)
         return if (dayEnd.isAfter(now)) dayEnd else now.plusHours(FOCUS_FALLBACK_HOURS)
@@ -312,6 +336,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
 
     /** Skip: move to the next gap it fits, or an hour later, or tomorrow. */
     fun skip(item: Item, items: List<Item>, now: LocalDateTime): Moved {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
         val today = now.toLocalDate()
         val need = item.durationMinutes.toLong()
         val todayGaps = gaps(today, items, now)
@@ -436,3 +463,6 @@ class Placement(private val window: DayWindow = DayWindow()) {
         return base.plusMinutes(extra.toLong())
     }
 }
+
+/** Everything but markers: the items the day's rules work with. */
+fun List<Item>.work(): List<Item> = filter { !it.isMark }

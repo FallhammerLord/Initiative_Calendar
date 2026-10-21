@@ -41,7 +41,7 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS)
             .allowMainThreadQueries()
             .build()
         runBlocking {
@@ -50,6 +50,7 @@ class MigrationTest {
             assertEquals("", dao.all().single().steps)
             assertEquals(null, dao.all().single().waitUntil)
             assertEquals(0, dao.all().single().workedMinutes)
+            assertEquals("FLAG", dao.all().single().icon)
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
         }

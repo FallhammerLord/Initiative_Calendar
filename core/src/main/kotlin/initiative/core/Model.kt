@@ -4,7 +4,15 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-enum class Kind { ANCHOR, FLOAT }
+/**
+ * ANCHOR: a fixed time. FLOAT: a task placed in free time. MARK: a marker, such
+ * as a holiday or a birthday: context for a day or a span of days, never work.
+ * It's never Now, never rings, isn't in the forecast, and can't be done.
+ */
+enum class Kind { ANCHOR, FLOAT, MARK }
+
+/** A marker's icon. */
+enum class MarkIcon { STAR, CAKE, DOOR, PLANE, COIN, FLAG }
 enum class WallStrength { SOFT, FIRM, HARD }
 enum class Priority { AUTO, LOW, NORMAL, HIGH }
 enum class Effort { QUICK, FOCUS }
@@ -55,10 +63,20 @@ data class Item(
     val waitUntil: LocalDateTime? = null,
     /** Hands-on minutes before a wait, so duration learning counts work, not waiting. */
     val workedMinutes: Int = 0,
+    /** A marker's icon. */
+    val icon: MarkIcon = MarkIcon.FLAG,
 ) {
     val isTemplate: Boolean get() = recurrence != null
     val isOpen: Boolean get() = status == Status.PENDING || status == Status.ACTIVE
     val isAnchor: Boolean get() = kind == Kind.ANCHOR
+    val isMark: Boolean get() = kind == Kind.MARK
+
+    /** A marker's first and last day; null for anything else. */
+    val markDays: ClosedRange<java.time.LocalDate>? get() =
+        if (!isMark) null else start?.toLocalDate()?.let { first -> first..maxOf(first, end?.toLocalDate() ?: first) }
+
+    /** How many days ahead a marker shows, dim, as a heads-up. Kept in [leadMinutes], in whole days. */
+    val headsUpDays: Int get() = if (isMark) leadMinutes / MINUTES_A_DAY else 0
     val anchorEnd: LocalDateTime? get() = end ?: start?.plusMinutes(DEFAULT_ANCHOR_MINUTES)
     val warnAt: LocalDateTime? get() = start?.minusMinutes(leadMinutes.toLong())
     val titleKey: String get() = keyFor(title)
@@ -159,3 +177,6 @@ data class DayWindow(
 ) {
     operator fun contains(time: LocalTime): Boolean = !time.isBefore(start) && time.isBefore(end)
 }
+
+/** Minutes in a day, for a marker's heads-up kept in its lead. */
+const val MINUTES_A_DAY = 24 * 60

@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -127,6 +128,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val reportDay by vm.report.collectAsStateWithLifecycle()
     val reportLines by vm.reportLines.collectAsStateWithLifecycle()
     val reportNotes by vm.reportNotes.collectAsStateWithLifecycle()
+    val reportMarks by vm.reportMarks.collectAsStateWithLifecycle()
     val overlay by vm.overlay.collectAsStateWithLifecycle()
     val quiet by vm.settings.quiet.collectAsStateWithLifecycle()
     val lapseHours by vm.settings.lapseHours.collectAsStateWithLifecycle()
@@ -213,7 +215,7 @@ fun BoardScreen(vm: BoardViewModel) {
             } else if (editing != null) {
                 EditScreen(editing, vm.edit)
             } else if (reportOn != null) {
-                ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport)
+                ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport, marks = reportMarks)
             } else if (logOpen) {
                 LogScreen(
                     vm.log,
@@ -272,6 +274,15 @@ fun BoardScreen(vm: BoardViewModel) {
                             onOnIt = vm::onIt,
                         )
                       }
+                      // Markers hang off the Plan ahead panel's bottom edge, over the open space.
+                      if (!keyboardUp) {
+                          MarkHud(
+                              ui.marks,
+                              onEdit = vm.edit::open,
+                              onMore = vm::openLog,
+                              modifier = Modifier.align(Alignment.TopStart).offset(y = -(Space.zone + BUBBLE / 2)).padding(start = Space.m),
+                          )
+                      }
                     }
                     Spacer(Modifier.height(Space.panel))
                     // Folded, the day panel is just the Next line: swipe it up or tap it to open.
@@ -287,6 +298,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             onFloat = vm::answerFloat,
                             onAnchor = vm::answerAnchor,
                             onCancel = vm::cancelAsk,
+                            onMarker = vm::answerMarker,
                         )
                     }
                     dupe?.let { (_, old) ->
@@ -992,19 +1004,21 @@ private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit, o
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -> Unit, onCancel: () -> Unit) {
+private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -> Unit, onCancel: () -> Unit, onMarker: () -> Unit) {
     val context = LocalContext.current
     // In a panel, so the question never sits on the background pattern.
     Card(Modifier.padding(bottom = Space.s), inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) {
         Body(stringResource(R.string.ask_kind, title), color = Ink.text, style = Type.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalAlignment = Alignment.CenterVertically) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalArrangement = Arrangement.spacedBy(Space.s)) {
             SecondaryButton(stringResource(R.string.ask_float), onFloat, height = Tap.min)
             SecondaryButton(
                 stringResource(R.string.ask_anchor),
                 { TimePickerDialog(context, { _, h, m -> onAnchor(LocalTime.of(h, m)) }, 9, 0, false).show() },
                 height = Tap.min,
             )
+            SecondaryButton(stringResource(R.string.ask_marker), onMarker, height = Tap.min)
             QuietButton(stringResource(R.string.ask_cancel), onCancel)
         }
     }

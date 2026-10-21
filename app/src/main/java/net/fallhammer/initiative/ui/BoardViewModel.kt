@@ -13,6 +13,7 @@ import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.LedgerMark
 import initiative.core.Parsed
+import initiative.core.Marks
 import initiative.core.Parser
 import initiative.core.Report
 import initiative.core.ReportLine
@@ -51,6 +52,8 @@ data class BoardUi(
     val forecast: Forecast = Forecast(emptyList(), emptyList()),
     val window: DayWindow = DayWindow(),
     val focus: FocusView? = null,
+    /** Today's markers, and those coming up within their heads-up, for the HUD. */
+    val marks: List<Marks.Shown> = emptyList(),
 )
 
 /** A running focus session: the task, when it ends, and the wall that ends it (null: the day's end). */
@@ -113,6 +116,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             focus = focus?.takeIf { now.isBefore(it.until) }?.let { f ->
                 all.firstOrNull { it.id == f.itemId && it.isOpen }?.let { FocusView(it, f.until, placement.nextWall(all, now)) }
             },
+            marks = Marks.on(all, now.toLocalDate()),
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, BoardUi())
 
@@ -131,6 +135,10 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     /** The open report's lines, kept up to date. */
     val reportLines: StateFlow<List<ReportLine>> = combine(repo.items, report) { all, day -> all to day }
         .map { (all, day) -> day?.let { Report.of(all, it, LocalDate.now(), repo.movedOn(it, all)) }.orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** The open report's day's markers, for its top line. */
+    val reportMarks: StateFlow<List<Item>> = combine(repo.items, report) { all, day -> day?.let { Report.marks(all, it, LocalDate.now()) }.orEmpty() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Whether the report shows notes; off by default, since notes are often private. */
@@ -416,6 +424,14 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         val p = _ask.value ?: return
         val day = p.item.earliestStart ?: LocalDate.now()
         save(p.copy(item = p.item.copy(kind = Kind.ANCHOR, start = day.atTime(time), earliestStart = null)))
+        _ask.value = null
+    }
+
+    /** "Anchor or float?" answered Marker: all day, on the day it named. */
+    fun answerMarker() {
+        val p = _ask.value ?: return
+        val day = p.item.earliestStart ?: LocalDate.now()
+        save(p.copy(item = p.item.copy(kind = Kind.MARK, start = day.atStartOfDay(), earliestStart = null, leadMinutes = 0, icon = Parser.iconFor(p.item.title))))
         _ask.value = null
     }
 

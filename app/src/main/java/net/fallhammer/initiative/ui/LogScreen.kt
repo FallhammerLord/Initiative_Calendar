@@ -323,6 +323,7 @@ private fun EntryRow(entry: LogEntry, at: LocalDateTime?, nowId: Long?, showDate
     val isNow = !entry.projected && item.id == nowId
     val time = when {
         showDate -> Formats.shortDate(entry.date)
+        item.isMark -> stringResource(R.string.mark_all_day)
         isNow -> stringResource(R.string.log_now)
         else -> at?.let { Formats.clock(it) } ?: stringResource(R.string.log_any_time)
     }
@@ -422,7 +423,7 @@ private fun MonthGrid(view: LogView, onPick: (LocalDate) -> Unit) {
                         Spacer(Modifier.weight(1f))
                     } else {
                         val (date, list) = cell
-                        DayCell(date, list.any { it.item.isAnchor }, date == view.date, date == view.today, onPick, Modifier.weight(1f))
+                        DayCell(date, list.any { it.item.isAnchor }, list.any { it.item.isMark }, date == view.date, date == view.today, onPick, Modifier.weight(1f))
                     }
                 }
                 repeat(DAYS_A_WEEK - week.size) { Spacer(Modifier.weight(1f)) }
@@ -432,10 +433,11 @@ private fun MonthGrid(view: LogView, onPick: (LocalDate) -> Unit) {
 }
 
 @Composable
-private fun DayCell(date: LocalDate, fixed: Boolean, picked: Boolean, today: Boolean, onPick: (LocalDate) -> Unit, modifier: Modifier) {
+private fun DayCell(date: LocalDate, fixed: Boolean, marked: Boolean, picked: Boolean, today: Boolean, onPick: (LocalDate) -> Unit, modifier: Modifier) {
     val shape = LocalLook.current.buttonShape
     val name = Formats.longDay(date)
-    val spoken = if (fixed) stringResource(R.string.log_has_fixed, name) else name
+    val withFixed = if (fixed) stringResource(R.string.log_has_fixed, name) else name
+    val spoken = if (marked) stringResource(R.string.log_has_marker, withFixed) else withFixed
     val mark = if (picked) Ink.onAccent else Ink.accent
     val haptics = rememberHaptics()
     Column(
@@ -458,8 +460,11 @@ private fun DayCell(date: LocalDate, fixed: Boolean, picked: Boolean, today: Boo
             color = if (picked) Ink.onAccent else Ink.text,
             modifier = Modifier.clearAndSetSemantics { },
         )
-        // A small diamond for a day with fixed times; no counts.
-        Box(Modifier.size(MARK).rotate(45f).then(if (fixed) Modifier.background(mark) else Modifier))
+        // A small diamond for a day with fixed times, a dot for a day with a marker; no counts.
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.xs), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(MARK).rotate(45f).then(if (fixed) Modifier.background(mark) else Modifier))
+            if (marked) Box(Modifier.size(MARK).clip(DotShape).background(mark))
+        }
     }
 }
 
@@ -512,3 +517,6 @@ private const val DAYS_A_WEEK = 7
 private val TIME_COLUMN = 104.dp
 private val MONTH_COLUMN = 132.dp
 private val MARK = 6.dp
+
+/** A marker's dot in the month grid. */
+private val DotShape = MarkDot

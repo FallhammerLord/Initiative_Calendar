@@ -58,7 +58,8 @@ object Pass {
 
     fun plan(input: PassInput, placement: Placement): Plan {
         val now = input.now
-        var items = input.items
+        // Markers never ring or settle.
+        var items = input.items.work()
         val states = input.states.toMutableMap()
         fun stateOf(id: Long) = states[id] ?: AlarmState()
 

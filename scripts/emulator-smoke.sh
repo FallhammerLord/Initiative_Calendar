@@ -479,11 +479,11 @@ expect_text "pickup at 2:00 PM"
 shot anchor-in-ledger
 
 quick_add "dentist thu"
-expect_text "anchor or float"
+expect_text "anchor, float, or marker"
 shot ask-chips
 tap Float exact
 hide_keyboard
-wait_gone "anchor or float" || fail "ask chips didn't close"
+wait_gone "anchor, float, or marker" || fail "ask chips didn't close"
 pass "ask chips close"
 
 adb shell input keyevent KEYCODE_BACK
@@ -932,6 +932,25 @@ wait_for "Ready since" contains 6 || fail "tapping the waitmark should make that
 expect_text "dentist call"
 shot wait-back
 pass "the waitmark lights when the wait is up, and a tap brings the task back"
+crash_check
+
+# --- Markers ----------------------------------------------------------------------
+# "all day" makes a marker: a bubble hanging off the Plan ahead panel. A tap
+# slides its label out; a second tap opens its note, with Edit and Close.
+
+home
+quick_add "halloween today all day"
+hide_keyboard
+wait_for "halloween, marker" || fail "an all-day line should make a marker bubble"
+tap "halloween, marker"
+wait_for "halloween" exact || fail "a tap should slide the marker's label out"
+shot marker-label
+tap "halloween, marker"
+wait_for "Edit" exact || fail "a second tap should open the marker's note"
+shot marker-note
+tap Close exact
+wait_gone "Edit" exact || fail "Close should fold the marker's note"
+pass "a marker shows as a bubble, its label, and its note"
 crash_check
 
 # --- The Log ----------------------------------------------------------------------

@@ -15,7 +15,7 @@ object AutoSkip {
     fun due(shown: Shown?, items: List<Item>, now: LocalDateTime): Item? {
         val s = shown ?: return null
         if (now.isBefore(s.until)) return null
-        return items.firstOrNull {
+        return items.work().firstOrNull {
             it.id == s.itemId && !it.isAnchor && it.isOpen && it.skipCount == s.skipCount && it.notBefore == s.notBefore
         }
     }
@@ -46,7 +46,7 @@ object Lapse {
         autoSkipStreak >= SKIP_STREAK || (lastAction != null && !now.isBefore(lastAction.plusHours(hours)))
 
     fun recap(items: List<Item>, autoSkipped: Set<Long>, since: LocalDateTime, now: LocalDateTime): Recap {
-        val live = items.filter { !it.isTemplate }
+        val live = items.work().filter { !it.isTemplate }
         val anchors = live.filter { it.isAnchor && it.start != null }.sortedBy { it.start }
         val handled = live.filter { !it.isAnchor && it.isOpen && it.id in autoSkipped }.sortedBy { it.createdAt }
         return Recap(

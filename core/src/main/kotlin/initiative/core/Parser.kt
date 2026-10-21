@@ -69,6 +69,8 @@ object Parser {
         var freq: Freq? = null
         var interval = 1
         val days = linkedSetOf<DayOfWeek>()
+        // "all day" makes a marker: context for the day, not work.
+        var allDay = false
 
         fun takePrev(i: Int, words: Set<String>) {
             if (i > 0 && !used[i - 1] && low[i - 1] in words) used[i - 1] = true
@@ -242,6 +244,14 @@ object Parser {
                 continue
             }
 
+            if (l == "allday" || l == "all-day" || (l == "all" && i + 1 < n && low[i + 1] == "day")) {
+                allDay = true
+                used[i] = true
+                if (l == "all") used[i + 1] = true
+                i += if (l == "all") 2 else 1
+                continue
+            }
+
             val md = monthDateAt(i)
             if (md != null) {
                 date = md.first
@@ -301,7 +311,17 @@ object Parser {
         }
 
         val explicitDuration = duration != null
-        val item = if (clock != null) {
+        val item = if (allDay) {
+            Item(
+                title = title,
+                kind = Kind.MARK,
+                start = base.atStartOfDay(),
+                leadMinutes = 0,
+                recurrence = rule,
+                icon = iconFor(title),
+                createdAt = now,
+            )
+        } else if (clock != null) {
             val start = base.atTime(clock)
             Item(
                 title = title,
@@ -325,7 +345,7 @@ object Parser {
                 createdAt = now,
             )
         }
-        val unsure = clock == null && date != null && rule == null
+        val unsure = !allDay && clock == null && date != null && rule == null
         return Parsed(
             item = item,
             unsureKind = unsure,
@@ -334,6 +354,24 @@ object Parser {
             explicitDuration = explicitDuration,
         )
     }
+
+    /** A marker's icon, guessed from its name; Flag when nothing fits. The edit form can change it. */
+    fun iconFor(title: String): MarkIcon {
+        val words = title.lowercase().split(Regex("[^a-z']+")).toSet()
+        return when {
+            words.any { it in setOf("birthday", "bday", "birthdays", "anniversary") } -> MarkIcon.CAKE
+            words.any { it in setOf("closed", "closure", "off", "shut") } -> MarkIcon.DOOR
+            words.any { it in setOf("trip", "travel", "travelling", "traveling", "vacation", "away", "flight", "visit") } -> MarkIcon.PLANE
+            words.any { it in setOf("payday", "pay", "rent", "bill", "bills", "paycheck") } -> MarkIcon.COIN
+            words.any { it in HOLIDAYS } -> MarkIcon.STAR
+            else -> MarkIcon.FLAG
+        }
+    }
+
+    private val HOLIDAYS = setOf(
+        "holiday", "halloween", "christmas", "thanksgiving", "easter", "hanukkah", "diwali", "eid",
+        "new", "valentine's", "valentines", "solstice", "equinox", "festival",
+    )
 
     /** Next date on [day], counting today. */
     fun nextOn(today: LocalDate, day: DayOfWeek): LocalDate =

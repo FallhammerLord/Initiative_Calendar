@@ -80,13 +80,31 @@ class EditModel(
     /** Changes one or more fields of the draft. */
     fun change(update: (Item) -> Item) = set(_draft.value?.let(update))
 
-    /** Anchor or float. A new anchor starts at the next whole hour today. */
+    /**
+     * Anchor, float, or marker. A new anchor starts at the next whole hour, on the
+     * marker's day if it was one; a new marker is all day, on the day it had.
+     */
     fun setKind(kind: Kind) = change { d ->
+        val day = d.start?.toLocalDate() ?: d.earliestStart ?: LocalDate.now()
         when {
             d.kind == kind -> d
-            kind == Kind.ANCHOR -> d.copy(kind = kind, start = d.start ?: nextHour())
-            else -> d.copy(kind = kind, start = null, end = null)
+            kind == Kind.ANCHOR -> d.copy(kind = kind, start = if (d.isMark) day.atTime(nextHour().toLocalTime()) else d.start ?: nextHour(), end = null, leadMinutes = Item.DEFAULT_LEAD)
+            kind == Kind.MARK -> d.copy(kind = kind, start = day.atStartOfDay(), end = null, earliestStart = null, leadMinutes = 0)
+            else -> d.copy(kind = kind, start = null, end = null, earliestStart = if (d.isMark) day else d.earliestStart, leadMinutes = Item.DEFAULT_LEAD)
         }
+    }
+
+    /** A marker's first day; a span keeps its length. */
+    fun setMarkDay(date: LocalDate) = change { d ->
+        val first = d.start?.toLocalDate() ?: date
+        val days = d.end?.let { java.time.temporal.ChronoUnit.DAYS.between(first, it.toLocalDate()) } ?: 0
+        d.copy(start = date.atStartOfDay(), end = if (days > 0) date.plusDays(days).atStartOfDay() else null)
+    }
+
+    /** A marker's last day; null, or a day not after the first, makes it one day. */
+    fun setMarkUntil(date: LocalDate?) = change { d ->
+        val first = d.start?.toLocalDate() ?: return@change d
+        d.copy(end = date?.takeIf { it.isAfter(first) }?.atStartOfDay())
     }
 
     /** Moves an anchor to [date], keeping its times. */

@@ -126,7 +126,7 @@ object Backup {
         .set("notBefore", r.notBefore).set("recFreq", r.recFreq).set("recInterval", r.recInterval)
         .set("recDays", r.recDays).set("templateId", r.templateId).set("missPolicy", r.missPolicy)
         .set("status", r.status).set("createdAt", r.createdAt).set("doneAt", r.doneAt).set("activeSince", r.activeSince)
-        .set("steps", r.steps).set("waitUntil", r.waitUntil).set("workedMinutes", r.workedMinutes)
+        .set("steps", r.steps).set("waitUntil", r.waitUntil).set("workedMinutes", r.workedMinutes).set("icon", r.icon)
 
     fun itemRow(o: JSONObject) = ItemRow(
         id = o.getLong("id"),
@@ -160,6 +160,8 @@ object Backup {
         steps = o.str("steps").orEmpty(),
         waitUntil = o.str("waitUntil"),
         workedMinutes = o.optInt("workedMinutes", 0),
+        // Backups from before markers have no icon.
+        icon = o.str("icon") ?: "FLAG",
     )
 
     /** A short name for the chosen folder, for the settings screen. */

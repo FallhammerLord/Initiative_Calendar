@@ -427,3 +427,6 @@ object Paper {
     val ink = Color(0xFF000000)
     val dim = Color(0xFF4A4A4A)
 }
+
+/** A marker's dot in the Log's month grid. */
+val MarkDot: Shape = RoundedCornerShape(50)

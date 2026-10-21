@@ -24,6 +24,7 @@ object Log {
      */
     fun dateOf(item: Item, today: LocalDate): LocalDate? = when {
         item.isTemplate -> null
+        item.isMark -> item.start?.toLocalDate()
         item.isAnchor -> item.start?.toLocalDate()
         item.status == Status.DONE -> item.doneAt?.toLocalDate() ?: item.earliestStart ?: item.createdAt.toLocalDate()
         item.isOpen -> listOfNotNull(item.pinnedSlot?.toLocalDate(), item.notBefore?.toLocalDate(), item.earliestStart, today).max()
@@ -31,6 +32,7 @@ object Log {
     }
 
     private fun timeOf(item: Item, date: LocalDate): LocalDateTime? = when {
+        item.isMark -> null
         item.isAnchor -> item.start
         item.status == Status.DONE -> item.doneAt
         else -> item.pinnedSlot?.takeIf { it.toLocalDate() == date }
@@ -38,8 +40,15 @@ object Log {
 
     /** Everything from [from] to [to], inclusive, in date and time order. */
     fun entries(items: List<Item>, from: LocalDate, to: LocalDate, today: LocalDate): List<LogEntry> {
-        val real = items.mapNotNull { i ->
-            dateOf(i, today)?.takeIf { it in from..to }?.let { LogEntry(i, it, timeOf(i, it)) }
+        val real = items.flatMap { i ->
+            val span = i.markDays
+            // A marker shows on each day it spans.
+            if (span != null && !i.isTemplate) {
+                generateSequence(maxOf(span.start, from)) { it.plusDays(1) }.takeWhile { it <= minOf(span.endInclusive, to) }
+                    .map { LogEntry(i, it, null) }.toList()
+            } else {
+                listOfNotNull(dateOf(i, today)?.takeIf { it in from..to }?.let { LogEntry(i, it, timeOf(i, it)) })
+            }
         }
         // A series' times beyond those made already, from today on.
         val made = items.filter { it.templateId != null }.groupBy { it.templateId }
@@ -51,7 +60,7 @@ object Log {
             items.filter { it.isTemplate && it.status != Status.DROPPED }.flatMap { t ->
                 t.instancesBetween(start, to)
                     .filter { it.occurrenceDate !in made[t.id].orEmpty() }
-                    .mapNotNull { i -> i.occurrenceDate?.let { LogEntry(i, it, i.start, projected = true) } }
+                    .mapNotNull { i -> i.occurrenceDate?.let { LogEntry(i, it, if (i.isMark) null else i.start, projected = true) } }
             }
         }
         return (real + projected).sortedWith(ORDER)
@@ -81,5 +90,6 @@ object Log {
     fun weekStart(date: LocalDate): LocalDate = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
     // Timed entries first, by time; then the rest, by title.
-    private val ORDER = compareBy<LogEntry>({ it.date }, { it.time == null }, { it.time }, { it.item.title.lowercase() })
+    // Markers lead their day: context first, then the day's items.
+    private val ORDER = compareBy<LogEntry>({ it.date }, { !it.item.isMark }, { it.time == null }, { it.time }, { it.item.title.lowercase() })
 }

@@ -471,6 +471,13 @@ After v0.1, built:
 - *The dial.* A running wait is dotted just above the arc, so the tasks that fill it stay on the line.
 - *Learning.* Duration learning counts hands-on time only: the wait is left out.
 
+**Markers.** Context for a day, not work: a holiday, a birthday, "school closed", "away". A marker is never Now, never rings, isn't in the forecast or the dial, isn't in the lapse recap or the weekly recopy, and can't be done; every rule of the day ignores it. It can span several days and can repeat (yearly, say).
+- *On the board.* Like status effects under a health bar: bubbles hang off the bottom edge of the Plan ahead panel, over the open space, in the look's own shape (a hexagon, a circle, a medallion, a jewel roundel) with the marker's icon. Tap one and its label slides out; tap again for its note, with Edit and Close. At most four show; past that, "…" opens Plan ahead. They step aside with the keyboard.
+- *Heads-up.* A marker can show a few days early, dim with a dashed rim ("Mom's birthday in 2 days"), so there's time to prepare; on the day it turns solid. A span shows that it's in effect, never "day 3 of 7".
+- *Icons.* Holiday (star), birthday (cake), closed (door), away (plane), money (coin), other (flag): line drawings that take the look's colors. Quick-add guesses one from the name; the edit form changes it.
+- *Adding.* "halloween oct 31 all day", with "yearly" to repeat. The "anchor, float, or marker?" question offers Marker. In the edit form, Type has Marker, with its day, an optional last day, its icon, and how far ahead it shows.
+- *Elsewhere.* Plan ahead lists a marker first on each day it spans, as "All day"; the month grid marks its days with a dot beside the fixed-time diamond. The day report opens with "Today: Halloween".
+
 **Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
 
 **v0.3 — Polish**
