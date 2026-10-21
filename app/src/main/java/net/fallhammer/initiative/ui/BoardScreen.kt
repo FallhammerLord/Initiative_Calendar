@@ -65,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -142,7 +143,7 @@ fun BoardScreen(vm: BoardViewModel) {
 
     // Hiding the keyboard lets go of the text field, so it doesn't stay lit.
     val keyboardUp = WindowInsets.isImeVisible
-    LaunchedEffect(keyboardUp) { if (!keyboardUp) focus.clearFocus() }
+    LaunchedEffect(keyboardUp) { if (!keyboardUp) focus.clearFocus(force = true) }
 
     // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
@@ -792,10 +793,25 @@ private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifier) {
     // Saved across process restarts, so a half-typed line survives.
     var text by rememberSaveable { mutableStateOf("") }
+    // Once the keyboard has been up while the field has focus, the keyboard going
+    // down lets the field go too, so it never stays lit with no keyboard. Forced,
+    // so nothing can hold on to it. The board's own check backs this up.
+    val focus = LocalFocusManager.current
+    val keyboardUp = WindowInsets.isImeVisible
+    var focused by remember { mutableStateOf(false) }
+    var sawKeyboard by remember { mutableStateOf(false) }
+    LaunchedEffect(focused, keyboardUp) {
+        when {
+            !focused -> sawKeyboard = false
+            keyboardUp -> sawKeyboard = true
+            sawKeyboard -> focus.clearFocus(force = true)
+        }
+    }
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
@@ -810,7 +826,7 @@ private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifie
         } else {
             { QuietButton(stringResource(R.string.quick_add_button), { if (onSubmit(text)) text = "" }, color = Ink.accent) }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     )
 }
 
