@@ -17,14 +17,15 @@ class ThemeContrastTest {
 
     @Test
     fun everyThemeMeetsContrastTargets() {
-        val misses = Looks.all.flatMap { look ->
+        val palettes = Looks.all.flatMap { look ->
             val p = look.palette
             val text = listOf("text" to p.text, "dim" to p.dim, "accent" to p.accent)
             val grounds = listOf("bg" to p.bg, "surface" to p.surface)
             text.flatMap { (fn, f) -> grounds.map { (bn, b) -> Triple("${look.id}: $fn on $bn", ratio(f, b), TEXT) } } +
                 Triple("${look.id}: onAccent on accent", ratio(p.onAccent, p.accent), TEXT) +
                 grounds.map { (bn, b) -> Triple("${look.id}: frame on $bn", ratio(p.frame, b), OUTLINE) }
-        } + Looks.all.flatMap { look ->
+        }
+        val pairs = Looks.all.flatMap { look ->
             // Pair colors: clear as lines on both grounds, and their badge's initial readable.
             val p = look.palette
             (0 until PairColors.count).flatMap { i ->
@@ -35,7 +36,8 @@ class ThemeContrastTest {
                     Triple("${look.id}: initial on pair $i", ratio(PairColors.ink(p), c), TEXT),
                 )
             }
-        }.filter { (_, r, target) -> r < target }
+        }
+        val misses = (palettes + pairs).filter { (_, r, target) -> r < target }
 
         assertTrue(
             "Below target: " + misses.joinToString { (what, r, target) -> "$what %.1f < %.1f".format(r, target) },
