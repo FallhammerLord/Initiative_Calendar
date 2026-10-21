@@ -288,13 +288,16 @@ private fun Modifier.hexGrid(color: Color, glow: Color, lattice: HexLattice?, pu
  */
 private fun Modifier.fans(color: Color, ground: Color, glow: Color, pulse: () -> Pulse?): Modifier = drawWithCache {
     val r = FAN.toPx()
+    // The screen's size, taken before buildList, where "size" means the list's.
+    val width = size.width
+    val height = size.height
     // Row by row, top to bottom, so each lower fan covers the one above it.
     val centers = buildList {
         var row = 0
         var y = 0f
-        while (y < size.height + 2 * r) {
+        while (y < height + 2 * r) {
             var x = if (row % 2 == 0) 0f else r
-            while (x < size.width + 2 * r) {
+            while (x < width + 2 * r) {
                 add(Offset(x, y))
                 x += 2 * r
             }
