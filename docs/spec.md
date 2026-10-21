@@ -396,6 +396,39 @@ Gaps today:
 - [x] Button and switch styles live inside single screens. The alarm screen copies the board's button style by hand.
 - [x] Each screen sets its own padding and background.
 
+## Pairs: peeking at each other's day
+
+Up to three other people's Initiative (a partner, and each daughter once she has a phone) can be peeked at, for planning the week and for "are you free?". Seeing that someone is due to be picking up the girls answers the question without a call.
+
+**Trust first.** Sharing is offered, never enforced. Each person decides what leaves their phone, separately for each person, and can stop at any time. No one's settings can change anyone else's, and there is no parent mode. The link between two phones is two-way; what crosses it each way is up to the sender.
+
+**Pieces** (scaffold; each to be mocked up before building)
+
+1. **Identity.** Each Initiative has its own random ID, a name, an initial and color for others' screens, and an Initiative PIN, set in Settings.
+2. **Pairing, once, in person.** Phones side by side. Each enters the other's PIN, so both agree. The phones swap a long random key over Bluetooth; each keeps it in Android's key store. Up to three pairs. Unpair or a changed PIN drops the key.
+3. **Sharing.** Nothing is shared until ticked. A Share tick per item, per person; optional defaults (such as "share my anchors") tick new items, only if turned on. A **What they see** preview shows exactly what leaves the phone. **Stop sharing** per person.
+4. **Peeking.** A short Bluetooth session, proved and encrypted with the pair's key, returns what the other person shares for today and the next week, and their Now. Kept on the phone, read-only, with the time it was fetched. No PIN ever crosses the air after pairing.
+5. **Showing it.** Pairmarks: bookmarks from the left, high, below the marker bubbles, stacked across; a tap brings one to the front. The front one reads "Sam · probably picking up the girls · as of 2:10". "Probably" and "as of", because between peeks the app estimates from the last one; an old peek fades to "last seen at 2:10". Later: a thin line per person under the dial, with their initial, and a lane per person in the Log's day and week views.
+6. **Day report.** Sharing a day's report is its own opt-in, per person.
+
+**Bluetooth, not Wi-Fi.** Bluetooth connections don't need Android's internet permission, so Initiative stays offline by the OS's own rule (to confirm before building). Practices, to avoid dead ends:
+
+- Permissions: Nearby devices (scan, connect, advertise), with scanning marked never for location, so no location permission.
+- Scans in short sessions filtered to Initiative's own ID; never more than five starts in 30 seconds, or Android silently stops returning results.
+- One Bluetooth operation at a time, through a queue.
+- Error 133 (refused or timed out): close fully, wait, reconnect, with a capped number of tries; never an open-ended retry.
+- Phones rotate their Bluetooth address, so identity lives in the app (ID and key), never the address.
+- The data: a Bluetooth stream channel (Android 10 and later) first; a small Bluetooth service, sending in chunks, as the fallback. A week of shared plan is a few KB.
+- Background: Initiative is the home app, so its process is usually alive; a peek runs as a short foreground task. Waking on nearness (Android's companion device tools) is for later.
+
+**Testing.** The engine holds the rules (pairing, keys, what is shared, the snapshot format, the estimate) and unit-tests them behind a stand-in transport. The Bluetooth layer stays thin and is tested by hand on two phones; the emulator can't pair two phones.
+
+**Phases**
+
+1. Theme picker as a dropdown. Initiative PIN, pairing, one person, Peek, Share ticks and the preview, pairmarks.
+2. Up to three people; a line per person under the dial; lanes in the Log.
+3. Day report sharing; peeking when nearby on its own.
+
 ## Build plan
 
 Version 0.1 is the smallest thing you could live on for two weeks and judge.
@@ -510,6 +543,10 @@ After two weeks on v0.1, we review what got ignored, what annoyed you, and what 
 
 - [x] **Launcher base.** Written from scratch, so the codebase stays small and fully understood.
 - [x] **Build setup.** GitHub Actions builds the APK and tests it on an Android 16 emulator; nothing to install.
+- [ ] **Pairs: PINs.** Both people enter each other's PIN at pairing (proposed), or only the one peeking?
+- [ ] **Pairs: Peek.** A Peek button, peek on opening the board, or both?
+- [ ] **Pairs: phones.** Which phone does each person have? Bluetooth varies by make.
+- [ ] **Pairs: fading.** How long until a pairmark fades to "last seen"?
 - [ ] **Partner rung.** Does your partner want Hard-wall texts, and for which anchors?
 - [ ] **Kids' lane.** Should the daughters' events get their own color or marker on the ledger line?
 - [ ] **Lapse threshold.** Is 24 hours right, or does a shorter window catch you sooner?
