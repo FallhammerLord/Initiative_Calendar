@@ -66,7 +66,39 @@ data class ItemRow(
     val workedMinutes: Int = 0,
     /** A marker's icon; see core's MarkIcon. */
     val icon: String = "FLAG",
+    /** Never shared with anyone paired. */
+    val neverShare: Boolean = false,
 )
+
+/**
+ * Someone paired: their phone's own ID, and how this phone shows them and
+ * shares with them. The nickname and color are this phone's alone. Keys are
+ * kept in Android's key store, never here, so backups never hold them.
+ */
+@Entity(tableName = "peers")
+data class PeerRow(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val peerId: String,
+    val nickname: String,
+    val initial: String,
+    /** Which of the pair colors; see PairColors. */
+    val color: Int,
+    /** See core's ShareLevel. */
+    val level: String = "TICKED",
+    val shareReport: Boolean = false,
+    val showMark: Boolean = true,
+    val showLine: Boolean = true,
+    val showMarks: Boolean = true,
+    val seenAt: String? = null,
+)
+
+/** An item ticked to share with one person. */
+@Entity(tableName = "shares", primaryKeys = ["peer", "itemId"])
+data class ShareRow(val peer: Long, val itemId: Long)
+
+/** The last peek from one person, as text; see core's PeekFormat. Read-only, and never backed up. */
+@Entity(tableName = "peeks")
+data class PeekRow(@PrimaryKey val peer: Long, val body: String)
 
 /** The event log: every status change, with a timestamp. */
 @Entity(tableName = "events")
@@ -213,9 +245,68 @@ interface ItemDao {
 
     @Insert
     suspend fun insertAlarms(rows: List<AlarmRow>)
+
+    // Pairs: the people, what's ticked for each, and their last peeks.
+    @Query("SELECT * FROM peers ORDER BY id")
+    fun observePeers(): Flow<List<PeerRow>>
+
+    @Query("SELECT * FROM peers ORDER BY id")
+    suspend fun peers(): List<PeerRow>
+
+    @Insert
+    suspend fun insertPeer(row: PeerRow): Long
+
+    @Update
+    suspend fun updatePeer(row: PeerRow)
+
+    @Query("DELETE FROM peers WHERE id = :id")
+    suspend fun deletePeer(id: Long)
+
+    @Query("SELECT * FROM shares")
+    fun observeShares(): Flow<List<ShareRow>>
+
+    @Query("SELECT * FROM shares")
+    suspend fun shares(): List<ShareRow>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun share(row: ShareRow)
+
+    @Query("DELETE FROM shares WHERE peer = :peer AND itemId = :itemId")
+    suspend fun unshare(peer: Long, itemId: Long)
+
+    @Query("DELETE FROM shares WHERE peer = :peer")
+    suspend fun deleteSharesOf(peer: Long)
+
+    @Query("SELECT * FROM peeks")
+    fun observePeeks(): Flow<List<PeekRow>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putPeek(row: PeekRow)
+
+    @Query("DELETE FROM peeks WHERE peer = :peer")
+    suspend fun deletePeekOf(peer: Long)
+
+    @Query("DELETE FROM peers")
+    suspend fun clearPeers()
+
+    @Query("DELETE FROM shares")
+    suspend fun clearShares()
+
+    @Query("DELETE FROM peeks")
+    suspend fun clearPeeks()
+
+    @Insert
+    suspend fun insertPeers(rows: List<PeerRow>)
+
+    @Insert
+    suspend fun insertShares(rows: List<ShareRow>)
 }
 
-@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 5, exportSchema = true)
+@Database(
+    entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class, PeerRow::class, ShareRow::class, PeekRow::class],
+    version = 6,
+    exportSchema = true,
+)
 abstract class InitiativeDb : RoomDatabase() {
     abstract fun items(): ItemDao
 
@@ -250,9 +341,25 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        internal val ADD_PAIRS = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `neverShare` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `peers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `peerId` TEXT NOT NULL, " +
+                        "`nickname` TEXT NOT NULL, `initial` TEXT NOT NULL, `color` INTEGER NOT NULL, `level` TEXT NOT NULL, " +
+                        "`shareReport` INTEGER NOT NULL, `showMark` INTEGER NOT NULL, `showLine` INTEGER NOT NULL, " +
+                        "`showMarks` INTEGER NOT NULL, `seenAt` TEXT)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `shares` (`peer` INTEGER NOT NULL, `itemId` INTEGER NOT NULL, PRIMARY KEY(`peer`, `itemId`))",
+                )
+                db.execSQL("CREATE TABLE IF NOT EXISTS `peeks` (`peer` INTEGER NOT NULL, `body` TEXT NOT NULL, PRIMARY KEY(`peer`))")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS)
                 .build()
                 .also { instance = it }
         }
@@ -291,6 +398,7 @@ fun Item.toRow() = ItemRow(
     waitUntil = waitUntil?.toString(),
     workedMinutes = workedMinutes,
     icon = icon.name,
+    neverShare = neverShare,
 )
 
 fun ItemRow.toItem() = Item(
@@ -328,4 +436,5 @@ fun ItemRow.toItem() = Item(
     waitUntil = waitUntil?.let(LocalDateTime::parse),
     workedMinutes = workedMinutes,
     icon = runCatching { MarkIcon.valueOf(icon) }.getOrDefault(MarkIcon.FLAG),
+    neverShare = neverShare,
 )

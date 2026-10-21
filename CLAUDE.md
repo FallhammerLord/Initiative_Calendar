@@ -12,7 +12,7 @@ sideloaded, no Google services, no internet. The plan and every rule live in
   `./gradlew -p core test` (works without the Android SDK).
 - `app/`: the Android launcher. Services in `AppGraph.kt`; the board's state in
   `ui/BoardViewModel.kt`, with each feature in its own part (`RecapModel`,
-  `RecopyModel`, `EditModel`, `BackupModel`, `SettingsModel`, `LauncherModel`, `LogModel`); design system in
+  `RecopyModel`, `EditModel`, `BackupModel`, `SettingsModel`, `LauncherModel`, `LogModel`, `PairsModel`); design system in
   `ui/Design.kt` (tokens and components), `ui/Theme.kt` (themes: colors,
   shapes, outlines, and the look kit's slots), and `ui/Ornaments.kt` (the
   kit's small drawings); wording in `res/values/strings.xml`.

@@ -65,6 +65,8 @@ data class Item(
     val workedMinutes: Int = 0,
     /** A marker's icon. */
     val icon: MarkIcon = MarkIcon.FLAG,
+    /** Never shared with anyone paired, whatever the share level. */
+    val neverShare: Boolean = false,
 ) {
     val isTemplate: Boolean get() = recurrence != null
     val isOpen: Boolean get() = status == Status.PENDING || status == Status.ACTIVE

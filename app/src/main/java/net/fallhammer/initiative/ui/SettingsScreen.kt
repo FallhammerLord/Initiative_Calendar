@@ -26,9 +26,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import initiative.core.Formats
 import initiative.core.Holiday
+import initiative.core.Peek
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.alarms.Scheduler
+import net.fallhammer.initiative.data.PeerRow
 import net.fallhammer.initiative.data.QuietSetting
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** Initiative's own settings, grouped by what they change. */
@@ -45,6 +48,10 @@ fun SettingsScreen(
     onHolidayLooks: (Boolean) -> Unit,
     holidays: Set<Holiday>,
     onHoliday: (Holiday, Boolean) -> Unit,
+    peers: List<PeerRow>,
+    peeks: Map<Long, Peek>,
+    now: LocalDateTime,
+    onOpenPair: (Long) -> Unit,
     ornaments: Boolean,
     onOrnaments: (Boolean) -> Unit,
     texture: Int,
@@ -96,11 +103,14 @@ fun SettingsScreen(
                 ) { onRecopyDays(recopies[it]) }
             }
             Section(stringResource(R.string.section_look)) {
-                ChoiceRow(
+                // A dropdown, each with its accent as a swatch: the list of looks keeps growing.
+                Dropdown(
                     stringResource(R.string.setting_theme),
                     Looks.all.map { stringResource(it.label) },
                     Looks.all.indexOfFirst { it.id == lookId },
+                    swatch = { Looks.all[it].palette.accent },
                 ) { onLook(Looks.all[it].id) }
+                Spacer(Modifier.height(Space.s))
                 SettingSwitch(stringResource(R.string.setting_ornaments), ornaments, onOrnaments)
                 Body(stringResource(R.string.setting_ornaments_hint), style = Type.bodySmall)
                 // The pattern's strength, for the look on screen, if it has one: lighter when text over it feels busy.
@@ -122,6 +132,16 @@ fun SettingsScreen(
                     Holiday.entries.forEach { h ->
                         CheckRow(stringResource(holidayName(h)), stringResource(holidayDays(h)), h in holidays) { onHoliday(h, it) }
                     }
+                }
+            }
+            // Shown once someone is paired; pairing itself comes with Bluetooth.
+            if (peers.isNotEmpty()) {
+                Section(stringResource(R.string.section_pairs)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
+                        peers.forEach { p -> PairRow(p, peeks[p.id], now) { onOpenPair(p.id) } }
+                    }
+                    Spacer(Modifier.height(Space.s))
+                    Body(stringResource(R.string.pairs_hint), style = Type.bodySmall)
                 }
             }
             Section(stringResource(R.string.section_alarms)) {

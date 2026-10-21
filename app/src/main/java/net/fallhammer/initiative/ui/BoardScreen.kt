@@ -148,6 +148,11 @@ fun BoardScreen(vm: BoardViewModel) {
     val chosenLook by vm.settings.look.collectAsStateWithLifecycle()
     val holidayLooks by vm.settings.holidayLooks.collectAsStateWithLifecycle()
     val holidays by vm.settings.holidays.collectAsStateWithLifecycle()
+    val peers by vm.pairs.peers.collectAsStateWithLifecycle()
+    val peeks by vm.pairs.peeks.collectAsStateWithLifecycle()
+    val ticks by vm.pairs.ticks.collectAsStateWithLifecycle()
+    val pairOpen by vm.pairOpen.collectAsStateWithLifecycle()
+    val shareable by vm.shareable.collectAsStateWithLifecycle()
     val recap by vm.recap.state.collectAsStateWithLifecycle()
     val recopyDue by vm.recopy.due.collectAsStateWithLifecycle()
     val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
@@ -396,7 +401,11 @@ fun BoardScreen(vm: BoardViewModel) {
             enter = slideInVertically { it },
             exit = slideOutVertically { it },
         ) {
-            SettingsScreen(
+            // A paired person's page opens over settings; Back returns to them.
+            val openPeer = peers.firstOrNull { it.id == pairOpen }
+            if (openPeer != null) {
+                PairScreen(openPeer, peeks[openPeer.id], ui.now, shareable, ticks[openPeer.id].orEmpty(), vm.pairs, onClose = vm::closePair)
+            } else SettingsScreen(
                 unlock = unlock,
                 onBoardOnUnlock = vm.settings::setBoardOnUnlock,
                 lockCard = lockCard,
@@ -409,6 +418,10 @@ fun BoardScreen(vm: BoardViewModel) {
                 onHolidayLooks = vm.settings::setHolidayLooks,
                 holidays = holidays,
                 onHoliday = vm.settings::setHoliday,
+                peers = peers,
+                peeks = peeks,
+                now = ui.now,
+                onOpenPair = vm::openPair,
                 ornaments = ornaments,
                 onOrnaments = vm.settings::setOrnaments,
                 texture = texture,

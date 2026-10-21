@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 /**
  * Upgrades a database built exactly as version 1 (the first release) left it,
  * through every version since, and checks the data survives, the alarms table
- * works, and items start with no steps and no wait. Room validates
+ * works, items start with no steps and no wait, and the pairs tables work. Room validates
  * every table against the current code while it opens, so a layout mismatch
  * fails here before it can reach a phone.
  */
@@ -41,7 +41,7 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS)
             .allowMainThreadQueries()
             .build()
         runBlocking {
@@ -51,8 +51,14 @@ class MigrationTest {
             assertEquals(null, dao.all().single().waitUntil)
             assertEquals(0, dao.all().single().workedMinutes)
             assertEquals("FLAG", dao.all().single().icon)
+            assertEquals(false, dao.all().single().neverShare)
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
+            // The pairs tables work: a person, a tick, and a peek.
+            val peer = dao.insertPeer(PeerRow(peerId = "abc", nickname = "Partner", initial = "P", color = 0))
+            dao.share(ShareRow(peer, 1))
+            dao.putPeek(PeekRow(peer, "initiative-peek 1"))
+            assertEquals(listOf(ShareRow(peer, 1)), dao.shares())
         }
         room.close()
     }

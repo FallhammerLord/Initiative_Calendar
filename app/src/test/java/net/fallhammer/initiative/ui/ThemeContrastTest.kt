@@ -24,6 +24,17 @@ class ThemeContrastTest {
             text.flatMap { (fn, f) -> grounds.map { (bn, b) -> Triple("${look.id}: $fn on $bn", ratio(f, b), TEXT) } } +
                 Triple("${look.id}: onAccent on accent", ratio(p.onAccent, p.accent), TEXT) +
                 grounds.map { (bn, b) -> Triple("${look.id}: frame on $bn", ratio(p.frame, b), OUTLINE) }
+        } + Looks.all.flatMap { look ->
+            // Pair colors: clear as lines on both grounds, and their badge's initial readable.
+            val p = look.palette
+            (0 until PairColors.count).flatMap { i ->
+                val c = PairColors.of(i, p)
+                listOf(
+                    Triple("${look.id}: pair $i on bg", ratio(c, p.bg), OUTLINE),
+                    Triple("${look.id}: pair $i on surface", ratio(c, p.surface), OUTLINE),
+                    Triple("${look.id}: initial on pair $i", ratio(PairColors.ink(p), c), TEXT),
+                )
+            }
         }.filter { (_, r, target) -> r < target }
 
         assertTrue(

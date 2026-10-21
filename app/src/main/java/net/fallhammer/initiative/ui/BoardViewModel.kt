@@ -16,6 +16,8 @@ import initiative.core.Parsed
 import initiative.core.Marks
 import initiative.core.Parser
 import initiative.core.Report
+import initiative.core.Shareable
+import initiative.core.Sharing
 import initiative.core.ReportLine
 import initiative.core.Status
 import initiative.core.occurrenceDate
@@ -96,6 +98,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val edit = EditModel(parts, saved) { items }
     val backup = BackupModel(parts)
     val settings = SettingsModel(parts)
+    val pairs = PairsModel(parts)
     val launcher = LauncherModel(parts)
     val log = LogModel(parts, saved, repo.items, clock)
 
@@ -175,6 +178,21 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     private val _ask = MutableStateFlow<Parsed?>(null)
     /** A quick-add the parser couldn't place: "Anchor or float?" */
     val ask: StateFlow<Parsed?> = _ask.asStateFlow()
+
+    /** The paired person whose page is open over settings; -1 for none. Kept across a restart. */
+    val pairOpen: StateFlow<Long> = saved.getStateFlow(PAIR, -1L)
+
+    /** What could be shared, for the What they see lists. */
+    val shareable: StateFlow<List<Shareable>> = combine(repo.items, ui) { all, u -> Sharing.shareable(all, u.forecast, u.now) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun openPair(id: Long) {
+        saved[PAIR] = id
+    }
+
+    fun closePair() {
+        saved[PAIR] = -1L
+    }
 
     /** Kept across a restart, so the drawer or settings reopen where they were. */
     val overlay: StateFlow<Overlay> = saved.getStateFlow(OVERLAY, Overlay.NONE)
@@ -450,6 +468,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         edit.cancel()
         log.close()
         notYet()
+        closePair()
         saved[OVERLAY] = Overlay.NONE
     }
 
@@ -479,6 +498,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             notYet()
         } else if (log.isOpen) {
             log.close()
+        } else if (pairOpen.value >= 0) {
+            closePair()
         } else {
             saved[OVERLAY] = if (overlay.value == Overlay.SETTINGS) Overlay.DRAWER else Overlay.NONE
         }
@@ -605,6 +626,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val FLASH_MS = 4_000L
         const val UNDO_MS = 8_000L
         const val OVERLAY = "overlay"
+        const val PAIR = "pair"
         const val REPORT = "report"
         const val REPORT_NOTES = "report_notes"
         const val PICK_SLOT = "pick_slot"

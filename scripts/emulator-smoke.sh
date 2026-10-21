@@ -306,6 +306,14 @@ open_settings() {
   wait_for "Lock-screen card" exact || fail "Initiative settings didn't open"
 }
 
+# pick_theme: open the Theme dropdown in settings and choose $1.
+pick_theme() {
+  scroll_to "Theme, " || fail "Settings should have the Theme dropdown"
+  tap "Theme, "
+  wait_for "$1" exact || fail "the Theme list should offer $1"
+  tap "$1" exact
+}
+
 crash_check() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
     adb logcat -d -b crash > "$OUT/crash.txt"
@@ -657,7 +665,7 @@ shot settings
 tap "2 weeks" exact
 tap "1 week" exact
 pass "recopy timing switches and back"
-tap Classic exact
+pick_theme Classic
 shot classic-settings
 adb shell input keyevent KEYCODE_BACK
 sleep 1
@@ -669,7 +677,7 @@ expect_front $PKG "Back closes the drawer"
 shot classic-board
 # Deco: coffee and gold, stepped corners, fans. Ornaments off leaves it plain.
 open_settings
-tap Deco exact
+pick_theme Deco
 # Texture strength shows while ornaments are on, for looks with a pattern.
 wait_for "Texture strength" exact || fail "the texture slider should show for Deco"
 expect_text "50%"
@@ -687,7 +695,7 @@ open_settings
 tap Ornaments exact
 pass "Deco and the Ornaments switch"
 # Stained glass: leaded glass, arched panes, a rose on the Now card's arch.
-tap "Stained glass" exact
+pick_theme "Stained glass"
 wait_for "Texture strength" exact || fail "the texture slider should show for Stained glass"
 shot glass-settings
 tap Close exact
@@ -696,7 +704,7 @@ shot glass-board
 pass "Stained glass look"
 # Pastel: the light look, with dots and hearts, a bow on Now, and dark status bar icons.
 open_settings
-tap Pastel exact
+pick_theme Pastel
 wait_for "Texture strength" exact || fail "the texture slider should show for Pastel"
 shot pastel-settings
 tap Close exact
@@ -705,7 +713,7 @@ shot pastel-board
 pass "Pastel look"
 # Starlight: night sky, sparkles, a winged brooch on Now, gems for markers.
 open_settings
-tap Starlight exact
+pick_theme Starlight
 wait_for "Texture strength" exact || fail "the texture slider should show for Starlight"
 shot starlight-settings
 tap Close exact
@@ -714,7 +722,7 @@ shot starlight-board
 pass "Starlight look"
 # Halloween: a big web, cobwebs, a jack-o'-lantern on Now, candy corn on the dial.
 open_settings
-tap Halloween exact
+pick_theme Halloween
 wait_for "Texture strength" exact || fail "the texture slider should show for Halloween"
 tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
@@ -722,7 +730,7 @@ shot halloween-board
 pass "Halloween look"
 # Christmas: knit bands, snow on each card, holly on Now, a little tree on the dial.
 open_settings
-tap Christmas exact
+pick_theme Christmas
 wait_for "Texture strength" exact || fail "the texture slider should show for Christmas"
 tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
@@ -730,7 +738,7 @@ shot christmas-board
 pass "Christmas look"
 # Holiday looks: off until turned on. On, today (Oct 29) wears Halloween over Sci-fi.
 open_settings
-tap Sci-fi exact
+pick_theme Sci-fi
 scroll_to "Change with the holidays" exact || fail "Settings should have Holiday looks"
 tap "Change with the holidays" exact
 wait_for "Oct 1 to Nov 1" exact || fail "the holidays should list once holiday looks are on"
@@ -745,6 +753,46 @@ wait_gone "Oct 1 to Nov 1" exact || fail "the holidays should hide once holiday 
 pass "holiday looks switch on and off"
 tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
+
+# --- Pairs ----------------------------------------------------------------------
+# Real pairing comes with Bluetooth; the emulator alone can add a pretend partner,
+# with a peek from a minute ago, to check the Pairs screens.
+
+adb shell am start -n $PKG/.MainActivity --ez pretend_partner true > /dev/null
+sleep 2
+open_settings
+scroll_to "Partner, " || fail "a pretend partner should show under Pairs"
+shot pairs-settings
+tap "Partner, "
+wait_for "What you share with Partner" || fail "a paired person's page should open"
+expect_text "Only the items you tick go to Partner."
+shot pair-page
+tap "Everything" exact
+wait_for "All of these go to Partner." || fail "Everything should share everything"
+tap "Ticked only" exact
+wait_for "Only the items you tick go to Partner." || fail "Ticked only should come back"
+scroll_to "Unpair" exact || fail "the page should end with Unpair"
+shot pair-page-end
+tap "Unpair" exact
+wait_for "Keep" exact || fail "Unpair should ask first"
+tap "Keep" exact
+wait_gone "Keep" exact || fail "Keep should leave them paired"
+pass "a paired person's page: sharing levels, and Unpair asks first"
+adb shell input keyevent KEYCODE_BACK
+wait_for "Lock-screen card" exact 6 || scroll_to "Partner, " || fail "Back should return to settings"
+scroll_to "Partner, " || fail "Back should return to settings"
+tap "Partner, "
+wait_for "What you share with Partner" || fail "the page should open again"
+scroll_to "Unpair" exact
+tap "Unpair" exact
+wait_for "Keep" exact
+tap "Unpair" exact
+wait_gone "What you share with Partner" || fail "Unpair should close the page"
+wait_gone "Partner, " || fail "Unpair should take them off the list"
+pass "Unpair takes them off the list"
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+crash_check
 # About: the build and the Update button, which only opens the browser.
 open_settings
 scroll_to "Update Initiative" exact || fail "Settings should end with the Update button"
@@ -753,7 +801,7 @@ pass "About and Update"
 home
 wait_gone "Update Initiative" exact || fail "Home should close settings"
 open_settings
-tap Sci-fi exact
+pick_theme Sci-fi
 # The sections are panels now; scroll the alarms into view.
 scroll_to "Quiet hours" exact || fail "Settings should have Quiet hours"
 tap "Quiet hours" exact

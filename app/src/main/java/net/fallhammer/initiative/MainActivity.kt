@@ -2,6 +2,7 @@ package net.fallhammer.initiative
 
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -15,6 +16,7 @@ import net.fallhammer.initiative.ui.Looks
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.time.LocalDateTime
 
 /** The home screen. Every unlock lands here. */
 class MainActivity : ComponentActivity() {
@@ -23,6 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         bars(light = false)
+        pretendPartner(intent)
         setContent {
             val look by vm.settings.shown.collectAsStateWithLifecycle()
             val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
@@ -53,5 +56,21 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         vm.home()
+        pretendPartner(intent)
+    }
+
+    /**
+     * The emulator test's pretend partner, so it can check the Pairs screens
+     * before Bluetooth pairing exists. Only ever on the emulator's own hardware.
+     */
+    private fun pretendPartner(intent: Intent?) {
+        if (intent?.getBooleanExtra(PRETEND_PARTNER, false) == true && Build.HARDWARE in EMULATOR_HARDWARE) {
+            vm.pairs.pretend(LocalDateTime.now())
+        }
+    }
+
+    private companion object {
+        const val PRETEND_PARTNER = "pretend_partner"
+        val EMULATOR_HARDWARE = setOf("ranchu", "goldfish")
     }
 }

@@ -48,6 +48,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
@@ -1132,6 +1137,90 @@ fun StepRow(text: String, done: Boolean, onChange: (Boolean) -> Unit) {
         Text(text, style = Type.bodySmall, color = color, modifier = Modifier.weight(1f).padding(start = Space.s))
     }
 }
+
+/**
+ * A choice from a list that would be too long as buttons, such as the theme: a
+ * row showing the chosen one, with its [swatch], that opens the list. TalkBack
+ * hears "[label], [chosen]".
+ */
+@Composable
+fun Dropdown(label: String, options: List<String>, chosen: Int, swatch: (Int) -> Color, onSelect: (Int) -> Unit) {
+    val haptics = rememberHaptics()
+    val shape = LocalLook.current.buttonShape
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = Type.bodySmall, color = Ink.text)
+        Box(Modifier.padding(top = Space.xs)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Tap.min)
+                    .clip(shape)
+                    .background(Ink.surface)
+                    .border(1.dp, Ink.frame, shape)
+                    .clickable(onClickLabel = label) { open = true }
+                    .semantics { contentDescription = "$label, ${options.getOrElse(chosen) { "" }}" }
+                    .padding(horizontal = Space.l),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Swatch(swatch(chosen))
+                Text(
+                    options.getOrElse(chosen) { "" },
+                    style = Type.body,
+                    color = Ink.text,
+                    modifier = Modifier.weight(1f).padding(start = Space.m).clearAndSetSemantics { },
+                )
+                Text(DROPDOWN_MARK, style = Type.body, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(Ink.surface)) {
+                options.forEachIndexed { i, option ->
+                    DropdownMenuItem(
+                        text = { Text(option, style = Type.body, color = Ink.text) },
+                        leadingIcon = { Swatch(swatch(i)) },
+                        onClick = {
+                            haptics.tick()
+                            open = false
+                            onSelect(i)
+                        },
+                        modifier = Modifier.heightIn(min = Tap.min),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A small square of a color, outlined, beside a choice's name. */
+@Composable
+private fun Swatch(color: Color) {
+    Box(Modifier.size(SWATCH).background(color).border(1.dp, Ink.frame))
+}
+
+/**
+ * Round color choices in a row, such as a paired person's color. [names] are
+ * what TalkBack hears for each.
+ */
+@Composable
+fun ColorChoice(colors: List<Color>, names: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
+    val haptics = rememberHaptics()
+    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+        colors.forEachIndexed { i, c ->
+            Box(
+                Modifier
+                    .size(Tap.min)
+                    .clip(CircleShape)
+                    .background(c)
+                    .border(if (i == chosen) CHOSEN_RING else 1.dp, if (i == chosen) Ink.text else Ink.frame, CircleShape)
+                    .selectable(selected = i == chosen, role = Role.RadioButton) { haptics.tick(); onSelect(i) }
+                    .semantics { contentDescription = names.getOrElse(i) { "" } },
+            )
+        }
+    }
+}
+
+private const val DROPDOWN_MARK = "⌄"
+private val SWATCH = 22.dp
+private val CHOSEN_RING = 3.dp
 
 /** A setting ticked on or off, with a second line under its name. The whole row is one checkbox. */
 @Composable

@@ -47,6 +47,19 @@ class BackupTest {
     }
 
     @Test
+    fun pairsKeepTheirNamesAndTicks() {
+        val peers = listOf(PeerRow(id = 1, peerId = "abc", nickname = "Partner", initial = "P", color = 2, level = "EVERYTHING"))
+        val shares = listOf(ShareRow(1, 7))
+        val back = Backup.parse(Backup.json(listOf(item.copy(neverShare = true)), events, runs, alarms, exportedAt, peers, shares).toString(2))
+        assertEquals(peers, back.peers)
+        assertEquals(shares, back.shares)
+        assertEquals(true, back.items.single().neverShare)
+        // A backup from before pairs reads with none.
+        val old = Backup.json(listOf(item), events, runs, alarms, exportedAt).apply { remove("peers"); remove("shares") }
+        assertEquals(emptyList<PeerRow>(), Backup.parse(old.toString()).peers)
+    }
+
+    @Test
     fun readsBackExactlyAsWritten() {
         val text = Backup.json(listOf(item), events, runs, alarms, exportedAt).toString(2)
         val snapshot = Backup.parse(text)

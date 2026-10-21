@@ -588,6 +588,22 @@ class StepCornerShape(private val step: Dp) : Shape {
     }
 }
 
+/**
+ * A paired person's color, for their badge, pairmark edge, and dial line;
+ * never text. Bright on dark looks, deep on light ones, so each stays clear on
+ * every look; the contrast test checks them. A pair keeps an index, not a color.
+ */
+object PairColors {
+    private val bright = listOf(Color(0xFFF2B84B), Color(0xFFF28AC0), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))
+    private val deep = listOf(Color(0xFF7A4600), Color(0xFF8A1C58), Color(0xFF1F5E23), Color(0xFF553C99), Color(0xFF154C7D))
+    val count: Int get() = bright.size
+
+    fun of(index: Int, palette: Palette): Color = (if (palette.light) deep else bright)[index.mod(count)]
+
+    /** The initial printed on a pair's badge. */
+    fun ink(palette: Palette): Color = if (palette.light) palette.surface else palette.bg
+}
+
 val LocalLook = staticCompositionLocalOf { Looks.SciFi }
 
 /** The current theme's colors. Read inside composables; capture before drawing on a Canvas. */
