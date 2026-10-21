@@ -542,7 +542,7 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
     if (open) {
         Row(tap.fillMaxWidth().heightIn(min = Tap.min), verticalAlignment = Alignment.CenterVertically, content = content)
     } else {
-        Strip(tap, content)
+        Strip(tap, content = content)
     }
 }
 
