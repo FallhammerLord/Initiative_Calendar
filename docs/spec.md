@@ -406,9 +406,9 @@ Up to three other people's Initiative (a partner, and each daughter once she has
 
 1. **Identity.** Each Initiative has its own random ID. No PIN: pairing happens in person, and each person agrees on their own phone.
 2. **Pairing, once, in person.** Both open **Pair** (open for two minutes). Both screens show the same 6-digit code; each checks it matches and taps **Yes**, then names the other. The phones swap a long random key over Bluetooth, kept in Android's key store. Matching codes also catch a third phone slipping in. "This phone is already paired" is the one error. Up to three pairs.
-3. **The Pairs list** (Settings). One row per person: initial badge in their color, nickname, the light with "now" or "seen at 2:10", and what you share with them. **Pair with someone** under the rows, until three. Tap a row for: nickname and initial, color, **What they see**, **Share my day report**, and **Unpair**. Nicknames and colors are yours alone; they never travel. Each color must stay readable on every theme; the contrast test checks them.
-4. **Sharing.** Per person: **Everything**, **Ticked only** (the start), or **Nothing**. Ticked only: a Share tick per item, per person, with optional defaults (such as "share my anchors") only if turned on. A per-item **Never share** holds even under Everything. **What they see** previews exactly what leaves the phone.
-5. **Peeking.** On the board by default once anyone is paired: when the board opens, and now and then while in range. A short Bluetooth session, proved and encrypted with the pair's key, returns what the other person shares for today and the next week, and their Now. Kept on the phone, read-only, with the time it was fetched. Silent: never a notification.
+3. **The Pairs list** (Settings). One row per person: initial badge in their color, nickname, the light with "now" or "seen at 2:10", and what you share with them. **Pair with someone** under the rows, until three. Tap a row for: nickname and initial, color, **What they see**, **Show on my board** (their pairmark, dial line, and markers, each on or off), **Share my day report**, and **Unpair**. Nicknames and colors are yours alone; they never travel. Each color must stay readable on every theme; the contrast test checks them.
+4. **Sharing.** Per person: **Everything**, **Ticked only** (the start), or **Nothing**. **What they see** is both the preview and the controls: today and the next 7 days of your items, each with a tick, exactly as it leaves the phone. Everything and Nothing tick or untick the lot; new items follow optional defaults (such as "share my anchors"), only if turned on. A per-item **Never share** holds even under Everything.
+5. **Peeking, by Ping.** A Bluetooth button in the theme's style sits at the left of the pairmark row while pairs are on. **Ping** makes the phone findable and searching for one minute; both people tap it, side by side. Never findable otherwise. One ping updates both phones: each sends what it shares for today and the next 7 days (titles of anchors and floats, and markers; never notes or steps) and its Now, proved and encrypted with the pair's key. Kept on the phone, read-only, with the time it was fetched. Silent: never a notification. The light is lit for 15 minutes after a ping, then dim with "as of". Beside Ping, a **pairs on/off** toggle clears them from the board or brings them back.
 6. **Showing it.** Pairmarks: bookmarks from the left edge, pointing in, below the marker bubbles. Top line: initial badge, nickname, a light (lit: in range, "now"; dim: "as of 2:10"; a day old: "seen yesterday"). Second line: what they're doing, "probably" when estimated from the last peek. More than one: the front one in full, the rest as tabs across (initial and light); a tap brings one to the front. The dial: your arc on top, then a thin line per person in their color, faint for free, solid for shared busy times, bright for what they're probably doing now, with a key naming each line. Later: a lane per person in the Log.
 7. **Day report.** Sharing a day's report is its own opt-in, per person.
 
@@ -424,11 +424,11 @@ Up to three other people's Initiative (a partner, and each daughter once she has
 
 **Testing.** The engine holds the rules (pairing, keys, what is shared, the snapshot format, the estimate) and unit-tests them behind a stand-in transport. The Bluetooth layer stays thin and is tested by hand on two phones; the emulator can't pair two phones.
 
-**Phases**
+**Phases**, as pushes: A, the data, settings, and a pretend partner for the emulator; B, the board pieces; C, real Bluetooth, tested by hand.
 
 1. Theme picker as a dropdown. Pairing by matching code, the Pairs list, one person, peeking on the board, sharing (Everything, Ticked only, Nothing) and the preview, pairmarks, a line on the dial.
 2. Up to three people; lanes in the Log.
-3. Day report sharing; peeking when nearby on its own.
+3. Day report sharing.
 
 ## Build plan
 
@@ -544,11 +544,6 @@ After two weeks on v0.1, we review what got ignored, what annoyed you, and what 
 
 - [x] **Launcher base.** Written from scratch, so the codebase stays small and fully understood.
 - [x] **Build setup.** GitHub Actions builds the APK and tests it on an Android 16 emulator; nothing to install.
-- [ ] **Pairs: what a peek carries.** Today and the next 7 days of shared items, and Now. Tasks too, or only anchors and markers? Never notes or steps unless asked?
-- [ ] **Pairs: ticking.** Where the Share tick lives: a "Share with" row in the edit form, one chip per person (proposed).
-- [ ] **Pairs: the estimate.** Between peeks, "probably" is the shared item whose time covers now; with none, "nothing shared for now" rather than a guess.
-- [ ] **Pairs: being findable.** To be peeked, a phone must advertise over Bluetooth. Advertise a rotating code only paired phones can read, so strangers can't track the phone; and how often, for battery.
-- [ ] **Pairs: how often.** On opening the board, and at most every few minutes while in range (proposed).
 - [ ] **Pairs: two builds.** Each peek carries a format version; an older phone says "update Initiative" rather than failing.
 - [ ] **Pairs: unpairing apart.** Unpair takes effect on this phone at once; the other learns at the next meeting.
 - [ ] **Pairs: backup and restore.** Nicknames, colors, and share ticks are backed up; keys are not, so a restored phone pairs again.
