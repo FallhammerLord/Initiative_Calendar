@@ -18,7 +18,8 @@ data class Gap(
 data class NowPick(val item: Item?, val reason: String)
 
 /** [until] is when a float's window as Now closes: the end of its gap. Null for anchors and Free time. */
-data class Board(val now: NowPick, val next: Item?, val until: LocalDateTime? = null)
+/** What the board shows: Now, what comes next, and, for a task that's Next, when it's set to start. */
+data class Board(val now: NowPick, val next: Item?, val until: LocalDateTime? = null, val nextAt: LocalDateTime? = null)
 
 enum class MarkKind { DONE, SOFT, FIRM, HARD }
 
@@ -45,7 +46,18 @@ class Placement(private val window: DayWindow = DayWindow()) {
     }
 
     /** [order] is the person's own task order, by id: a tie breaker when the rules rank tasks equally. */
+    /**
+     * Now, and Next. Next is the next thing in the day's order, task or anchor, the
+     * same as the day panel shows; the walls stay in view on the dial. With nothing
+     * left in today's order, Next is the next anchor, if there is one.
+     */
     fun board(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Board {
+        val b = pick(items, now, order)
+        val slot = forecast(items, now, order).slots.firstOrNull { it.item.id != b.now.item?.id } ?: return b
+        return b.copy(next = slot.item, nextAt = slot.at.takeIf { !slot.item.isAnchor })
+    }
+
+    private fun pick(items: List<Item>, now: LocalDateTime, order: List<Long>): Board {
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val upcoming = openAnchors(live).filter { it.start!!.isAfter(now) }

@@ -12,6 +12,7 @@
     <string name="action_undo">Undo</string>
     <string name="next_anchor">Next: %1$s in %2$s</string>
     <string name="next_float">Next: %1$s</string>
+    <string name="next_task_at">Next: %1$s at %2$s</string>
     <string name="day_open">Show today</string>
     <string name="day_close">Hide today</string>
     <string name="day_open_mark">⌃</string>

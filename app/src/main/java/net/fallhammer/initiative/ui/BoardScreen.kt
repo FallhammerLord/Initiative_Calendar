@@ -633,11 +633,14 @@ private fun FocusScreen(focus: FocusView, now: LocalDateTime, onDone: (Item) -> 
 @Composable
 private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     // Folded, it's a framed strip lined up with the Now card; open, it heads the sheet.
+    // The next thing in the day's order: an anchor with its countdown, a task with its time.
     val next = ui.board?.next
     val start = next?.start
+    val taskAt = ui.board?.nextAt
     val text = when {
         next == null -> stringResource(R.string.nothing_next)
         next.isAnchor && start != null -> stringResource(R.string.next_anchor, next.title, Formats.countdown(ui.now, start))
+        taskAt != null -> stringResource(R.string.next_task_at, next.title, Formats.clock(taskAt))
         else -> stringResource(R.string.next_float, next.title)
     }
     val tap = modifier.clickable(onClickLabel = stringResource(if (open) R.string.day_close else R.string.day_open), onClick = onToggle)

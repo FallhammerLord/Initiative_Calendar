@@ -424,7 +424,7 @@ done
 [ $released = yes ] || fail "quick-add stayed focused after the keyboard closed"
 pass "closing the keyboard releases the quick-add field"
 # Swipe up on the Next line opens the day panel; a tap outside it folds it.
-xy=$(find_node "Next: call landlord" exact) || fail "no Next line"
+xy=$(find_node "Next: call landlord") || fail "no Next line"
 x=${xy% *}; y=${xy#* }
 adb shell input swipe $x $y $x $((y - 400)) 250
 wait_for "Hide today" exact || fail "the day panel should open"
@@ -451,7 +451,8 @@ shot after-done
 
 quick_add "pickup 2pm hard"
 hide_keyboard
-expect_text "Next: pickup in"
+# Walls show on the Plan ahead dial, which TalkBack reads out.
+expect_text "pickup at 2:00 PM"
 shot anchor-in-ledger
 
 quick_add "dentist thu"
@@ -584,7 +585,7 @@ crash_check
 
 quick_add "dentist 12:40pm hard"
 hide_keyboard
-expect_text "Next: dentist"
+expect_text "dentist at 12:40 PM"
 set_clock 1226
 expect_notification "dentist in" "rung 1: quiet notice at lead time"
 set_clock 1236

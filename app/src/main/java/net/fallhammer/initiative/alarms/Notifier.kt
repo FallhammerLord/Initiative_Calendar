@@ -83,6 +83,7 @@ object Notifier {
         }
         val now = board.now.item
         val next = board.next
+        val nextAt = board.nextAt
         val b = NotificationCompat.Builder(context, CH_CARD)
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle(
@@ -92,7 +93,13 @@ object Notifier {
                     else -> context.getString(R.string.free_time)
                 },
             )
-            .setContentText(next?.let { context.getString(R.string.next_float, it.title) } ?: board.now.reason)
+            .setContentText(
+                when {
+                    next == null -> board.now.reason
+                    nextAt != null -> context.getString(R.string.next_task_at, next.title, Formats.clock(nextAt))
+                    else -> context.getString(R.string.next_float, next.title)
+                },
+            )
             .setOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)

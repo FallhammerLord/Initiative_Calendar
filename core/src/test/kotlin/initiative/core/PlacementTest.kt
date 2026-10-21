@@ -51,7 +51,22 @@ class PlacementTest {
         val b = engine.board(items, at(13))
         assertEquals("taxes", b.now.item?.title)
         assertEquals("Due tomorrow, fits before pickup", b.now.reason)
-        assertEquals(pickup.id, b.next?.id)
+        // Next is the next thing in order, as in the day panel: the other task, at its time.
+        assertEquals("call landlord", b.next?.title)
+        assertEquals(at(13, 30), b.nextAt)
+    }
+
+    @Test fun nextFollowsTheDayNotJustTheWalls() {
+        // School dropoff is Now in its warning time; laundry comes after it, then pickup.
+        val dropoff = Item(id = 5, title = "dropoff", kind = Kind.ANCHOR, start = at(8, 30), end = at(9), wall = WallStrength.HARD, createdAt = created)
+        val b = engine.board(listOf(dropoff, pickup, float(2, "laundry")), at(8, 20))
+        assertEquals("dropoff", b.now.item?.title)
+        assertEquals("laundry", b.next?.title)
+        assertEquals(at(9), b.nextAt)
+        // With no tasks left, Next is the next wall, with no task time.
+        val walls = engine.board(listOf(dropoff, pickup), at(8, 20))
+        assertEquals(pickup.id, walls.next?.id)
+        assertNull(walls.nextAt)
     }
 
     @Test fun olderWinsAmongEquals() {
