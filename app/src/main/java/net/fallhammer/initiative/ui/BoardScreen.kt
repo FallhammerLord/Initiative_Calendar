@@ -1,6 +1,7 @@
 package net.fallhammer.initiative.ui
 
 import android.Manifest
+import android.util.Log
 import android.app.TimePickerDialog
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -828,15 +829,22 @@ private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifie
     val view = LocalView.current
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(focused) {
-        if (!focused) return@LaunchedEffect
         var sawKeyboard = false
-        while (true) {
+        // Checked for as long as the field has focus, so a release that doesn't take is tried again.
+        while (focused) {
             val up = ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true
             if (up) {
                 sawKeyboard = true
             } else if (sawKeyboard) {
+                Log.i(LOG_TAG, "quick-add: keyboard closed, letting go")
                 focus.clearFocus(force = true)
-                break
+                delay(KEYBOARD_CHECK_MS)
+                if (focused) {
+                    // Still held: clear focus from the whole screen.
+                    Log.i(LOG_TAG, "quick-add: still focused, clearing the view")
+                    view.clearFocus()
+                }
+                sawKeyboard = false
             }
             delay(KEYBOARD_CHECK_MS)
         }
@@ -916,6 +924,9 @@ private val SCROLL_WIDTH = 3.dp
 private val SCROLL_INSET = 10.dp
 private const val HINT_ALPHA = 0.7f
 private val FADE = 24.dp
+
+/** The app's log tag, as the emulator test reads it. */
+private const val LOG_TAG = "Initiative"
 
 /** While quick-add has focus, how often it checks whether the keyboard has closed. */
 private const val KEYBOARD_CHECK_MS = 300L
