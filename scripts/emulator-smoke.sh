@@ -741,7 +741,7 @@ open_settings
 pick_theme Sci-fi
 scroll_to "Change with the holidays" exact || fail "Settings should have Holiday looks"
 tap "Change with the holidays" exact
-wait_for "Oct 1 to Nov 1" exact || fail "the holidays should list once holiday looks are on"
+scroll_to "Oct 1 to Nov 1" exact || fail "the holidays should list once holiday looks are on"
 shot holiday-settings
 tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
