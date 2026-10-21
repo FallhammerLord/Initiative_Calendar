@@ -82,7 +82,7 @@ object Scheduler {
         }
         prefs.shown = plan.shown
 
-        if (prefs.lockCard) Notifier.showCard(app, plan.board, plan.focusItem) else Notifier.hideCard(app)
+        if (prefs.lockCard) Notifier.showCard(app, plan.board, now, plan.focusItem) else Notifier.hideCard(app)
 
         if (plan.backupDue) {
             val ok = prefs.backupFolder?.let { Backup.writeAll(app, dao, Uri.parse(it), now) } ?: false

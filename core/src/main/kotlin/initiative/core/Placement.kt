@@ -19,7 +19,14 @@ data class NowPick(val item: Item?, val reason: String)
 
 /** [until] is when a float's window as Now closes: the end of its gap. Null for anchors and Free time. */
 /** What the board shows: Now, what comes next, and, for a task that's Next, when it's set to start. */
-data class Board(val now: NowPick, val next: Item?, val until: LocalDateTime? = null, val nextAt: LocalDateTime? = null)
+data class Board(
+    val now: NowPick,
+    val next: Item?,
+    val until: LocalDateTime? = null,
+    val nextAt: LocalDateTime? = null,
+    /** Items stepped aside for a wait, soonest first: the waitmarks on the Now card. */
+    val waits: List<Item> = emptyList(),
+)
 
 enum class MarkKind { DONE, SOFT, FIRM, HARD }
 
@@ -52,7 +59,13 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * left in today's order, Next is the next anchor, if there is one.
      */
     fun board(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Board {
-        val b = pick(items, now, order)
+        var b = pick(items, now, order)
+        // A task back from a wait says so, rather than why it ranks.
+        b.now.item?.takeIf { it.ready(now) }?.let { back ->
+            b = b.copy(now = NowPick(back, "Ready since ${Formats.clock(back.waitUntil!!)}"))
+        }
+        val waits = items.filter { !it.isTemplate && it.isOpen && it.waitUntil != null && it.id != b.now.item?.id }.sortedBy { it.waitUntil }
+        b = b.copy(waits = waits)
         val slot = forecast(items, now, order).slots.firstOrNull { it.item.id != b.now.item?.id } ?: return b
         return b.copy(next = slot.item, nextAt = slot.at.takeIf { !slot.item.isAnchor })
     }
@@ -79,7 +92,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         }
 
         val nextAnchor = upcoming.firstOrNull()
-        val floats = live.filter { !it.isAnchor && it.isOpen }
+        val floats = live.filter { workable(it, now) }
 
         floats.firstOrNull { f ->
             val slot = f.pinnedSlot ?: return@firstOrNull false
@@ -125,7 +138,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val live = items.filter { !it.isTemplate }
         val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
         val floats = rank(
-            eligible(live.filter { !it.isAnchor && it.isOpen }, now.toLocalDate().atTime(window.end).minusMinutes(1)),
+            eligible(live.filter { workable(it, now) }, now.toLocalDate().atTime(window.end).minusMinutes(1)),
             today,
             order,
         )
@@ -180,7 +193,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
-        val floats = live.filter { !it.isAnchor && it.isOpen && (it.earliestStart == null || !it.earliestStart.isAfter(today)) }
+        val floats = live.filter { workable(it, now) && (it.earliestStart == null || !it.earliestStart.isAfter(today)) }
         val pinned = floats.filter { pinHolds(it, now) && it.pinnedSlot!!.toLocalDate() == today }
         val pool = rank(floats - pinned.toSet(), today, order).toMutableList()
         val placed = mutableListOf<Slot>()
@@ -271,8 +284,9 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val today = now.toLocalDate()
         val times = mutableListOf<LocalDateTime>()
         live.filter { it.isAnchor && it.start != null }.forEach { times += listOf(it.warnAt!!, it.start!!, it.anchorEnd!!) }
-        live.filter { !it.isAnchor }.forEach { f ->
+        live.filter { !it.isAnchor || it.waitUntil != null }.forEach { f ->
             f.notBefore?.let { times += it }
+            f.waitUntil?.let { times += it }
             f.pinnedSlot?.let { times += listOf(it, it.plusMinutes(f.durationMinutes.toLong())) }
         }
         times += listOf(today.atTime(window.start), today.atTime(window.end), today.plusDays(1).atTime(window.start))
@@ -304,7 +318,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val current = todayGaps.firstOrNull { now in it }
         val later = todayGaps.filter { current == null || it.start >= current.end }.firstOrNull { it.minutes >= need }
 
-        val skipped = item.copy(skipCount = item.skipCount + 1, status = Status.PENDING, pinnedSlot = null, activeSince = null)
+        val skipped = item.copy(skipCount = item.skipCount + 1, status = Status.PENDING, pinnedSlot = null, activeSince = null, waitUntil = null)
         if (later != null) {
             return Moved(skipped.copy(notBefore = later.start), landing(later, "Back at"))
         }
@@ -324,9 +338,12 @@ class Placement(private val window: DayWindow = DayWindow()) {
     /** Tomorrow: off today's board entirely. Not a skip. */
     fun tomorrow(item: Item, now: LocalDateTime): Moved =
         Moved(
-            item.copy(notBefore = now.toLocalDate().plusDays(1).atTime(window.start), status = Status.PENDING, pinnedSlot = null, activeSince = null),
+            item.copy(notBefore = now.toLocalDate().plusDays(1).atTime(window.start), status = Status.PENDING, pinnedSlot = null, activeSince = null, waitUntil = null),
             "Back tomorrow",
         )
+
+    /** What can be worked like a task: an open float, or an anchor running over with a wait. */
+    private fun workable(i: Item, now: LocalDateTime): Boolean = i.isOpen && (!i.isAnchor || i.overrunning(now))
 
     private fun openAnchors(items: List<Item>) =
         items.filter { it.isAnchor && it.isOpen && it.start != null }.sortedBy { it.start }
@@ -349,8 +366,15 @@ class Placement(private val window: DayWindow = DayWindow()) {
     private fun rank(floats: List<Item>, today: LocalDate, order: List<Long> = emptyList()): List<Item> {
         // The person's own order breaks ties; tasks they haven't placed come after, oldest first.
         val place = order.withIndex().associate { (i, id) -> id to i }
+        // A task back from a wait comes first; but while a task is under way, that one
+        // stays first, and the waiting task is next: it never takes over by itself.
+        val waits = floats.any { it.waitUntil != null }
+        val underWay = waits && floats.any { it.activeSince != null && it.waitUntil == null }
         return floats.sortedWith(
-            compareByDescending<Item> { it.resolvePriority(today).level }
+            compareBy<Item> { !(underWay && it.activeSince != null && it.waitUntil == null) }
+                .thenBy { it.waitUntil == null }
+                .thenBy(nullsLast()) { it.waitUntil }
+                .thenByDescending { it.resolvePriority(today).level }
                 .thenBy(nullsLast()) { it.deadline }
                 .thenBy { place[it.id] ?: Int.MAX_VALUE }
                 .thenBy { it.createdAt },

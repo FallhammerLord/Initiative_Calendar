@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 /**
  * Upgrades a database built exactly as version 1 (the first release) left it,
  * through every version since, and checks the data survives, the alarms table
- * works, and items start with no steps. Room validates
+ * works, and items start with no steps and no wait. Room validates
  * every table against the current code while it opens, so a layout mismatch
  * fails here before it can reach a phone.
  */
@@ -41,13 +41,15 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS)
             .allowMainThreadQueries()
             .build()
         runBlocking {
             val dao = room.items()
             assertEquals(listOf("call landlord"), dao.all().map { it.title })
             assertEquals("", dao.all().single().steps)
+            assertEquals(null, dao.all().single().waitUntil)
+            assertEquals(0, dao.all().single().workedMinutes)
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
         }

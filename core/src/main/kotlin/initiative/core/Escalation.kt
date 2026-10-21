@@ -99,6 +99,8 @@ object Escalation {
     fun settle(anchor: Item, state: AlarmState, now: LocalDateTime): Status? {
         if (!anchor.isAnchor || anchor.isTemplate || !anchor.isOpen || anchor.start == null) return null
         if (now.isBefore(anchor.anchorEnd!!)) return null
+        // A wait still part of it: it runs over, and is finished by hand like a task.
+        if (anchor.waitUntil != null) return null
         return if (state.ackedAt != null) Status.DONE else Status.MISSED
     }
 }

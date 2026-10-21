@@ -27,6 +27,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -65,12 +66,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -101,6 +104,7 @@ import initiative.core.MarkKind
 import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.SetupStep
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -227,6 +231,9 @@ fun BoardScreen(vm: BoardViewModel) {
                     // goes, and the card shrinks to its title, so nothing is squeezed.
                     if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog)
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
+                      Column {
+                        // Items stepped aside for a wait sit on the card's top edge, like bookmarks.
+                        if (!keyboardUp) Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::switchTo)
                         NowCard(
                             modifier = Modifier.onGloballyPositioned { cardCenter = it.boundsInRoot().center },
                             ui = ui,
@@ -240,6 +247,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             onStep = vm::toggleStep,
                             compact = keyboardUp,
                         )
+                      }
                     }
                     Spacer(Modifier.height(Space.panel))
                     // Folded, the day panel is just the Next line: swipe it up or tap it to open.
@@ -471,7 +479,15 @@ private fun NowCard(
             // Steps tick off right here; Done asks about any left open.
             if (!compact && !settled && item != null && item.steps.isNotEmpty()) {
                 Spacer(Modifier.height(Space.s))
-                item.steps.forEachIndexed { i, step -> StepRow(step.title, step.done) { onStep(item, i) } }
+                item.steps.forEachIndexed { i, step ->
+                    // A step with a wait says so, so ticking it isn't a surprise.
+                    val text = if (step.waitMinutes > 0 && !step.done) {
+                        stringResource(R.string.step_then_wait, step.title, Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong())))
+                    } else {
+                        step.title
+                    }
+                    StepRow(text, step.done) { onStep(item, i) }
+                }
             }
             if (!compact && board != null) {
                 Spacer(Modifier.height(Space.m))
@@ -482,6 +498,13 @@ private fun NowCard(
                     }
                 } else {
                     Body(board.now.reason)
+                }
+                // A task back from a wait, waiting on this one: said in words as well as on its tab.
+                board.waits.firstOrNull { it.ready(ui.now) && it.id != item?.id }?.let { back ->
+                    Body(
+                        stringResource(R.string.waitmark_next, back.title, Formats.clock(back.waitUntil!!)),
+                        style = Type.bodySmall,
+                    )
                 }
             }
         }
@@ -513,6 +536,52 @@ private fun NowCard(
                         Action(1.3f) { SecondaryButton(tomorrow, { haptics.tick(); onTomorrow(item) }, it) },
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Waitmarks: tabs on the Now card's top edge for items stepped aside for a
+ * wait. Dim with a countdown while waiting; lit once ready. Tapping one makes
+ * it Now (ending its wait early, if it hadn't ended); the task under way goes
+ * back into the day's order. At most two show; the rest wait their turn.
+ */
+@Composable
+private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Unit) {
+    if (waits.isEmpty()) return
+    val shape = LocalLook.current.buttonShape
+    val haptics = rememberHaptics()
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.inside, Alignment.End)) {
+        waits.take(MAX_WAITMARKS).forEach { w ->
+            val ready = w.ready(now)
+            val next = w.nextStep
+            val text = when {
+                !ready -> stringResource(R.string.waitmark_waiting, w.title, Formats.countdown(now, w.waitUntil!!))
+                next != null -> stringResource(R.string.waitmark_ready, w.title, next.title)
+                else -> stringResource(R.string.waitmark_ready_plain, w.title)
+            }
+            Box(
+                Modifier
+                    .weight(1f, fill = false)
+                    .heightIn(min = Tap.min)
+                    .clip(shape)
+                    .background(if (ready) Ink.accent else Ink.surface)
+                    .then(if (ready) Modifier else Modifier.border(1.dp, Ink.frame, shape))
+                    .clickable(onClickLabel = stringResource(R.string.waitmark_switch, w.title)) {
+                        haptics.tick()
+                        onTap(w)
+                    }
+                    .padding(horizontal = Space.m),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text,
+                    style = if (ready) Type.label else Type.caption,
+                    color = if (ready) Ink.onAccent else Ink.dim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -571,6 +640,7 @@ private fun DayDial(ui: BoardUi) {
     // Eased between the clock's ticks, so the pointer glides rather than steps.
     val pointerAt by animateFloatAsState(nowAt.coerceIn(0f, 1f), tween(POINTER_EASE_MS), label = "pointer")
     val nowItem = ui.board?.now?.item
+    val waits = ui.board?.waits.orEmpty()
     // Now's span: its forecast slot, or an anchor under way, which the forecast has passed.
     val nowSlot = ui.forecast.slots.firstOrNull { it.item.id == nowItem?.id }
     val nowEnd = nowSlot?.end ?: nowItem?.takeIf { it.isAnchor }?.anchorEnd
@@ -607,7 +677,7 @@ private fun DayDial(ui: BoardUi) {
 
         // A span along the curve, a hairline short of each end so neighbours don't merge,
         // and never thinner than a short mark.
-        fun band(from: LocalDateTime, to: LocalDateTime, color: Color, width: Dp) {
+        fun band(from: LocalDateTime, to: LocalDateTime, color: Color, width: Dp, lift: Float = 0f, effect: PathEffect? = null) {
             val gap = BAND_GAP.toPx()
             val x0 = frac(from).coerceIn(0f, 1f) * w + gap
             val x1 = maxOf(frac(to).coerceIn(0f, 1f) * w - gap, x0 + BAND_MIN.toPx())
@@ -615,10 +685,18 @@ private fun DayDial(ui: BoardUi) {
             val path = Path()
             for (i in 0..steps) {
                 val x = x0 + (x1 - x0) * i / steps
-                val py = y(x / w)
+                val py = y(x / w) - lift
                 if (i == 0) path.moveTo(x, py) else path.lineTo(x, py)
             }
-            drawPath(path, color, style = Stroke(width.toPx()))
+            drawPath(path, color, style = Stroke(width.toPx(), pathEffect = effect))
+        }
+
+        // A running wait: dotted, just above the arc, so the tasks filling it stay on the line.
+        val dots = PathEffect.dashPathEffect(floatArrayOf(WAIT_DOT.toPx(), WAIT_GAP.toPx()))
+        waits.forEach { wait ->
+            val from = wait.waitStart ?: return@forEach
+            val until = wait.waitUntil ?: return@forEach
+            if (until.isAfter(ui.now)) band(from, until, doneColor, ARC_WIDTH, lift = WAIT_LIFT.toPx(), effect = dots)
         }
 
         ui.forecast.slots.forEach { slot ->
@@ -927,6 +1005,14 @@ private val FADE = 24.dp
 
 /** The app's log tag, as the emulator test reads it. */
 private const val LOG_TAG = "Initiative"
+
+/** Waitmarks shown at once; the rest wait their turn. */
+private const val MAX_WAITMARKS = 2
+
+// A running wait on the dial: how far above the arc, and its dots.
+private val WAIT_LIFT = 7.dp
+private val WAIT_DOT = 2.dp
+private val WAIT_GAP = 3.dp
 
 /** While quick-add has focus, how often it checks whether the keyboard has closed. */
 private const val KEYBOARD_CHECK_MS = 300L

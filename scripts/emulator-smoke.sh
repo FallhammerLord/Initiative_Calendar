@@ -857,6 +857,39 @@ adb shell input keyevent KEYCODE_BACK
 wait_gone "Hide today" exact || fail "Back should fold the day panel"
 crash_check
 
+# --- Waits ------------------------------------------------------------------------
+# A step can have a wait after it. Ticking it offers Undo; then the task steps
+# aside, the next task takes Now, and a dim waitmark counts down above the card.
+# When the wait is up the waitmark lights; a tap brings the task back as Now.
+
+home
+tap "dentist call" exact
+wait_for Type exact || fail "edit form didn't open"
+tap "Add a wait after" exact
+wait_for "Then wait 15m" exact 3 || fail "a tap should set a 15-minute wait on the step"
+shot edit-wait
+tap Save exact
+expect_text "Saved"
+# The first step is still ticked from the steps check: untick it (its wait shows), then tick it again.
+tap "ind the number"
+expect_text "then wait 15m"
+tap "ind the number"
+expect_text "waits 15m"
+wait_for "back in" contains 15 || fail "the task should step aside after the Undo time"
+shot wait-waiting
+pass "a step with a wait sets the task aside, with a waitmark counting down"
+# Move the emulator clock 16 minutes on. The board's clock catches up within 30 seconds.
+t=$(( $(adb shell date +%s | tr -d '\r') + 960 ))
+adb shell date "$(adb shell date -d "@$t" +%m%d%H%M%Y.%S | tr -d '\r')" > /dev/null
+wait_for "ready since" contains 45 || fail "the waitmark should light when the wait is up"
+shot wait-ready
+tap "ake the call"
+wait_for "Ready since" contains 6 || fail "tapping the waitmark should make that task Now"
+expect_text "dentist call"
+shot wait-back
+pass "the waitmark lights when the wait is up, and a tap brings the task back"
+crash_check
+
 # --- The Log ----------------------------------------------------------------------
 # Plan ahead opens the Log on today. It zooms to Week, Month, and Year, and the
 # Year view flips to next year. Search finds done items. Back, and Back to

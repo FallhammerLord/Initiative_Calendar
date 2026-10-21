@@ -61,6 +61,8 @@ data class ItemRow(
     val activeSince: String?,
     /** See core's Steps: one per line. */
     val steps: String = "",
+    val waitUntil: String? = null,
+    val workedMinutes: Int = 0,
 )
 
 /** The event log: every status change, with a timestamp. */
@@ -203,7 +205,7 @@ interface ItemDao {
     suspend fun insertAlarms(rows: List<AlarmRow>)
 }
 
-@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 3, exportSchema = true)
+@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 4, exportSchema = true)
 abstract class InitiativeDb : RoomDatabase() {
     abstract fun items(): ItemDao
 
@@ -225,9 +227,16 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        internal val ADD_WAITS = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `waitUntil` TEXT")
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `workedMinutes` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS)
                 .build()
                 .also { instance = it }
         }
@@ -263,6 +272,8 @@ fun Item.toRow() = ItemRow(
     doneAt = doneAt?.toString(),
     activeSince = activeSince?.toString(),
     steps = Steps.encode(steps),
+    waitUntil = waitUntil?.toString(),
+    workedMinutes = workedMinutes,
 )
 
 fun ItemRow.toItem() = Item(
@@ -297,4 +308,6 @@ fun ItemRow.toItem() = Item(
     doneAt = doneAt?.let(LocalDateTime::parse),
     activeSince = activeSince?.let(LocalDateTime::parse),
     steps = Steps.decode(steps),
+    waitUntil = waitUntil?.let(LocalDateTime::parse),
+    workedMinutes = workedMinutes,
 )

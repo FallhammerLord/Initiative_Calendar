@@ -31,6 +31,7 @@ import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.AppEntry
 import net.fallhammer.initiative.data.Focus
 import net.fallhammer.initiative.graph
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -97,6 +98,9 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             },
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, BoardUi())
+
+    /** A wait about to start, after its grace; cancelled by a new tick. */
+    private var waitJob: Job? = null
 
     private val _flash = MutableStateFlow<Flash?>(null)
     val flash: StateFlow<Flash?> = _flash.asStateFlow()
@@ -210,7 +214,33 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     fun toggleStep(item: Item, index: Int) {
         val step = item.steps.getOrNull(index) ?: return
         acted()
-        viewModelScope.launch { repo.setStep(item, index, !step.done) }
+        val ticking = !step.done
+        viewModelScope.launch { repo.setStep(item, index, ticking) }
+        if (ticking && step.waitMinutes > 0) {
+            // A grace, with Undo, before the item steps aside, so a mis-tap costs nothing.
+            val wait = Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong()))
+            show(Flash(getApplication<Application>().getString(R.string.flash_waits, item.title, wait), undo = item))
+            waitJob?.cancel()
+            waitJob = viewModelScope.launch {
+                delay(UNDO_MS)
+                val latest = items.firstOrNull { it.id == item.id } ?: return@launch
+                val now = LocalDateTime.now()
+                // Undo unticks the step, so the wait doesn't start.
+                if (latest.steps.getOrNull(index)?.done == true && !latest.waiting(now)) repo.startWait(latest, step.waitMinutes, now)
+            }
+        }
+    }
+
+    /**
+     * A waitmark tapped: that item becomes Now (its wait ends, if it hadn't), and
+     * the task under way goes back into the day's order.
+     */
+    fun switchTo(target: Item) {
+        acted()
+        viewModelScope.launch {
+            repo.switchTo(target, ui.value.board?.now?.item, LocalDateTime.now())
+            clock.value = LocalDateTime.now()
+        }
     }
 
     private fun finish(item: Item) = act(item) { repo.done(item, it); text(R.string.flash_done) }

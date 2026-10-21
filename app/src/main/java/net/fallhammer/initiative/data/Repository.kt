@@ -52,7 +52,8 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     suspend fun done(item: Item, now: LocalDateTime) {
         update(item, item.copy(status = Status.DONE, doneAt = now, steps = item.steps.map { it.copy(done = true) }))
         if (item.isAnchor) return
-        val run = Learning.runMinutes(item.activeSince, now) ?: return
+        // Hands-on time only: what was banked before any wait, plus the last stretch.
+        val run = (item.workedMinutes + (Learning.runMinutes(item.activeSince, now) ?: 0)).takeIf { it >= 1 } ?: return
         dao.insertRun(RunRow(titleKey = item.titleKey, minutes = run, at = now.toString()))
         val estimate = Learning.updatedEstimate(item.durationMinutes, dao.recentRuns(item.titleKey))
         dao.setDuration(item.titleKey, estimate)
@@ -161,7 +162,25 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     /** First time a float becomes Now, start its clock. */
     suspend fun markActive(item: Item, now: LocalDateTime) {
         if (item.activeSince != null || item.isAnchor) return
-        update(item, item.copy(status = Status.ACTIVE, activeSince = now))
+        // Back from a wait, it keeps its wait time, so it stays first until it's done or set aside.
+        update(item, item.copy(status = Status.ACTIVE, activeSince = now, notBefore = null))
+    }
+
+    /** A step with a wait was ticked: the item steps aside until the wait ends. */
+    suspend fun startWait(item: Item, minutes: Int, now: LocalDateTime) {
+        update(item, item.startWait(minutes, now), note = "waiting $minutes min")
+    }
+
+    /**
+     * Switching to a waitmark: the task under way goes back into the day's order,
+     * its hands-on time banked; the waiting item's wait ends now.
+     */
+    suspend fun switchTo(target: Item, current: Item?, now: LocalDateTime) {
+        if (current != null && current.id != target.id && !current.isAnchor && current.isOpen) {
+            val banked = current.workedMinutes + (Learning.runMinutes(current.activeSince, now) ?: 0)
+            update(current, current.copy(status = Status.PENDING, activeSince = null, pinnedSlot = null, workedMinutes = banked), note = "set aside")
+        }
+        if (target.waiting(now)) update(target, target.copy(waitUntil = now, notBefore = null), note = "wait ended early")
     }
 
     suspend fun update(old: Item, new: Item, note: String = "") {

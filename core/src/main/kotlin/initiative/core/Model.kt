@@ -48,6 +48,13 @@ data class Item(
     val activeSince: LocalDateTime? = null,
     /** One level of steps inside the item, ticked off as it goes. */
     val steps: List<Step> = emptyList(),
+    /**
+     * Set when a step with a wait is ticked: the item steps aside until then
+     * (the washer runs), and comes back first. Cleared once it's Now again.
+     */
+    val waitUntil: LocalDateTime? = null,
+    /** Hands-on minutes before a wait, so duration learning counts work, not waiting. */
+    val workedMinutes: Int = 0,
 ) {
     val isTemplate: Boolean get() = recurrence != null
     val isOpen: Boolean get() = status == Status.PENDING || status == Status.ACTIVE
@@ -58,6 +65,39 @@ data class Item(
 
     /** The first step not yet ticked; null when there are none left. */
     val nextStep: Step? get() = steps.firstOrNull { !it.done }
+
+    /** A wait is set and hasn't ended yet. */
+    fun waiting(now: LocalDateTime): Boolean = waitUntil?.isAfter(now) == true
+
+    /** A wait has ended and the item is ready to pick up again. */
+    fun ready(now: LocalDateTime): Boolean = waitUntil?.let { !it.isAfter(now) } == true
+
+    /**
+     * An anchor past its end with a wait still part of it: it runs over, and is
+     * worked like a task until it's done.
+     */
+    fun overrunning(now: LocalDateTime): Boolean =
+        isAnchor && isOpen && waitUntil != null && start != null && !now.isBefore(anchorEnd!!)
+
+    /** When the current wait began: the wait's end less the last ticked step's wait. */
+    val waitStart: LocalDateTime?
+        get() = waitUntil?.let { end -> steps.lastOrNull { it.done && it.waitMinutes > 0 }?.let { end.minusMinutes(it.waitMinutes.toLong()) } }
+
+    /**
+     * The item stepping aside for a wait of [minutes] from [now]: the hands-on
+     * time so far is banked, and it's held until the wait ends.
+     */
+    fun startWait(minutes: Int, now: LocalDateTime): Item {
+        val until = now.plusMinutes(minutes.toLong())
+        return copy(
+            waitUntil = until,
+            notBefore = until,
+            workedMinutes = workedMinutes + (Learning.runMinutes(activeSince, now) ?: 0),
+            activeSince = null,
+            pinnedSlot = null,
+            status = if (isAnchor) status else Status.PENDING,
+        )
+    }
 
     companion object {
         const val DEFAULT_DURATION = 30
@@ -75,10 +115,16 @@ data class Item(
     }
 }
 
-/** One step inside an item, like an objective inside a quest. */
-data class Step(val title: String, val done: Boolean = false)
+/**
+ * One step inside an item, like an objective inside a quest. [waitMinutes] is a
+ * wait after it ("run washer, then 60 min"), when the item steps aside.
+ */
+data class Step(val title: String, val done: Boolean = false, val waitMinutes: Int = 0)
 
-/** Steps stored as text: one per line, "x " before a ticked one and "- " before an open one. */
+/**
+ * Steps stored as text: one per line, "x " before a ticked one and "- " before an
+ * open one; a wait after a step follows a tab, in minutes.
+ */
 object Steps {
     private const val DONE = "x "
     private const val OPEN = "- "
@@ -88,9 +134,19 @@ object Steps {
     fun decode(text: String): List<Step> = text.lines().filter { it.length > OPEN.length }.map(::parse)
 
     /** One step as one line; the edit form keeps its steps this way while they're typed. */
-    fun line(step: Step): String = (if (step.done) DONE else OPEN) + step.title.replace('\n', ' ')
+    fun line(step: Step): String =
+        (if (step.done) DONE else OPEN) + step.title.replace('\n', ' ').replace(WAIT, ' ') +
+            (if (step.waitMinutes > 0) "$WAIT${step.waitMinutes}" else "")
 
-    fun parse(line: String): Step = Step(line.drop(OPEN.length), line.startsWith(DONE))
+    fun parse(line: String): Step {
+        val body = line.drop(OPEN.length)
+        val tab = body.lastIndexOf(WAIT)
+        val wait = if (tab >= 0) body.substring(tab + 1).toIntOrNull() else null
+        val title = if (wait != null) body.substring(0, tab) else body
+        return Step(title, line.startsWith(DONE), wait ?: 0)
+    }
+
+    private const val WAIT = '\t'
 
     /** Every step open again, for a new time of a series. */
     fun fresh(steps: List<Step>): List<Step> = steps.map { it.copy(done = false) }

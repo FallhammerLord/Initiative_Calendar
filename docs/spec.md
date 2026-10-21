@@ -454,6 +454,13 @@ After v0.1, built:
 
 **Subtasks.** One level of steps inside an item: "laundry" holds collect, wash and dry, fold, put away. They show as a checklist on the Now card, tick off there, and are typed in the edit form (Add a step puts the cursor in the new one). An anchor can hold steps too: "school pickup" from 2:30 to 4:00 holds "pick up" and "playtime", like a quest holding its objectives. A repeating item keeps its steps on the series, and each time starts with all of them open. The board still shows one item. The Log lists steps under their item, and search reaches them. Breaking work into steps is a core skill in adult ADHD treatment, so this ranks with the Log.
 
+**Waits.** A step can have a wait after it: "run washer, then wait 1h". The edit form sets it under the step (each tap steps through 15 minutes to 2 hours, then back to none), and the Now card says so beside the step. Ticking that step shows Undo for 8 seconds; then the item steps aside until the wait ends, and other tasks fill the gap.
+- *The waitmark.* A tab on the Now card's top edge, at most two. Dim with a countdown while waiting ("laundry · back in 40m"); lit when ready ("laundry: move to dryer ›"). A tap switches to it, and the task under way goes back into the order.
+- *Coming back.* A ready item comes back first, but never takes over a task already under way; the Now card adds "laundry is next, ready since 10:00 AM". It keeps that place until it's done, skipped, or put off. The lock-screen card shows the ready line too.
+- *Anchors.* A wait inside an anchor can run past its end. The anchor isn't settled then; it stays open and runs over, and Done is recorded at the real time.
+- *The dial.* A running wait is dotted just above the arc, so the tasks that fill it stay on the line.
+- *Learning.* Duration learning counts hands-on time only: the wait is left out.
+
 **Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
 
 **v0.3 — Polish**

@@ -98,6 +98,8 @@ fun Item.instancesBetween(from: LocalDate, to: LocalDate): List<Item> {
             doneAt = null,
             activeSince = null,
             steps = Steps.fresh(steps),
+            waitUntil = null,
+            workedMinutes = 0,
             createdAt = date.atStartOfDay(),
         )
     }

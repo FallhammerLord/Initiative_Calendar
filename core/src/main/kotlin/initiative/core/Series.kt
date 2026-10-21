@@ -34,5 +34,7 @@ object Series {
         doneAt = null,
         activeSince = null,
         steps = Steps.fresh(item.steps),
+        waitUntil = null,
+        workedMinutes = 0,
     )
 }

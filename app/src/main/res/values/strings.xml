@@ -7,6 +7,17 @@
     <string name="now_label">Now</string>
     <string name="free_time">Free time</string>
     <string name="now_done_mark">✓</string>
+    <string name="flash_waits">%1$s waits %2$s</string>
+    <string name="waitmark_waiting">%1$s · back in %2$s</string>
+    <string name="waitmark_ready">%1$s: %2$s ›</string>
+    <string name="waitmark_ready_plain">%1$s is ready ›</string>
+    <string name="waitmark_switch">Switch to %1$s</string>
+    <string name="waitmark_next">%1$s is next, ready since %2$s</string>
+    <string name="card_ready">%1$s ready: %2$s</string>
+    <string name="step_then_wait">%1$s · then wait %2$s</string>
+    <string name="card_ready_plain">%1$s is ready</string>
+    <string name="edit_step_wait_none">Add a wait after</string>
+    <string name="edit_step_wait">Then wait %1$s</string>
     <string name="action_done">Done</string>
     <string name="action_skip">Skip</string>
     <string name="action_tomorrow">Tomorrow</string>

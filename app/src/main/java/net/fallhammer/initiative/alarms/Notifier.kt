@@ -75,26 +75,30 @@ object Notifier {
     }
 
     @SuppressLint("MissingPermission")
-    fun showCard(context: Context, board: Board, focus: Item? = null) {
+    fun showCard(context: Context, board: Board, now: LocalDateTime, focus: Item? = null) {
         val nm = NotificationManagerCompat.from(context)
         if (!nm.areNotificationsEnabled()) {
             Log.i(TAG, "card skipped: notifications are off")
             return
         }
-        val now = board.now.item
+        val current = board.now.item
         val next = board.next
+        // A task back from a wait says so first: it's what to do when this one ends.
+        val back = board.waits.firstOrNull { it.ready(now) && it.id != current?.id }
         val nextAt = board.nextAt
         val b = NotificationCompat.Builder(context, CH_CARD)
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle(
                 when {
                     focus != null -> context.getString(R.string.card_focus, focus.title)
-                    now != null -> context.getString(R.string.card_now, now.title)
+                    current != null -> context.getString(R.string.card_now, current.title)
                     else -> context.getString(R.string.free_time)
                 },
             )
             .setContentText(
                 when {
+                    back != null -> back.nextStep?.let { context.getString(R.string.card_ready, back.title, it.title) }
+                        ?: context.getString(R.string.card_ready_plain, back.title)
                     next == null -> board.now.reason
                     nextAt != null -> context.getString(R.string.next_task_at, next.title, Formats.clock(nextAt))
                     else -> context.getString(R.string.next_float, next.title)
@@ -115,7 +119,7 @@ object Notifier {
             b.setShowWhen(false)
         }
         nm.notify(CARD_ID, b.build())
-        Log.i(TAG, "card: ${focus?.let { "focus " + it.title } ?: now?.title ?: "Free time"}")
+        Log.i(TAG, "card: ${focus?.let { "focus " + it.title } ?: current?.title ?: "Free time"}")
     }
 
     fun hideCard(context: Context) = NotificationManagerCompat.from(context).cancel(CARD_ID)

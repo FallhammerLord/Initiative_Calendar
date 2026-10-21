@@ -104,6 +104,17 @@ fun EditScreen(
                         )
                         QuietButton(stringResource(R.string.edit_step_remove), { steps = steps.filterIndexed { j, _ -> j != i } })
                     }
+                    // A wait after the step (a washer's run): each tap steps to the next length, then back to none.
+                    val wait = step.waitMinutes
+                    QuietButton(
+                        if (wait == 0) stringResource(R.string.edit_step_wait_none)
+                        else stringResource(R.string.edit_step_wait, Formats.countdown(Duration.ofMinutes(wait.toLong()))),
+                        {
+                            val after = DURATIONS.firstOrNull { it > wait } ?: 0
+                            steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(waitMinutes = after)) }
+                        },
+                        color = if (wait == 0) Ink.dim else Ink.accent,
+                    )
                 }
                 SecondaryButton(
                     stringResource(R.string.edit_step_add),
