@@ -886,7 +886,8 @@ pass "the Log zooms out and flips to next year"
 shot log-next-year
 # The search box is the screen's only text field, so quick_add types into it.
 quick_add "landlord"
-hide_keyboard
+# Search closes the keyboard itself; Back here would close the Log, so only wait.
+for _ in 1 2 3 4 5 6; do ime_shown || break; sleep 0.5; done
 expect_text "call landlord · done"
 shot log-search
 adb shell input keyevent KEYCODE_BACK
