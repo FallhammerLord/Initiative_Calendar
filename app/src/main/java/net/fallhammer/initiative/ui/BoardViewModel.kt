@@ -222,14 +222,14 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
      * only if it fits before the next anchor's warning, and never over an anchor;
      * otherwise it stays put. Its new place also becomes the tie breaker.
      */
-    fun moveTask(item: Item, index: Int) {
+    fun moveTask(item: Item, index: Int): Boolean {
         // Worked out afresh: the forecast on screen can be up to a tick old.
         val now = LocalDateTime.now()
         val others = placement.forecast(items, now, order.value).slots.filter { it.item.id != item.id }
         val at = placement.dropTime(others, index, now)
         if (!placement.canPin(item, items, at, now)) {
             show(Flash(text(R.string.doesnt_fit)))
-            return
+            return false
         }
         // Your order: the day's tasks as they'll stand, then the rest as they were.
         val dayTasks = others.map { it.item }.filter { !it.isAnchor }.map { it.id }.toMutableList()
@@ -242,6 +242,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             repo.pin(item, at)
             show(Flash(getApplication<Application>().getString(R.string.moved_to, Formats.clock(at))))
         }
+        return true
     }
 
     /** Focus on [item] until the next Firm or Hard wall. Soft alarms stay silent meanwhile. */
@@ -281,6 +282,17 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         } else {
             save(parsed)
         }
+        return true
+    }
+
+    /**
+     * Added from a day in the Log: the line is read as for quick-add, on that
+     * day unless it names another. A line that would ask "anchor or float?"
+     * becomes a task, since the day is already chosen. True when understood.
+     */
+    fun addOn(text: String, day: LocalDate): Boolean {
+        val parsed = Parser.parse(text, LocalDateTime.now(), on = day) ?: return false
+        save(parsed)
         return true
     }
 

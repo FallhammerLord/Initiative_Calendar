@@ -12,7 +12,6 @@
     <string name="action_undo">Undo</string>
     <string name="next_anchor">Next: %1$s in %2$s</string>
     <string name="next_float">Next: %1$s</string>
-    <string name="ledger_hint">Today</string>
     <string name="day_open">Show today</string>
     <string name="day_close">Hide today</string>
     <string name="day_open_mark">⌃</string>
@@ -259,7 +258,6 @@
     <string name="log_repeats">%1$s · repeats</string>
     <string name="log_step_done">✓ %1$s</string>
     <string name="log_step_open">○ %1$s</string>
-    <string name="log_nothing_fixed">Nothing fixed</string>
     <string name="log_month_anchor">%1$s %2$d</string>
     <string name="log_has_fixed">%1$s, has fixed times</string>
     <string name="log_now_bar">Now: %1$s</string>
@@ -267,4 +265,7 @@
     <string name="log_show_day">Show this day</string>
     <string name="log_fold_day">Fold this day</string>
     <string name="log_open_month">Open this month</string>
+    <string name="log_folded_mark">›</string>
+    <string name="log_add_today">+ Add to today</string>
+    <string name="log_add_to">+ Add to %1$s</string>
 </resources>

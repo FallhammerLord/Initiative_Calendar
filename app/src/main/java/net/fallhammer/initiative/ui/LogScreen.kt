@@ -27,6 +27,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -59,17 +67,37 @@ import java.time.LocalDate
  * included. Tap an item to edit it. Now stays in view along the bottom, and
  * leads back to the board.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LogScreen(model: LogModel, nowItem: Item?, onEdit: (Item) -> Unit, onClose: () -> Unit) {
+fun LogScreen(
+    model: LogModel,
+    nowItem: Item?,
+    flash: Flash?,
+    onAdd: (String, LocalDate) -> Boolean,
+    onUndo: () -> Unit,
+    onEdit: (Item) -> Unit,
+    onClose: () -> Unit,
+) {
     val view by model.view.collectAsStateWithLifecycle()
     val zoom by model.zoom.collectAsStateWithLifecycle()
     val query by model.query.collectAsStateWithLifecycle()
     val focus = LocalFocusManager.current
-    // Days in the Week view folded or opened by hand, as epoch days: each flips
-    // its default, which is open when the day has something on it.
+    // Days in the Week view folded by hand, as epoch days. Days start open.
     var flipped by rememberSaveable { mutableStateOf(longArrayOf()) }
     val zooms = listOf(R.string.log_day, R.string.log_week, R.string.log_month, R.string.log_year).map { stringResource(it) }
     val nowId = nowItem?.id
+    // The day whose add line is open, as an epoch day; one at a time. Hiding the
+    // keyboard closes it.
+    var adding by rememberSaveable { mutableStateOf<Long?>(null) }
+    val keyboardUp = WindowInsets.isImeVisible
+    LaunchedEffect(keyboardUp) { if (!keyboardUp) adding = null }
+    fun LazyListScope.addLine(date: LocalDate) {
+        // Plans go forward: no add line on a day that's past.
+        if (date < view.today) return
+        item(key = "add-${date.toEpochDay()}") {
+            AddLine(date, view.today, open = adding == date.toEpochDay(), onOpen = { adding = date.toEpochDay() }, onAdd = onAdd)
+        }
+    }
 
     Screen {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -107,26 +135,44 @@ fun LogScreen(model: LogModel, nowItem: Item?, onEdit: (Item) -> Unit, onClose: 
         LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 results != null -> entries(results, nowId, showDate = true, empty = R.string.log_no_results, onEdit = onEdit)
-                view.zoom == Zoom.DAY -> entries(view.days.firstOrNull()?.second.orEmpty(), nowId, onEdit = onEdit)
+                view.zoom == Zoom.DAY -> {
+                    entries(view.days.firstOrNull()?.second.orEmpty(), nowId, onEdit = onEdit)
+                    addLine(view.date)
+                }
+                // A day with nothing on it has nothing to fold: just its name and add line.
                 view.zoom == Zoom.WEEK -> view.days.forEach { (date, list) ->
-                    val open = list.isNotEmpty() != (date.toEpochDay() in flipped)
-                    item {
-                        DayHeader(date, view.today, open) {
-                            val day = date.toEpochDay()
-                            flipped = if (day in flipped) flipped.filter { it != day }.toLongArray() else flipped + day
+                    if (list.isEmpty()) {
+                        item { DayHeader(date, view.today, open = true, onToggle = null) }
+                        addLine(date)
+                    } else {
+                        val open = date.toEpochDay() !in flipped
+                        item {
+                            DayHeader(date, view.today, open) {
+                                val day = date.toEpochDay()
+                                flipped = if (day in flipped) flipped.filter { it != day }.toLongArray() else flipped + day
+                            }
+                        }
+                        if (open) {
+                            entries(list, nowId, onEdit = onEdit)
+                            addLine(date)
                         }
                     }
-                    if (open) entries(list, nowId, onEdit = onEdit)
                 }
                 view.zoom == Zoom.MONTH -> {
                     item { MonthGrid(view, model::pick) }
                     item { DayHeader(view.date, view.today, open = true, onToggle = null) }
                     entries(view.days.firstOrNull { it.first == view.date }?.second.orEmpty(), nowId, onEdit = onEdit)
+                    addLine(view.date)
                 }
                 else -> items(view.months) { MonthRow(it, view.today, model::openMonth) }
             }
         }
         Spacer(Modifier.height(Space.inside))
+        // What was just done (Added, Saved), here where it was done, with Undo when there is one.
+        flash?.let {
+            FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
+            Spacer(Modifier.height(Space.inside))
+        }
         NowBar(nowItem, onClose)
     }
 }
@@ -175,7 +221,7 @@ private fun DayHeader(date: LocalDate, today: LocalDate, open: Boolean, onToggle
         )
         if (onToggle != null) {
             Text(
-                stringResource(if (open) R.string.day_close_mark else R.string.day_open_mark),
+                stringResource(if (open) R.string.day_close_mark else R.string.log_folded_mark),
                 style = Type.body,
                 color = Ink.accent,
                 modifier = Modifier.clearAndSetSemantics { },
@@ -206,28 +252,76 @@ private fun EntryRow(entry: LogEntry, nowId: Long?, showDate: Boolean, onEdit: (
         else -> item.title
     }
     val tap = if (entry.projected) Modifier else Modifier.clickable(onClickLabel = stringResource(R.string.edit_action)) { onEdit(item) }
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = Tap.min).then(tap).padding(vertical = Space.xs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(time, style = Type.bodySmall, color = if (isNow) Ink.accent else Ink.dim, modifier = Modifier.width(TIME_COLUMN))
-        Column(Modifier.weight(1f)) {
-            Text(
-                title,
-                style = Type.bodySmall.copy(fontWeight = if (item.isAnchor) FontWeight.Bold else FontWeight.Normal),
-                color = if (item.isOpen) Ink.text else Ink.dim,
-            )
-            if (!entry.projected) {
-                item.steps.forEach { s ->
-                    Text(
-                        stringResource(if (s.done) R.string.log_step_done else R.string.log_step_open, s.title),
-                        style = Type.caption,
-                        color = if (s.done) Ink.dim else Ink.text,
-                    )
-                }
+    val frame = Modifier.fillMaxWidth().heightIn(min = Tap.min).then(tap).padding(vertical = Space.xs)
+    val timeText = @Composable { m: Modifier -> Text(time, style = Type.bodySmall, color = if (isNow) Ink.accent else Ink.dim, modifier = m) }
+    // At large font sizes the time sits above the title, rather than squeezing it.
+    if (LocalDensity.current.fontScale > LARGE_FONT) {
+        Column(frame) {
+            timeText(Modifier)
+            EntryText(entry, title)
+        }
+    } else {
+        Row(frame, verticalAlignment = Alignment.CenterVertically) {
+            timeText(Modifier.width(TIME_COLUMN))
+            EntryText(entry, title, Modifier.weight(1f))
+        }
+    }
+}
+
+/** An entry's title and steps. */
+@Composable
+private fun EntryText(entry: LogEntry, title: String, modifier: Modifier = Modifier) {
+    val item = entry.item
+    Column(modifier) {
+        Text(
+            title,
+            style = Type.bodySmall.copy(fontWeight = if (item.isAnchor) FontWeight.Bold else FontWeight.Normal),
+            color = if (item.isOpen) Ink.text else Ink.dim,
+        )
+        if (!entry.projected) {
+            item.steps.forEach { s ->
+                Text(
+                    stringResource(if (s.done) R.string.log_step_done else R.string.log_step_open, s.title),
+                    style = Type.caption,
+                    color = if (s.done) Ink.dim else Ink.text,
+                )
             }
         }
     }
+}
+
+/**
+ * The way to add to a day from the Log: "+ Add to Friday", which opens into a
+ * quick-add line in place. A line is read as for quick-add, on this day unless
+ * it names another. Enter adds and leaves the line open for the next one.
+ */
+@Composable
+private fun AddLine(date: LocalDate, today: LocalDate, open: Boolean, onOpen: () -> Unit, onAdd: (String, LocalDate) -> Boolean) {
+    if (!open) {
+        val name = if (date == today) stringResource(R.string.log_add_today) else stringResource(R.string.log_add_to, Formats.weekday(date))
+        Row(Modifier.fillMaxWidth().heightIn(min = Tap.min).clickable(onClick = onOpen), verticalAlignment = Alignment.CenterVertically) {
+            Text(name, style = Type.bodySmall, color = Ink.accent)
+        }
+        return
+    }
+    // Saved across a restart, so a half-typed line survives.
+    var text by rememberSaveable(date) { mutableStateOf("") }
+    val cursor = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { cursor.requestFocus() } }
+    fun submit() {
+        if (onAdd(text, date)) text = ""
+    }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        singleLine = true,
+        placeholder = { Text(stringResource(R.string.quick_add_hint), style = Type.bodySmall, color = Ink.dim) },
+        textStyle = Type.body.copy(color = Ink.text),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { submit() }),
+        trailingIcon = if (text.isBlank()) null else ({ QuietButton(stringResource(R.string.quick_add_button), ::submit, color = Ink.accent) }),
+        modifier = Modifier.fillMaxWidth().focusRequester(cursor),
+    )
 }
 
 /** The month as a grid, Monday first. Days with fixed times carry a mark; tap a day to list it below. */
@@ -263,13 +357,14 @@ private fun DayCell(date: LocalDate, fixed: Boolean, picked: Boolean, today: Boo
     val name = Formats.longDay(date)
     val spoken = if (fixed) stringResource(R.string.log_has_fixed, name) else name
     val mark = if (picked) Ink.onAccent else Ink.accent
+    val haptics = rememberHaptics()
     Column(
         modifier
             .heightIn(min = Tap.min)
             .clip(shape)
             .background(if (picked) Ink.accent else Ink.surface)
             .then(if (today && !picked) Modifier.border(1.dp, Ink.accent, shape) else Modifier)
-            .clickable { onPick(date) }
+            .clickable { haptics.tick(); onPick(date) }
             .semantics {
                 contentDescription = spoken
                 selected = picked
@@ -298,8 +393,8 @@ private fun MonthRow(month: LogMonth, today: LocalDate, onOpen: (LocalDate) -> U
         month.anchors.isNotEmpty() -> month.anchors.joinToString(", ") {
             context.getString(R.string.log_month_anchor, it.item.title, it.date.dayOfMonth)
         }
-        past -> ""
-        else -> stringResource(R.string.log_nothing_fixed)
+        // A month with nothing fixed stays blank, rather than saying so twelve times.
+        else -> ""
     }
     Row(
         Modifier

@@ -1,5 +1,9 @@
 package net.fallhammer.initiative.ui
 
+import android.os.Build
+import android.view.HapticFeedbackConstants
+import android.view.View
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,18 +36,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -60,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import initiative.core.Trio
 import net.fallhammer.initiative.data.Apps
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 
 /*
@@ -110,14 +117,17 @@ object Type {
     val label = style(16, 22, FontWeight.Bold)
 }
 
-/** Every screen's frame: background, system bars, keyboard space, and margins. */
+/**
+ * Every screen's frame: background, system bars, keyboard space, and margins.
+ * [pulse], read while drawing, sends one ring of light across the hexagon grid.
+ */
 @Composable
-fun Screen(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun Screen(modifier: Modifier = Modifier, pulse: () -> Pulse? = { null }, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier
             .fillMaxSize()
             .background(Ink.bg)
-            .then(if (LocalLook.current.hexGrid) Modifier.hexGrid(Ink.pattern, LocalHexLattice.current.value) else Modifier)
+            .then(if (LocalLook.current.hexGrid) Modifier.hexGrid(Ink.pattern, Ink.accent, LocalHexLattice.current.value, pulse) else Modifier)
             .systemBarsPadding()
             .imePadding()
             .padding(horizontal = Space.l, vertical = Space.m),
@@ -127,24 +137,19 @@ fun Screen(modifier: Modifier = Modifier, content: @Composable ColumnScope.() ->
 
 /**
  * A one-line panel, framed like a [Card], with the same side padding so its text
- * lines up with the card's. The folded day panel is one. [behind] draws on the
- * surface, under the content.
+ * lines up with the card's. The folded day panel is one.
  */
 @Composable
-fun Strip(
-    modifier: Modifier = Modifier,
-    behind: (DrawScope.() -> Unit)? = null,
-    content: @Composable RowScope.() -> Unit,
-) {
+fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     val look = LocalLook.current
     Row(
-        modifier
+        // Clipped before the caller's modifier, so a tap's ripple keeps the panel's shape.
+        Modifier
             .fillMaxWidth()
             .heightIn(min = Tap.min)
             .clip(look.cardShape)
+            .then(modifier)
             .background(Ink.surface)
-            // A faint drawing over the surface and under the text, such as the Plan ahead arc.
-            .then(if (behind != null) Modifier.drawBehind(behind) else Modifier)
             .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
             .padding(horizontal = Space.xl, vertical = Space.s),
         verticalAlignment = Alignment.CenterVertically,
@@ -202,8 +207,14 @@ data class HexLattice(val hex: Float, val origin: Offset)
 /** Shared by every screen, so the grid doesn't shift between them. */
 val LocalHexLattice = compositionLocalOf { mutableStateOf<HexLattice?>(null) }
 
-/** A faint flat-topped hexagon grid behind a screen, as in the sci-fi quest log. */
-private fun Modifier.hexGrid(color: Color, lattice: HexLattice?): Modifier = drawWithCache {
+/** One ring of light running out from [center]; [progress] goes from 0 to 1. */
+data class Pulse(val center: Offset, val progress: Float)
+
+/**
+ * A faint flat-topped hexagon grid behind a screen, as in the sci-fi quest log.
+ * A [pulse] lights the grid's lines in a ring that runs outward and fades.
+ */
+private fun Modifier.hexGrid(color: Color, glow: Color, lattice: HexLattice?, pulse: () -> Pulse?): Modifier = drawWithCache {
     val margin = Space.l.toPx()
     val w = lattice?.hex ?: Trio.hexFor(size.width - 2 * margin, DOCK_SLOTS)
     val origin = lattice?.origin ?: Offset(margin + w / 2, 0f)
@@ -217,8 +228,29 @@ private fun Modifier.hexGrid(color: Color, lattice: HexLattice?): Modifier = dra
             if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
     }
-    onDrawBehind { drawPath(path, color, style = Stroke(Hairline.toPx())) }
+    val far = hypot(size.width, size.height)
+    onDrawBehind {
+        drawPath(path, color, style = Stroke(Hairline.toPx()))
+        val p = pulse() ?: return@onDrawBehind
+        if (p.progress <= 0f || p.progress >= 1f) return@onDrawBehind
+        val ring = p.progress
+        val band = PULSE_BAND
+        val light = glow.copy(alpha = PULSE_ALPHA * (1f - p.progress))
+        val stops = arrayOf(
+            0f to Color.Transparent,
+            (ring - band).coerceIn(0f, 1f) to Color.Transparent,
+            ring to light,
+            (ring + band).coerceIn(0f, 1f) to Color.Transparent,
+            1f to Color.Transparent,
+        )
+        drawPath(path, Brush.radialGradient(*stops, center = p.center, radius = far), style = Stroke(PULSE_LINE.toPx()))
+    }
 }
+
+// The pulse: its ring's width as a share of the screen's diagonal, its brightness, its line.
+private const val PULSE_BAND = 0.12f
+private const val PULSE_ALPHA = 0.9f
+private val PULSE_LINE = 2.dp
 
 /** The dock's slot count, which also sizes the background grid's hexagons. */
 const val DOCK_SLOTS = Apps.DOCK_SIZE
@@ -339,6 +371,7 @@ fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChoiceRow(label: String?, options: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
+    val haptics = rememberHaptics()
     Column(Modifier.fillMaxWidth().selectableGroup()) {
         if (label != null) Text(label, style = Type.bodySmall, color = Ink.text)
         FlowRow(
@@ -351,7 +384,7 @@ fun ChoiceRow(label: String?, options: List<String>, chosen: Int, onSelect: (Int
                 if (i == chosen) {
                     PrimaryButton(option, { onSelect(i) }, mod, height = Tap.min)
                 } else {
-                    SecondaryButton(option, { onSelect(i) }, mod, height = Tap.min)
+                    SecondaryButton(option, { haptics.tick(); onSelect(i) }, mod, height = Tap.min)
                 }
             }
         }
@@ -365,11 +398,13 @@ fun ChoiceRow(label: String?, options: List<String>, chosen: Int, onSelect: (Int
  */
 @Composable
 fun StepRow(text: String, done: Boolean, onChange: (Boolean) -> Unit) {
+    val haptics = rememberHaptics()
+    val color by animateColorAsState(if (done) Ink.dim else Ink.text, label = "step")
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Tap.min)
-            .toggleable(value = done, role = Role.Checkbox, onValueChange = onChange),
+            .toggleable(value = done, role = Role.Checkbox) { haptics.toggle(it); onChange(it) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(
@@ -377,8 +412,42 @@ fun StepRow(text: String, done: Boolean, onChange: (Boolean) -> Unit) {
             onCheckedChange = null,
             colors = CheckboxDefaults.colors(checkedColor = Ink.accent, uncheckedColor = Ink.accent, checkmarkColor = Ink.onAccent),
         )
-        Text(text, style = Type.bodySmall, color = if (done) Ink.dim else Ink.text, modifier = Modifier.weight(1f).padding(start = Space.s))
+        Text(text, style = Type.bodySmall, color = color, modifier = Modifier.weight(1f).padding(start = Space.s))
     }
+}
+
+/**
+ * Touch feedback through Android's own named effects, so the phone's haptics
+ * setting applies. It answers touches only: a clear "got it", never a buzz for
+ * its own sake. Done confirms; "doesn't fit" is the one "no".
+ */
+class Haptics(private val view: View) {
+    fun confirm() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY)
+    fun reject() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.LONG_PRESS)
+    fun tick() = feel(HapticFeedbackConstants.CLOCK_TICK)
+
+    fun toggle(on: Boolean) = feel(
+        when {
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> HapticFeedbackConstants.CLOCK_TICK
+            on -> HapticFeedbackConstants.TOGGLE_ON
+            else -> HapticFeedbackConstants.TOGGLE_OFF
+        },
+    )
+
+    /** A drag: picked up, passing another entry, let go. */
+    fun pickUp() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.GESTURE_START else HapticFeedbackConstants.LONG_PRESS)
+    fun pass() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) HapticFeedbackConstants.SEGMENT_FREQUENT_TICK else HapticFeedbackConstants.CLOCK_TICK)
+    fun drop() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.GESTURE_END else HapticFeedbackConstants.CLOCK_TICK)
+
+    private fun feel(effect: Int) {
+        view.performHapticFeedback(effect)
+    }
+}
+
+@Composable
+fun rememberHaptics(): Haptics {
+    val view = LocalView.current
+    return remember(view) { Haptics(view) }
 }
 
 /** A short note after an action, with Undo when the action can be taken back. */

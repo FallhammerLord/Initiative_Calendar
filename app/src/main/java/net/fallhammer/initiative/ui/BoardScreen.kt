@@ -7,6 +7,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -48,6 +55,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -72,7 +80,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import initiative.core.DayWindow
+import kotlinx.coroutines.launch
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkKind
@@ -109,6 +117,11 @@ fun BoardScreen(vm: BoardViewModel) {
     val confirming by vm.confirming.collectAsStateWithLifecycle()
     val logOpen by vm.log.open.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val haptics = rememberHaptics()
+    val scope = rememberCoroutineScope()
+    // All done sends one ring of light across the background grid, from the Now card.
+    val glow = remember { Animatable(1f) }
+    var cardCenter by remember { mutableStateOf(Offset.Zero) }
     val focus = LocalFocusManager.current
 
     // Coming back home should show the board, not an open keyboard.
@@ -165,14 +178,23 @@ fun BoardScreen(vm: BoardViewModel) {
             } else if (editing != null) {
                 EditScreen(editing, vm.edit)
             } else if (logOpen) {
-                LogScreen(vm.log, ui.board?.now?.item, onEdit = vm.edit::open, onClose = vm.log::close)
+                LogScreen(
+                    vm.log,
+                    ui.board?.now?.item,
+                    flash = flash,
+                    onAdd = vm::addOn,
+                    onUndo = vm::undo,
+                    onEdit = vm.edit::open,
+                    onClose = vm.log::close,
+                )
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
             } else Box(Modifier.fillMaxSize()) {
                 // A touch anywhere but the text field lets go of it. It only watches,
                 // so the touch still reaches whatever it landed on.
                 Screen(
-                    Modifier
+                    pulse = { glow.value.takeIf { it < 1f }?.let { Pulse(cardCenter, it) } },
+                    modifier = Modifier
                         .onGloballyPositioned { boardAt = it.positionInRoot() }
                         .pointerInput(Unit) {
                             awaitEachGesture {
@@ -186,9 +208,10 @@ fun BoardScreen(vm: BoardViewModel) {
                     // and Skip stay in one place whatever the card holds.
                     // While typing, the board keeps only what typing needs: the panel
                     // goes, and the card shrinks to its title, so nothing is squeezed.
-                    if (!keyboardUp) PlanPanel(ui.now, ui.window, onOpen = vm::openLog)
+                    if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog)
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
                         NowCard(
+                            modifier = Modifier.onGloballyPositioned { cardCenter = it.boundsInRoot().center },
                             ui = ui,
                             flash = flash,
                             onDone = vm::done,
@@ -241,7 +264,19 @@ fun BoardScreen(vm: BoardViewModel) {
                     DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) }, onMove = vm::moveTask)
                 }
                 confirming?.let { item ->
-                    StepsCheck(item, onStep = { i -> vm.toggleStep(item, i) }, onAllDone = vm::allDone, onNotYet = vm::notYet)
+                    StepsCheck(
+                        item,
+                        onStep = { i -> vm.toggleStep(item, i) },
+                        onAllDone = {
+                            haptics.confirm()
+                            vm.allDone()
+                            scope.launch {
+                                glow.snapTo(0f)
+                                glow.animateTo(1f, tween(PULSE_MS, easing = LinearOutSlowInEasing))
+                            }
+                        },
+                        onNotYet = vm::notYet,
+                    )
                 }
             }
         }
@@ -322,6 +357,7 @@ fun BoardScreen(vm: BoardViewModel) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NowCard(
+    modifier: Modifier,
     ui: BoardUi,
     flash: Flash?,
     onDone: (Item) -> Unit,
@@ -335,8 +371,9 @@ private fun NowCard(
 ) {
     val board = ui.board
     val item = board?.now?.item
+    val haptics = rememberHaptics()
     val scroll = rememberScrollState()
-    Card {
+    Card(modifier) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(scroll, enabled = scroll.maxValue > 0)) {
             // Tapping the title area opens the edit form; holding it starts focus,
             // with the Focus button as the visible twin. TalkBack reads both actions.
@@ -362,9 +399,21 @@ private fun NowCard(
                 }
                 Spacer(Modifier.height(Space.s))
                 // Until the database loads, the card stays blank rather than showing a wrong "Free time".
+                // A new Now fades in and rises a little, so the change is seen, not missed.
                 if (board != null) {
-                    Title(item?.title ?: stringResource(R.string.free_time))
-                    if (item != null && item.isAnchor) Body(Formats.anchorLine(item), style = Type.bodySmall)
+                    AnimatedContent(
+                        targetState = item,
+                        contentKey = { it?.id },
+                        transitionSpec = {
+                            (fadeIn(tween(NOW_IN_MS)) + slideInVertically(tween(NOW_IN_MS)) { it / NOW_RISE }) togetherWith fadeOut(tween(NOW_OUT_MS))
+                        },
+                        label = "now",
+                    ) { shown ->
+                        Column {
+                            Title(shown?.title ?: stringResource(R.string.free_time))
+                            if (shown != null && shown.isAnchor) Body(Formats.anchorLine(shown), style = Type.bodySmall)
+                        }
+                    }
                 }
             }
             // Steps tick off right here; Done asks about any left open.
@@ -387,16 +436,22 @@ private fun NowCard(
                 val done = stringResource(R.string.action_done)
                 val skip = stringResource(R.string.action_skip)
                 val tomorrow = stringResource(R.string.action_tomorrow)
+                // Done confirms; with steps open it only asks, so it just ticks. Skip is a neutral tick.
+                val doneTap = {
+                    if (item.nextStep == null) haptics.confirm() else haptics.tick()
+                    onDone(item)
+                }
+                val skipTap = { haptics.tick(); onSkip(item) }
                 if (item.isAnchor) {
                     ActionRow(
-                        Action { PrimaryButton(done, { onDone(item) }, it) },
-                        Action { SecondaryButton(skip, { onSkip(item) }, it) },
+                        Action { PrimaryButton(done, doneTap, it) },
+                        Action { SecondaryButton(skip, skipTap, it) },
                     )
                 } else {
                     ActionRow(
-                        Action { PrimaryButton(done, { onDone(item) }, it) },
-                        Action { SecondaryButton(skip, { onSkip(item) }, it) },
-                        Action(1.3f) { SecondaryButton(tomorrow, { onTomorrow(item) }, it) },
+                        Action { PrimaryButton(done, doneTap, it) },
+                        Action { SecondaryButton(skip, skipTap, it) },
+                        Action(1.3f) { SecondaryButton(tomorrow, { haptics.tick(); onTomorrow(item) }, it) },
                     )
                 }
             }
@@ -405,49 +460,98 @@ private fun NowCard(
 }
 
 /**
- * The top of the board, for a glance: the time and date over a faint arc that
- * shows how far the planning day has gone. Tap it to plan ahead in the Log. At
- * large font sizes it keeps just the time, so the Now card has room.
+ * The top of the board, for a glance: the time and date, and the day's dial.
+ * The dial is a low arc across the planning day. Anchors sit on it as pips,
+ * Hard ones heavier; things done are small ticks. A pointer under the arc
+ * tracks now, so it never hides a pip; outside the planning day it rests at
+ * the nearer end, hollow. Tap the panel to plan ahead in the Log. At large
+ * font sizes the date steps aside; the dial stays.
  */
 @Composable
-private fun PlanPanel(now: LocalDateTime, window: DayWindow, onOpen: () -> Unit) {
+private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
     val label = stringResource(R.string.plan_ahead)
     val large = LocalDensity.current.fontScale > LARGE_FONT
-    val start = window.start.toSecondOfDay()
-    val length = (window.end.toSecondOfDay() - start).coerceAtLeast(1)
-    val through = ((now.toLocalTime().toSecondOfDay() - start).toFloat() / length).coerceIn(0f, 1f)
-    val arcColor = Ink.line
-    val sunColor = Ink.accent
-    Strip(
-        Modifier.clickable(onClickLabel = label, onClick = onOpen),
-        behind = {
-            // A low curve from one end of the day to the other, and a dot for now.
-            val left = Space.l.toPx()
-            val right = size.width - left
-            val base = size.height - ARC_BASE.toPx()
-            val top = base - size.height * ARC_RISE * 2
-            val arc = Path().apply {
-                moveTo(left, base)
-                quadraticBezierTo(size.width / 2, top, right, base)
-            }
-            drawPath(arc, arcColor, style = Stroke(ARC_WIDTH.toPx()))
-            val u = 1 - through
-            val x = u * u * left + 2 * u * through * size.width / 2 + through * through * right
-            val y = u * u * base + 2 * u * through * top + through * through * base
-            drawCircle(sunColor.copy(alpha = SUN_ALPHA), radius = SUN.toPx(), center = Offset(x, y))
-        },
-    ) {
+    val now = ui.now
+    Strip(Modifier.clickable(onClickLabel = label, onClick = onOpen)) {
         Column(Modifier.weight(1f)) {
-            Text(Formats.clock(now), style = if (large) Type.heading else Type.title, color = Ink.text)
-            if (!large) Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(Formats.clock(now), style = if (large) Type.heading else Type.title, color = Ink.text)
+                    if (!large) Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
+                }
+                Text(label, style = Type.bodySmall, color = Ink.accent)
+                Text(
+                    stringResource(R.string.plan_ahead_mark),
+                    style = Type.body,
+                    color = Ink.accent,
+                    modifier = Modifier.padding(start = Space.xs).clearAndSetSemantics { },
+                )
+            }
+            Spacer(Modifier.height(Space.xs))
+            DayDial(ui)
         }
-        Text(label, style = Type.bodySmall, color = Ink.accent)
-        Text(
-            stringResource(R.string.plan_ahead_mark),
-            style = Type.body,
-            color = Ink.accent,
-            modifier = Modifier.padding(start = Space.xs).clearAndSetSemantics { },
-        )
+    }
+}
+
+/** The dial itself; TalkBack hears it as today's line, walls and all. */
+@Composable
+private fun DayDial(ui: BoardUi) {
+    val start = ui.window.start.toSecondOfDay()
+    val length = (ui.window.end.toSecondOfDay() - start).coerceAtLeast(1)
+    fun frac(t: LocalDateTime): Float = (t.toLocalTime().toSecondOfDay() - start).toFloat() / length
+    val nowAt = frac(ui.now)
+
+    val walls = ui.ledger.filter { it.kind != MarkKind.DONE }.map {
+        stringResource(R.string.ledger_wall, it.item.title, Formats.clock(it.at), Formats.wall(it.item.wall))
+    }
+    val doneCount = ui.ledger.count { it.kind == MarkKind.DONE }
+    val description = stringResource(
+        R.string.ledger_description,
+        pluralStringResource(R.plurals.ledger_done, doneCount, doneCount),
+        if (walls.isEmpty()) stringResource(R.string.ledger_no_walls) else stringResource(R.string.ledger_walls, walls.joinToString("; ")),
+    )
+
+    val lineColor = Ink.line
+    val doneColor = Ink.dim
+    val wallColor = Ink.text
+    val pointerColor = Ink.accent
+    Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT).semantics { contentDescription = description }) {
+        val base = size.height - POINTER_ROOM.toPx()
+        val rise = DIAL_RISE.toPx()
+        val w = size.width
+        // On this curve, left to right is time, evenly: an hour is the same width anywhere.
+        fun y(f: Float): Float = base - 4 * rise * f * (1 - f)
+        val arc = Path().apply {
+            moveTo(0f, base)
+            quadraticBezierTo(w / 2, base - 2 * rise, w, base)
+        }
+        drawPath(arc, lineColor, style = Stroke(ARC_WIDTH.toPx()))
+        ui.ledger.forEach { mark ->
+            val f = frac(mark.at).coerceIn(0f, 1f)
+            val c = Offset(f * w, y(f))
+            when (mark.kind) {
+                MarkKind.DONE -> drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
+                MarkKind.SOFT -> drawCircle(wallColor, radius = PIP.toPx(), center = c, style = Stroke(ARC_WIDTH.toPx()))
+                MarkKind.FIRM -> drawCircle(wallColor, radius = PIP.toPx(), center = c)
+                MarkKind.HARD -> drawRect(
+                    wallColor,
+                    topLeft = Offset(c.x - HARD_WIDTH.toPx() / 2, c.y - HARD_HEIGHT.toPx() / 2),
+                    size = Size(HARD_WIDTH.toPx(), HARD_HEIGHT.toPx()),
+                )
+            }
+        }
+        // The pointer: a small triangle under the arc, pointing up at now.
+        val inDay = nowAt in 0f..1f
+        val x = nowAt.coerceIn(0f, 1f) * w
+        val tip = y(nowAt.coerceIn(0f, 1f)) + POINTER_GAP.toPx()
+        val half = POINTER_WIDTH.toPx() / 2
+        val pointer = Path().apply {
+            moveTo(x, tip)
+            lineTo(x - half, tip + POINTER_HEIGHT.toPx())
+            lineTo(x + half, tip + POINTER_HEIGHT.toPx())
+            close()
+        }
+        if (inDay) drawPath(pointer, pointerColor) else drawPath(pointer, pointerColor, style = Stroke(ARC_WIDTH.toPx()))
     }
 }
 
@@ -546,7 +650,7 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
     if (open) {
         Row(tap.fillMaxWidth().heightIn(min = Tap.min), verticalAlignment = Alignment.CenterVertically, content = content)
     } else {
-        Strip(tap, content = content)
+        Strip(tap, content)
     }
 }
 
@@ -555,7 +659,7 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
  * board. Swipe its handle down, tap outside it, or press Back to fold it.
  */
 @Composable
-private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit, onMove: (Item, Int) -> Unit) {
+private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit, onMove: (Item, Int) -> Boolean) {
     val closeLabel = stringResource(R.string.day_close)
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -571,63 +675,9 @@ private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit, o
             Card(Modifier.heightIn(max = maxHeight * SHEET_SHARE)) {
                 DayBar(ui, open = true, onToggle = onClose, modifier = Modifier.onSwipeDown(onClose))
                 Spacer(Modifier.height(Space.s))
-                LedgerLine(ui)
-                Spacer(Modifier.height(Space.s))
                 ForecastList(ui.forecast, Modifier.weight(1f, fill = false), onEdit, onMove)
             }
         }
-    }
-}
-
-/** The day as one line: done ticks, walls as markers, a bar for now. */
-@Composable
-private fun LedgerLine(ui: BoardUi) {
-    val startMin = ui.window.start.toSecondOfDay() / 60f
-    val endMin = ui.window.end.toSecondOfDay() / 60f
-    fun frac(t: LocalDateTime): Float = ((t.toLocalTime().toSecondOfDay() / 60f - startMin) / (endMin - startMin)).coerceIn(0f, 1f)
-
-    // TalkBack can't see a drawing, so the line describes itself.
-    val walls = ui.ledger.filter { it.kind != MarkKind.DONE }.map {
-        stringResource(R.string.ledger_wall, it.item.title, Formats.clock(it.at), Formats.wall(it.item.wall))
-    }
-    val doneCount = ui.ledger.count { it.kind == MarkKind.DONE }
-    val description = stringResource(
-        R.string.ledger_description,
-        pluralStringResource(R.plurals.ledger_done, doneCount, doneCount),
-        if (walls.isEmpty()) stringResource(R.string.ledger_no_walls) else stringResource(R.string.ledger_walls, walls.joinToString("; ")),
-    )
-
-    val lineColor = Ink.line
-    val doneColor = Ink.dim
-    val wallColor = Ink.text
-    val nowColor = Ink.accent
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) { contentDescription = description }
-            .padding(horizontal = Space.xs, vertical = Space.xs),
-    ) {
-        Canvas(Modifier.fillMaxWidth().height(32.dp)) {
-            val mid = size.height / 2
-            drawLine(lineColor, Offset(0f, mid), Offset(size.width, mid), strokeWidth = 2.dp.toPx())
-            ui.ledger.forEach { mark ->
-                val x = frac(mark.at) * size.width
-                when (mark.kind) {
-                    MarkKind.DONE -> drawLine(doneColor, Offset(x, mid - 6.dp.toPx()), Offset(x, mid + 6.dp.toPx()), strokeWidth = 2.dp.toPx())
-                    MarkKind.SOFT -> drawCircle(wallColor, radius = 5.dp.toPx(), center = Offset(x, mid), style = Stroke(2.dp.toPx()))
-                    MarkKind.FIRM -> drawCircle(wallColor, radius = 6.dp.toPx(), center = Offset(x, mid))
-                    MarkKind.HARD -> drawRect(
-                        wallColor,
-                        topLeft = Offset(x - 4.dp.toPx(), mid - 12.dp.toPx()),
-                        size = Size(8.dp.toPx(), 24.dp.toPx()),
-                    )
-                }
-            }
-            val nx = frac(ui.now) * size.width
-            drawLine(nowColor, Offset(nx, 0f), Offset(nx, size.height), strokeWidth = 3.dp.toPx())
-        }
-        Text(stringResource(R.string.ledger_hint), style = Type.caption, color = Ink.dim)
     }
 }
 
@@ -699,12 +749,26 @@ private val SWIPE = 48.dp
 private val DRAWER_BAND = 72.dp
 private val DRAWER_SWIPE = 64.dp
 
-// The Plan ahead arc: how high it rises, as a share of the panel; its line; the dot for now.
-private const val ARC_RISE = 0.06f
-private val ARC_BASE = 4.dp
+// The day dial: its height, the arc's rise and line, the pips, and the pointer under it.
+private val DIAL_HEIGHT = 32.dp
+private val DIAL_RISE = 8.dp
 private val ARC_WIDTH = 2.dp
-private val SUN = 5.dp
-private const val SUN_ALPHA = 0.7f
+private val PIP = 5.dp
+private val TICK = 5.dp
+private val HARD_WIDTH = 6.dp
+private val HARD_HEIGHT = 16.dp
+private val POINTER_ROOM = 12.dp
+private val POINTER_GAP = 3.dp
+private val POINTER_WIDTH = 12.dp
+private val POINTER_HEIGHT = 8.dp
+
+// The Now title's change: in, out, and how far it rises (a share of its height).
+private const val NOW_IN_MS = 260
+private const val NOW_OUT_MS = 120
+private const val NOW_RISE = 6
+
+/** The All done pulse's run across the screen. */
+private const val PULSE_MS = 700
 
 /** The open day panel takes at most this share of the screen. */
 private const val SHEET_SHARE = 0.7f

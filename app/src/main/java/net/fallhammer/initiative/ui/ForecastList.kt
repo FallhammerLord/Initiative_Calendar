@@ -47,7 +47,7 @@ import net.fallhammer.initiative.R
  * and Move later instead of dragging.
  */
 @Composable
-fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit, onMove: (Item, Int) -> Unit) {
+fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit, onMove: (Item, Int) -> Boolean) {
     if (forecast.slots.isEmpty() && forecast.later.isEmpty()) {
         Body(stringResource(R.string.queue_empty), modifier = Modifier.padding(Space.s))
         return
@@ -57,6 +57,9 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
     val bounds = remember { mutableStateMapOf<Long, ClosedFloatingPointRange<Float>>() }
     var dragging by remember { mutableStateOf<Long?>(null) }
     var dragY by remember { mutableFloatStateOf(0f) }
+    // A tick each time the dragged task passes another entry; a settle where it lands, or a "no".
+    val haptics = rememberHaptics()
+    var passing by remember { mutableStateOf<Int?>(null) }
 
     fun dropIndex(item: Item): Int? {
         val own = bounds[item.id] ?: return null
@@ -79,10 +82,23 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
         } else {
             Modifier.pointerInput(item.id) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { dragging = item.id; dragY = 0f },
-                    onDrag = { change, delta -> change.consume(); dragY += delta.y },
+                    onDragStart = { dragging = item.id; dragY = 0f; passing = dropIndex(item); haptics.pickUp() },
+                    onDrag = { change, delta ->
+                        change.consume()
+                        dragY += delta.y
+                        val at = dropIndex(item)
+                        if (at != passing) {
+                            passing = at
+                            haptics.pass()
+                        }
+                    },
                     onDragEnd = {
-                        dropIndex(item)?.let { onMove(item, it) }
+                        val at = dropIndex(item)
+                        when {
+                            at == null -> haptics.drop()
+                            onMove(item, at) -> haptics.drop()
+                            else -> haptics.reject()
+                        }
                         dragging = null
                         dragY = 0f
                     },

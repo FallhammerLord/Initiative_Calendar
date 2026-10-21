@@ -40,7 +40,11 @@ object Parser {
     private val MINUTE_WORDS = setOf("m", "min", "mins", "minute", "minutes")
     private val HOUR_WORDS = setOf("h", "hr", "hrs", "hour", "hours")
 
-    fun parse(text: String, now: LocalDateTime): Parsed? {
+    /**
+     * [on] is the day the line is added to when the text names none, as from a
+     * day in the Log; a day in the text still wins.
+     */
+    fun parse(text: String, now: LocalDateTime, on: LocalDate? = null): Parsed? {
         val raw = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (raw.isEmpty()) return null
         val low = raw.map { it.lowercase().trimEnd(',', '.', ';', '!') }
@@ -221,7 +225,7 @@ object Parser {
         // Recurring weekly on a named day: "weekly on mon".
         if (freq == Freq.WEEKLY && days.isEmpty() && weekday != null) days += weekday
 
-        var base = date ?: today
+        var base = date ?: on ?: today
         val clock = time
         if (clock != null && base == today && !clock.isAfter(now.toLocalTime())) {
             base = when {
@@ -259,7 +263,7 @@ object Parser {
                 title = title,
                 kind = Kind.FLOAT,
                 durationMinutes = duration ?: Item.defaultMinutes(effort ?: Effort.QUICK),
-                earliestStart = if (date != null || rule != null) base else null,
+                earliestStart = if (date != null || rule != null || on != null) base else null,
                 deadline = deadline,
                 priority = priority,
                 effort = effort ?: Effort.QUICK,

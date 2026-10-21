@@ -21,6 +21,17 @@ class ParserTest {
         assertEquals(WallStrength.FIRM, r.wall)
     }
 
+    @Test fun aDayFromTheLogIsTheDefault() {
+        val friday = LocalDate.of(2026, 10, 23)
+        // No day typed: the Log's day.
+        assertEquals(friday.atTime(15, 0), Parser.parse("dentist 3pm", now, on = friday)!!.item.start)
+        val float = Parser.parse("pack lunch", now, on = friday)!!
+        assertEquals(friday, float.item.earliestStart)
+        assertEquals(false, float.unsureKind)
+        // A day typed still wins.
+        assertEquals(LocalDate.of(2026, 10, 22), Parser.parse("dentist thu 3pm", now, on = friday)!!.item.start?.toLocalDate())
+    }
+
     @Test fun plainFloat() {
         val r = p("call landlord")
         assertEquals(Kind.FLOAT, r.item.kind)

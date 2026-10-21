@@ -373,10 +373,10 @@ expect_text "Nothing else today"
 shot board-first-run
 # The day panel: folded to the Next line; tap opens it, Back folds it.
 tap "Nothing else today" exact
-expect_text "Today's line"
+wait_for "Hide today" exact || fail "the day panel should open"
 shot day-panel
 adb shell input keyevent KEYCODE_BACK
-wait_gone "Today's line" || fail "Back should fold the day panel"
+wait_gone "Hide today" exact || fail "Back should fold the day panel"
 pass "the day panel opens and folds"
 # A swipe up mid-board is not the drawer.
 adb shell input swipe 540 1200 540 300 250
@@ -418,10 +418,10 @@ pass "closing the keyboard releases the quick-add field"
 xy=$(find_node "Next: call landlord" exact) || fail "no Next line"
 x=${xy% *}; y=${xy#* }
 adb shell input swipe $x $y $x $((y - 400)) 250
-expect_text "Today's line"
+wait_for "Hide today" exact || fail "the day panel should open"
 expect_text "taxes"
 adb shell input tap 540 300
-wait_gone "Today's line" || fail "a tap outside should fold the day panel"
+wait_gone "Hide today" exact || fail "a tap outside should fold the day panel"
 pass "swipe up opens the day panel; a tap outside folds it"
 expect_notification "Now: taxes" "lock-screen card shows the Now card"
 
@@ -810,7 +810,7 @@ quick_add "read mail"
 quick_add "water plants"
 hide_keyboard
 tap "Next:"
-expect_text "Today's line"
+wait_for "Hide today" exact || fail "the day panel should open"
 expect_text "water plants"
 shot forecast
 read -r _ wtop _ wbottom < <(node_bounds "water plants") || fail "no water plants in the forecast"
@@ -827,7 +827,7 @@ log "     after the drag: dentist call $dtop, water plants $wtop, read mail $rto
 pass "dragging a task moves it to where it's dropped"
 shot forecast-after-drag
 adb shell input keyevent KEYCODE_BACK
-wait_gone "Today's line" || fail "Back should fold the day panel"
+wait_gone "Hide today" exact || fail "Back should fold the day panel"
 crash_check
 
 # --- The Log ----------------------------------------------------------------------
@@ -841,6 +841,13 @@ wait_for "Earlier" exact || fail "Plan ahead should open the Log"
 expect_text "Today"
 expect_text "dentist call"
 shot log-day
+# Add to a day from the Log: the line opens in place and stays open for the next.
+tap "+ Add to today" exact
+quick_add "pack lunch"
+expect_text "pack lunch"
+hide_keyboard
+wait_for "+ Add to today" exact || fail "the add line should close with the keyboard"
+pass "a day in the Log takes a new task, and the message shows in the Log"
 tap Week exact
 expect_text "dentist call"
 shot log-week
@@ -867,6 +874,27 @@ wait_for "Back to board" exact || fail "Plan ahead should open the Log again"
 tap "Back to board" exact
 wait_gone "Back to board" exact || fail "Back to board should close the Log"
 pass "Back and Back to board leave the Log"
+# At 200% font the Log keeps its way back and its Now bar in view.
+adb shell settings put system font_scale 2.0
+home
+sleep 2
+shot large-font-board
+tap "Plan ahead"
+wait_for "Back to board" exact || fail "the Log should open at 200% font"
+shot log-large-day
+tap Week exact
+shot log-large-week
+tap Month exact
+shot log-large-month
+for label in "Back to board" "Now:"; do
+  xy=$(find_node "$label") || fail "'$label' missing in the Log at 200% font"
+  y=${xy#* }
+  [ "$y" -lt 2400 ] || fail "'$label' off screen in the Log at 200% font"
+done
+pass "the Log works at 200% font"
+adb shell input keyevent KEYCODE_BACK
+adb shell settings put system font_scale 1.0
+home
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"
