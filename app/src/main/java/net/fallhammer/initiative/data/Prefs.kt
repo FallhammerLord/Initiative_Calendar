@@ -65,6 +65,11 @@ class Prefs(private val context: Context) {
             ?: Holiday.entries.toSet()
         set(value) = prefs.edit().putStringSet(HOLIDAYS, value.map { it.name }.toSet()).apply()
 
+    /** Whether paired people show on the board; on by default once anyone is paired. */
+    var pairsShown: Boolean
+        get() = prefs.getBoolean(PAIRS_SHOWN, true)
+        set(value) = prefs.edit().putBoolean(PAIRS_SHOWN, value).apply()
+
     /** A look's background pattern strength, in percent; each look keeps its own. Half by default. */
     fun texture(look: String): Int = prefs.getInt("$TEXTURE.$look", DEFAULT_TEXTURE)
 
@@ -204,6 +209,7 @@ class Prefs(private val context: Context) {
         const val TEXTURE = "texture"
         const val HOLIDAY_LOOKS = "holiday_looks"
         const val HOLIDAYS = "holidays"
+        const val PAIRS_SHOWN = "pairs_shown"
         const val DEFAULT_TEXTURE = 50
         const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val QUIET_ON = "quietOn"

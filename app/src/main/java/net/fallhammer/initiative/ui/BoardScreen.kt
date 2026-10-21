@@ -109,6 +109,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.ViewCompat
 import androidx.compose.ui.platform.LocalView
 import initiative.core.Formats
+import initiative.core.Kind
 import initiative.core.Item
 import initiative.core.MarkKind
 import initiative.core.Status
@@ -153,6 +154,21 @@ fun BoardScreen(vm: BoardViewModel) {
     val ticks by vm.pairs.ticks.collectAsStateWithLifecycle()
     val pairOpen by vm.pairOpen.collectAsStateWithLifecycle()
     val shareable by vm.shareable.collectAsStateWithLifecycle()
+    val pairsShown by vm.pairs.shown.collectAsStateWithLifecycle()
+    val pairFront by vm.pairFront.collectAsStateWithLifecycle()
+    val pairViews = peers.map { PairView(it, peeks[it.id]) }
+    // Today's shared times for each person shown with a line, at most three.
+    val palette = LocalLook.current.palette
+    val dialLines = if (!pairsShown) emptyList() else pairViews.filter { it.peer.showLine && it.peek != null }.take(MAX_LINES).map { p ->
+        val today = ui.now.toLocalDate()
+        val spans = p.peek!!.items.filter { it.kind != Kind.MARK && it.start.toLocalDate() == today }
+        DialLine(
+            p.peer.nickname,
+            PairColors.of(p.peer.color, palette),
+            spans.map { Triple(it.start, it.end, it.title) },
+            p.peek.probably(ui.now)?.let { it.start to it.end },
+        )
+    }
     val recap by vm.recap.state.collectAsStateWithLifecycle()
     val recopyDue by vm.recopy.due.collectAsStateWithLifecycle()
     val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
@@ -223,7 +239,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     onStop = vm.recopy::stop,
                 )
             } else if (editing != null) {
-                EditScreen(editing, vm.edit)
+                EditScreen(editing, vm.edit, paired = peers.isNotEmpty())
             } else if (reportOn != null) {
                 ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport, marks = reportMarks)
             } else if (logOpen) {
@@ -261,7 +277,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     // and Skip stay in one place whatever the card holds.
                     // While typing, the board keeps only what typing needs: the panel
                     // goes, and the card shrinks to its title, so nothing is squeezed.
-                    if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog)
+                    if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog, lines = dialLines)
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
                       Column {
                         // Items stepped aside for a wait: bookmarks from the screen's edge, above the card.
@@ -283,6 +299,19 @@ fun BoardScreen(vm: BoardViewModel) {
                             compact = keyboardUp,
                             onOnIt = vm::onIt,
                         )
+                      }
+                      // Paired people, up high on the left, under the marker bubbles.
+                      if (!keyboardUp && peers.isNotEmpty()) {
+                          PairmarkRow(
+                              pairViews.filter { it.peer.showMark },
+                              front = pairFront,
+                              now = ui.now,
+                              shown = pairsShown,
+                              onFront = vm::setPairFront,
+                              onPing = vm.pairs::ping,
+                              onShown = vm.pairs::setShown,
+                              modifier = Modifier.align(Alignment.TopStart).padding(top = Space.inside),
+                          )
                       }
                       // Markers hang off the Plan ahead panel's bottom edge, over the open space.
                       if (!keyboardUp) {
@@ -720,7 +749,7 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
  * font sizes the date steps aside; the dial stays.
  */
 @Composable
-private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
+private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit, lines: List<DialLine> = emptyList()) {
     val label = stringResource(R.string.plan_ahead)
     val large = LocalDensity.current.fontScale > LARGE_FONT
     val now = ui.now
@@ -738,7 +767,18 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
                 QuietButton(stringResource(R.string.plan_ahead_button), onOpen, color = Ink.accent)
             }
             Spacer(Modifier.height(Space.xs))
-            DayDial(ui)
+            DayDial(ui, lines)
+            // A key for the lines under the dial: each person's color and nickname.
+            if (lines.isNotEmpty()) {
+                Row(Modifier.padding(top = Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+                    lines.forEach { l ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clearAndSetSemantics { }) {
+                            Box(Modifier.size(KEY_W, KEY_H).background(l.color))
+                            Text(l.name, style = Type.caption, color = Ink.dim, modifier = Modifier.padding(start = Space.xs))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -751,7 +791,7 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
  * with its end, then the day's line, walls and all.
  */
 @Composable
-private fun DayDial(ui: BoardUi) {
+private fun DayDial(ui: BoardUi, lines: List<DialLine> = emptyList()) {
     val start = ui.window.start.toSecondOfDay()
     val length = (ui.window.end.toSecondOfDay() - start).coerceAtLeast(1)
     fun frac(t: LocalDateTime): Float = (t.toLocalTime().toSecondOfDay() - start).toFloat() / length
@@ -774,7 +814,10 @@ private fun DayDial(ui: BoardUi) {
         R.string.ledger_description,
         nowLine + pluralStringResource(R.plurals.ledger_done, doneCount, doneCount),
         if (walls.isEmpty()) stringResource(R.string.ledger_no_walls) else stringResource(R.string.ledger_walls, walls.joinToString("; ")),
-    )
+    ) + lines.map { l ->
+        // map, not joinToString: stringResource needs an inline lambda.
+        " " + stringResource(R.string.dial_pair_line, l.name, l.spans.joinToString("; ") { (a, _, t) -> "$t ${Formats.clock(a)}" })
+    }.joinToString("")
 
     val lineColor = Ink.line
     val doneColor = Ink.dim
@@ -794,8 +837,10 @@ private fun DayDial(ui: BoardUi) {
     val cornBase = jewels.getOrNull(4) ?: nowColor
     val coinColor = Ink.accent
     val coinHole = Ink.surface
-    Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT).semantics { contentDescription = description }) {
-        val base = size.height - POINTER_ROOM.toPx()
+    Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT + LINE_GAP * lines.size).semantics { contentDescription = description }) {
+        // Each paired person's line sits under yours; the pointer goes under them all.
+        val under = LINE_GAP.toPx() * lines.size
+        val base = size.height - POINTER_ROOM.toPx() - under
         val rise = DIAL_RISE.toPx()
         val w = size.width
         // On this curve, left to right is time, evenly: an hour is the same width anywhere.
@@ -828,6 +873,18 @@ private fun DayDial(ui: BoardUi) {
             val from = wait.waitStart ?: return@forEach
             val until = wait.waitUntil ?: return@forEach
             if (until.isAfter(ui.now)) band(from, until, doneColor, ARC_WIDTH, lift = WAIT_LIFT.toPx(), effect = dots)
+        }
+
+        // Paired people's lines: faint for free, solid for their shared times, bright for what they're probably doing now.
+        lines.forEachIndexed { i, l ->
+            val drop = -LINE_GAP.toPx() * (i + 1)
+            val faint = Path().apply {
+                moveTo(0f, base - drop)
+                quadraticBezierTo(w / 2, base - 2 * rise - drop, w, base - drop)
+            }
+            drawPath(faint, l.color.copy(alpha = LINE_FAINT), style = Stroke(LINE_THIN.toPx()))
+            l.spans.forEach { (from, to, _) -> band(from, to, l.color.copy(alpha = LINE_SOLID), LINE_SPAN, lift = drop) }
+            l.bright?.let { (from, to) -> band(from, to, l.color, LINE_BRIGHT, lift = drop) }
         }
 
         ui.forecast.slots.forEach { slot ->
@@ -871,7 +928,7 @@ private fun DayDial(ui: BoardUi) {
         val ny = 1 / norm
         val tx = 1 / norm
         val ty = slope / norm
-        val gap = POINTER_GAP.toPx()
+        val gap = POINTER_GAP.toPx() + under
         val tall = POINTER_HEIGHT.toPx()
         val half = POINTER_WIDTH.toPx() / 2
         val tipX = px + nx * gap
@@ -1257,3 +1314,22 @@ private const val PULSE_MS = 700
 
 /** The open day panel takes at most this share of the screen. */
 private const val SHEET_SHARE = 0.7f
+
+/** A paired person's line under the dial: their spans today, and the one they're probably in now. */
+data class DialLine(
+    val name: String,
+    val color: Color,
+    val spans: List<Triple<LocalDateTime, LocalDateTime, String>>,
+    val bright: Pair<LocalDateTime, LocalDateTime>?,
+)
+
+// Paired people's lines under the dial: the gap between lines, their strokes and strengths, and the key's swatch.
+private val LINE_GAP = 9.dp
+private const val MAX_LINES = 3
+private val LINE_THIN = 1.5.dp
+private val LINE_SPAN = 3.dp
+private val LINE_BRIGHT = 4.dp
+private const val LINE_FAINT = 0.45f
+private const val LINE_SOLID = 0.75f
+private val KEY_W = 18.dp
+private val KEY_H = 4.dp

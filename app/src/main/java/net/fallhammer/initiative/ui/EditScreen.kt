@@ -58,6 +58,7 @@ import java.time.LocalTime
 fun EditScreen(
     draft: Item,
     edit: EditModel,
+    paired: Boolean = false,
 ) {
     val context = LocalContext.current
     val rule by edit.rule.collectAsStateWithLifecycle()
@@ -99,6 +100,11 @@ fun EditScreen(
             Field(stringResource(R.string.edit_title), title, { title = it }, singleLine = true)
             Spacer(Modifier.height(Space.s))
             Field(stringResource(R.string.edit_notes), notes, { notes = it }, singleLine = false)
+            // Once anyone is paired: keep this one home, whatever is shared.
+            if (paired) {
+                Spacer(Modifier.height(Space.s))
+                SettingSwitch(stringResource(R.string.edit_never_share), draft.neverShare) { on -> edit.change { it.copy(neverShare = on) } }
+            }
             // A marker is context, not work: no steps.
             if (!draft.isMark) Part {
                 Text(stringResource(R.string.edit_steps), style = Type.bodySmall, color = Ink.text)

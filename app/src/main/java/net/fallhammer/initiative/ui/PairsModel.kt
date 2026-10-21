@@ -6,14 +6,17 @@ import initiative.core.PeekFormat
 import initiative.core.ShareLevel
 import initiative.core.Shared
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.PeekRow
 import net.fallhammer.initiative.data.PeerRow
+import net.fallhammer.initiative.data.Prefs
 import net.fallhammer.initiative.data.ShareRow
 import java.time.LocalDateTime
 
@@ -36,6 +39,25 @@ class PairsModel(private val parts: BoardParts) : PairEdits {
     val peeks: StateFlow<Map<Long, Peek>> = dao.observePeeks()
         .map { rows -> rows.mapNotNull { r -> PeekFormat.decode(r.body)?.let { r.peer to it } }.toMap() }
         .stateIn(parts.scope, SharingStarted.Eagerly, emptyMap())
+
+    private val _shown = MutableStateFlow(true)
+    /** Whether pairs show on the board; the board's own on/off. */
+    val shown: StateFlow<Boolean> = _shown.asStateFlow()
+
+    /** Reads the on/off. Call off the main thread. */
+    fun load(prefs: Prefs) {
+        _shown.value = prefs.pairsShown
+    }
+
+    fun setShown(on: Boolean) {
+        _shown.value = on
+        parts.scope.launch(Dispatchers.IO) { parts.graph.prefs.pairsShown = on }
+    }
+
+    /** Ping: Bluetooth comes in the next push; for now it says so. */
+    fun ping() {
+        parts.show(Flash(parts.text(R.string.pair_ping_soon)))
+    }
 
     private fun save(peer: PeerRow) {
         parts.scope.launch(Dispatchers.IO) { dao.updatePeer(peer) }

@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -197,9 +198,10 @@ class ArchShape(private val rise: Dp) : Shape {
  * A waitmark's bookmark: square on the right, where it meets the screen's edge,
  * and pointing in on the left with its look's end: a chevron cut (Sci-fi), a
  * round end (Classic, Pastel), steps (Deco), half a pointed arch (Stained
- * glass), or a ribbon's notched end (Starlight).
+ * glass), or a ribbon's notched end (Starlight). [fromLeft] mirrors it: square
+ * on the left edge, pointing right, for a pairmark.
  */
-class BookmarkShape(private val style: HandleStyle) : Shape {
+class BookmarkShape(private val style: HandleStyle, private val fromLeft: Boolean = false) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val w = size.width
         val h = size.height
@@ -244,6 +246,8 @@ class BookmarkShape(private val style: HandleStyle) : Shape {
             lineTo(w, h)
             close()
         }
+        // From the left edge, pointing right: the same end, mirrored (a pairmark).
+        if (fromLeft) path.asAndroidPath().transform(android.graphics.Matrix().apply { setScale(-1f, 1f); postTranslate(w, 0f) })
         return Outline.Generic(path)
     }
 }

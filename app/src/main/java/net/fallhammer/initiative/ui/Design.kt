@@ -953,6 +953,25 @@ fun ArrowButton(mark: String, label: String, onClick: () -> Unit, modifier: Modi
     }
 }
 
+/**
+ * A small square button with a drawn icon instead of a word, such as Ping:
+ * outlined on the surface like every button. TalkBack hears [label].
+ */
+@Composable
+fun GlyphButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, glyph: DrawScope.(Color) -> Unit) {
+    val color = Ink.accent
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.size(Tap.min).semantics { contentDescription = label },
+        shape = LocalLook.current.buttonShape,
+        border = BorderStroke(Hairline, Ink.frame),
+        colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
+        contentPadding = PaddingValues(Space.s),
+    ) {
+        Box(Modifier.fillMaxSize().clearAndSetSemantics { }.drawBehind { glyph(color) })
+    }
+}
+
 private val ButtonPadding = PaddingValues(horizontal = Space.s, vertical = Space.s)
 
 @Composable

@@ -186,6 +186,13 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val shareable: StateFlow<List<Shareable>> = combine(repo.items, ui) { all, u -> Sharing.shareable(all, u.forecast, u.now) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** The person whose pairmark is in front; -1 for the first. Kept across a restart. */
+    val pairFront: StateFlow<Long> = saved.getStateFlow(PAIR_FRONT, -1L)
+
+    fun setPairFront(id: Long) {
+        saved[PAIR_FRONT] = id
+    }
+
     fun openPair(id: Long) {
         saved[PAIR] = id
     }
@@ -265,6 +272,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                     prefs.quickDefaultsShortened = true
                 }
                 settings.load(prefs, now.toLocalDate())
+                pairs.load(prefs)
                 order.value = prefs.taskOrder
                 backup.load(prefs)
                 recopy.load(prefs, now)
@@ -627,6 +635,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val UNDO_MS = 8_000L
         const val OVERLAY = "overlay"
         const val PAIR = "pair"
+        const val PAIR_FRONT = "pair_front"
         const val REPORT = "report"
         const val REPORT_NOTES = "report_notes"
         const val PICK_SLOT = "pick_slot"

@@ -240,7 +240,6 @@ fun PairScreen(
                 Label(stringResource(R.string.pair_show_heading))
                 SettingSwitch(stringResource(R.string.pair_show_mark), peer.showMark) { pairs.setShowMark(peer, it) }
                 SettingSwitch(stringResource(R.string.pair_show_line), peer.showLine) { pairs.setShowLine(peer, it) }
-                SettingSwitch(stringResource(R.string.pair_show_marks), peer.showMarks) { pairs.setShowMarks(peer, it) }
                 Spacer(Modifier.height(Space.s))
                 SettingSwitch(stringResource(R.string.pair_share_report), peer.shareReport) { pairs.setShareReport(peer, it) }
             }

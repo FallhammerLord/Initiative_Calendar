@@ -396,7 +396,6 @@
     <string name="pair_show_heading">Show on my board</string>
     <string name="pair_show_mark">Their pairmark</string>
     <string name="pair_show_line">Their line on the dial</string>
-    <string name="pair_show_marks">Their markers</string>
     <string name="pair_share_report">Share my day report</string>
     <string name="pair_unpair">Unpair</string>
     <string name="pair_unpair_ask">Unpair %1$s? You\'d pair again in person.</string>
@@ -407,4 +406,14 @@
     <string name="pair_pretend_name">Partner</string>
     <string name="pair_pretend_task">groceries</string>
     <string name="pair_pretend_anchor">pick up the girls</string>
+    <string name="pair_ping">Ping</string>
+    <string name="pair_ping_soon">Ping arrives with Bluetooth pairing, in the next update.</string>
+    <string name="pairs_hide">Hide pairs</string>
+    <string name="pairs_show">Show pairs</string>
+    <string name="pair_to_front">Bring to the front</string>
+    <string name="pair_no_peek">No peek yet</string>
+    <string name="pair_nothing_now">Nothing shared for now</string>
+    <string name="pair_probably">probably %1$s</string>
+    <string name="dial_pair_line">%1$s\'s line: %2$s.</string>
+    <string name="edit_never_share">Never share with pairs</string>
 </resources>
