@@ -72,6 +72,18 @@ class ForecastTest {
         assertEquals(listOf(3L to at(14), 2L to at(14, 15), 4L to at(14, 30), 1L to at(15)), f.line())
     }
 
+    @Test fun theTaskInHandStaysAheadOfAPinItRunsInto() {
+        // t2 was Now from 2:00, with t3 dropped after it at 2:15. At 2:05 it can't
+        // finish by 2:15, but it keeps its place, and stays Now until 2:15.
+        val inHand = task(2).copy(activeSince = at(14))
+        val pinned = task(3, created = 8).copy(pinnedSlot = at(14, 15))
+        val items = listOf(pickup, inHand, pinned)
+        assertEquals(listOf(2L to at(14, 5), 3L to at(14, 15), 1L to at(15)), engine.forecast(items, at(14, 5)).line())
+        assertEquals(2L, engine.board(items, at(14, 5)).now.item?.id)
+        // At 2:15 the pinned task takes over, as promised.
+        assertEquals(3L, engine.board(items, at(14, 15)).now.item?.id)
+    }
+
     @Test fun aPinWhoseTimePassedFreesTheTask() {
         val missed = task(2).copy(pinnedSlot = at(10))
         val b = engine.board(listOf(missed), at(12))

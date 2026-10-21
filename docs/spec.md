@@ -157,7 +157,7 @@ The app picks the Now card for you, every time you look, using a fixed and expla
 
 1. If an anchor is in progress, it is Now. That holds after it's marked Done on arrival: it stays Now, with no buttons, until its end ("Under way until 4:00 PM"), since you're still there. Skip frees the time instead.
 2. If the next anchor's lead-time warning has passed, that anchor is Now: "Starts in 10 min."
-3. If a float is pinned to this slot, it is Now.
+3. If a float is pinned to this slot, it is Now. Until its time comes, the task in hand stays ahead of it, even running over into its time, rather than dropping behind it.
 4. Otherwise, find the current gap: the time until the next anchor's lead-time warning, or the end of the day window.
 5. List floats that are eligible today: past their earliest start, not sent to Tomorrow, and short enough to fit the gap.
 6. A float longer than every gap today is eligible for the day's longest gap instead, so big tasks still surface.

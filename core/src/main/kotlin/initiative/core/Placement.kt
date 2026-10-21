@@ -212,11 +212,20 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val pinned = floats.filter { pinHolds(it, now) && it.pinnedSlot!!.toLocalDate() == today }
         val pool = rank(floats - pinned.toSet(), today, order).toMutableList()
         val placed = mutableListOf<Slot>()
+        // The task in hand: the one most recently shown as Now, not set aside for a wait.
+        val inHand = pool.filter { it.activeSince != null && it.waitUntil == null }.maxByOrNull { it.activeSince!! }
         for ((start, end) in freeTimes(today, live, now, pinned)) {
             var cursor = start
             while (true) {
                 val room = Duration.between(cursor, end).toMinutes()
-                val pick = pool.firstOrNull { (it.notBefore == null || !it.notBefore.isAfter(cursor)) && it.durationMinutes <= room }
+                val ready = { f: Item -> f.notBefore == null || !f.notBefore.isAfter(cursor) }
+                // The task in hand keeps its place ahead of a pinned task, even running over
+                // into it, rather than dropping behind it once it can't finish in time.
+                val keep = inHand.takeIf {
+                    placed.isEmpty() && cursor == start && !start.isAfter(now) &&
+                        pinned.any { p -> p.pinnedSlot == end } && pool.firstOrNull(ready) == it
+                }
+                val pick = keep ?: pool.firstOrNull { ready(it) && it.durationMinutes <= room }
                 if (pick != null) {
                     placed += Slot(pick, cursor)
                     pool.remove(pick)
