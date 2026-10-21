@@ -42,11 +42,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -127,7 +130,13 @@ fun Screen(modifier: Modifier = Modifier, pulse: () -> Pulse? = { null }, conten
         modifier
             .fillMaxSize()
             .background(Ink.bg)
-            .then(if (LocalLook.current.hexGrid) Modifier.hexGrid(Ink.pattern, Ink.accent, LocalHexLattice.current.value, pulse) else Modifier)
+            .then(
+                when {
+                    LocalLook.current.hexGrid -> Modifier.hexGrid(Ink.pattern, Ink.accent, LocalHexLattice.current.value, pulse)
+                    LocalLook.current.fans -> Modifier.fans(Ink.pattern, Ink.bg, Ink.accent, pulse)
+                    else -> Modifier
+                },
+            )
             .systemBarsPadding()
             .imePadding()
             .padding(horizontal = Space.l, vertical = Space.m),
@@ -183,11 +192,13 @@ fun Card(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val look = LocalLook.current
+    val gold = Ink.accent.copy(alpha = BRACKET_ALPHA)
     Column(
         modifier
             .fillMaxWidth()
             .clip(look.cardShape)
             .background(Ink.surface)
+            .then(if (look.brackets) Modifier.drawBehind { brackets(gold) } else Modifier)
             .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
             .padding(Space.xl),
         verticalArrangement = arrangement,
@@ -196,6 +207,29 @@ fun Card(
 }
 
 private val Hairline = 1.dp
+
+/**
+ * Two nested gold corner brackets inside each top corner, after the quest log's
+ * Dark theme: a long pair, and a short pair tucked inside it.
+ */
+private fun DrawScope.brackets(color: Color) {
+    val line = Hairline.toPx()
+    listOf(BRACKET_OUTER to BRACKET_LONG, BRACKET_INNER to BRACKET_SHORT).forEach { (inset, length) ->
+        val i = inset.toPx()
+        val l = length.toPx()
+        // Top left, then top right, mirrored.
+        drawRect(color, topLeft = Offset(i, i), size = Size(l, line))
+        drawRect(color, topLeft = Offset(i, i), size = Size(line, l))
+        drawRect(color, topLeft = Offset(size.width - i - l, i), size = Size(l, line))
+        drawRect(color, topLeft = Offset(size.width - i - line, i), size = Size(line, l))
+    }
+}
+
+private const val BRACKET_ALPHA = 0.6f
+private val BRACKET_OUTER = 16.dp
+private val BRACKET_INNER = 20.dp
+private val BRACKET_LONG = 16.dp
+private val BRACKET_SHORT = 8.dp
 
 /**
  * Where the background honeycomb sits: one hexagon's width, and the center of one
@@ -246,6 +280,55 @@ private fun Modifier.hexGrid(color: Color, glow: Color, lattice: HexLattice?, pu
         drawPath(path, Brush.radialGradient(*stops, center = p.center, radius = far), style = Stroke(PULSE_LINE.toPx()))
     }
 }
+
+/**
+ * Seigaiha fans behind a screen, as in the quest log's Dark theme: rows of
+ * half-hidden circles of fine rings, each row overlapping the one above. A
+ * [pulse] sends a sunburst of gold rays out from its center, once.
+ */
+private fun Modifier.fans(color: Color, ground: Color, glow: Color, pulse: () -> Pulse?): Modifier = drawWithCache {
+    val r = FAN.toPx()
+    // Row by row, top to bottom, so each lower fan covers the one above it.
+    val centers = buildList {
+        var row = 0
+        var y = 0f
+        while (y < size.height + 2 * r) {
+            var x = if (row % 2 == 0) 0f else r
+            while (x < size.width + 2 * r) {
+                add(Offset(x, y))
+                x += 2 * r
+            }
+            y += r
+            row++
+        }
+    }
+    val far = hypot(size.width, size.height)
+    val line = Hairline.toPx()
+    onDrawBehind {
+        centers.forEach { c ->
+            drawCircle(ground, radius = r, center = c)
+            FAN_RINGS.forEach { share -> drawCircle(color, radius = r * share, center = c, style = Stroke(line)) }
+        }
+        val p = pulse() ?: return@onDrawBehind
+        if (p.progress <= 0f || p.progress >= 1f) return@onDrawBehind
+        val light = glow.copy(alpha = PULSE_ALPHA * (1f - p.progress))
+        val reach = far * p.progress
+        repeat(SUN_RAYS) { k ->
+            val a = Math.toRadians(360.0 * k / SUN_RAYS).toFloat()
+            val from = Offset(p.center.x + cos(a) * reach * RAY_START, p.center.y + sin(a) * reach * RAY_START)
+            val to = Offset(p.center.x + cos(a) * reach, p.center.y + sin(a) * reach)
+            drawLine(light, from, to, strokeWidth = PULSE_LINE.toPx())
+        }
+    }
+}
+
+// The fans: radius, and the rings inside each (shares of the radius), as in the quest log.
+private val FAN = 28.dp
+private val FAN_RINGS = listOf(0.3f, 0.55f, 0.8f, 0.97f)
+
+// The sunburst: how many rays, and where each starts, as a share of its reach.
+private const val SUN_RAYS = 24
+private const val RAY_START = 0.6f
 
 // The pulse: its ring's width as a share of the screen's diagonal, its brightness, its line.
 private const val PULSE_BAND = 0.12f

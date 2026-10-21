@@ -630,7 +630,21 @@ adb shell input keyevent KEYCODE_BACK
 sleep 1
 expect_front $PKG "Back closes the drawer"
 shot classic-board
+# Deco: coffee and gold, stepped corners, fans. Ornaments off leaves it plain.
 open_settings
+tap Deco exact
+shot deco-settings
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot deco-board
+open_settings
+tap Ornaments exact
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot deco-plain
+open_settings
+tap Ornaments exact
+pass "Deco and the Ornaments switch"
 tap Sci-fi exact
 tap "Quiet hours" exact
 expect_text "From 10:00 PM"

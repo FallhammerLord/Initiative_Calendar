@@ -35,6 +35,8 @@ fun SettingsScreen(
     onLockCard: (Boolean) -> Unit,
     lookId: String,
     onLook: (String) -> Unit,
+    ornaments: Boolean,
+    onOrnaments: (Boolean) -> Unit,
     quiet: QuietSetting,
     onQuiet: (QuietSetting) -> Unit,
     lapseHours: Int,
@@ -87,6 +89,8 @@ fun SettingsScreen(
                     Looks.all.map { stringResource(it.label) },
                     Looks.all.indexOfFirst { it.id == lookId },
                 ) { onLook(Looks.all[it].id) }
+                SettingSwitch(stringResource(R.string.setting_ornaments), ornaments, onOrnaments)
+                Body(stringResource(R.string.setting_ornaments_hint), style = Type.bodySmall)
             }
             Section(stringResource(R.string.section_alarms)) {
                 SettingSwitch(stringResource(R.string.setting_quiet), quiet.on) { onQuiet(quiet.copy(on = it)) }

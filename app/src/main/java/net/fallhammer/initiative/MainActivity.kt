@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             val look by vm.settings.look.collectAsStateWithLifecycle()
-            InitiativeTheme(Looks.byId(look)) { BoardScreen(vm) }
+            val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
+            InitiativeTheme(Looks.byId(look).let { if (ornaments) it else it.plain() }) { BoardScreen(vm) }
         }
     }
 

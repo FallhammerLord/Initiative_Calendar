@@ -126,7 +126,10 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 **Themes.** Picked in Initiative settings. Each theme sets colors, card and button shapes, outlines, and an optional background pattern; layout and type stay the same.
 
 - **Sci-fi** (default), after the Foundry quest log module: navy panels with thin teal frames and cut corners, cyan accents, a faint hexagon grid behind each screen. Section labels keep the quest log's cyan and bold but stay in sentence case.
-- **Classic**: black and amber, rounded.
+- **Classic**: black and amber, rounded. The plainest, highest-contrast look.
+- **Deco**, after the quest log's Dark (art deco) theme: coffee and chocolate panels, cream text, gold accents, stepped corners (each corner cut in two small steps), faint seigaiha fans behind each screen, and nested gold brackets inside each card's top corners. Its All done flourish is a sunburst of gold rays from the Now card. The quest log's letter-spaced capitals stay out (sentence case only), and its tan and gold are nudged lighter to reach 7:1.
+
+**Ornaments.** One switch in Initiative settings, on by default, for every look: the background pattern, the corner brackets, and the All done flourish. Off, any look turns calm and plain, for low-energy days or a busy head.
 
 Every theme keeps all text at 7:1 contrast or better and outlines at 3:1; a CI test checks each one. Atkinson Hyperlegible stays the body font in every theme; a decorative font may only ever be used for titles.
 

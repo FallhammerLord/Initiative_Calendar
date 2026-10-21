@@ -44,12 +44,17 @@ class SettingsModel(private val parts: BoardParts) {
     /** The chosen theme's id; null until settings load, which shows the default. */
     val look: StateFlow<String?> = _look.asStateFlow()
 
+    private val _ornaments = MutableStateFlow(true)
+    /** Whether the look's ornaments show. */
+    val ornaments: StateFlow<Boolean> = _ornaments.asStateFlow()
+
     /** Reads settings and permission state. Call off the main thread. */
     fun load(prefs: Prefs) {
         _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
         _setup.value = graph.setup.missing(prefs)
         _lockCard.value = prefs.lockCard
         _look.value = prefs.lookId
+        _ornaments.value = prefs.ornaments
         _quiet.value = prefs.quiet
         _lapseHours.value = prefs.lapseHours
         _recopyDays.value = prefs.recopyDays
@@ -76,6 +81,11 @@ class SettingsModel(private val parts: BoardParts) {
     fun setLook(id: String) {
         _look.value = id
         parts.scope.launch(Dispatchers.IO) { graph.prefs.lookId = id }
+    }
+
+    fun setOrnaments(on: Boolean) {
+        _ornaments.value = on
+        parts.scope.launch(Dispatchers.IO) { graph.prefs.ornaments = on }
     }
 
     fun setLockCard(on: Boolean) {

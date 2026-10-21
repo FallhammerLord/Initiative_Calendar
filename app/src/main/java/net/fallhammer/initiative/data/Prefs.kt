@@ -48,6 +48,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getString(LOOK, null)
         set(value) = prefs.edit().putString(LOOK, value).apply()
 
+    /** The look's ornaments: pattern, corner brackets, and the All done flourish. On by default. */
+    var ornaments: Boolean
+        get() = prefs.getBoolean(ORNAMENTS, true)
+        set(value) = prefs.edit().putBoolean(ORNAMENTS, value).apply()
+
     var quiet: QuietSetting
         get() = QuietSetting(
             on = prefs.getBoolean(QUIET_ON, false),
@@ -178,6 +183,7 @@ class Prefs(private val context: Context) {
         const val BOARD_ON_UNLOCK = "boardOnUnlock"
         const val LOCK_CARD = "lockCard"
         const val LOOK = "look"
+        const val ORNAMENTS = "ornaments"
         const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val QUIET_ON = "quietOn"
         const val QUIET_START = "quietStart"

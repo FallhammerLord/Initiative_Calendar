@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import initiative.core.Trio
@@ -63,7 +64,14 @@ data class Look(
     val accentLabels: Boolean,
     /** Dock tiles as nested hexagon trios; otherwise a plain row of [buttonShape] squares. */
     val dockTrio: Boolean,
-)
+    /** Seigaiha fans behind every screen, in the pattern color; the Art Deco look's ground. */
+    val fans: Boolean = false,
+    /** Stepped gold brackets inside each card's top corners, as in the quest log's Dark theme. */
+    val brackets: Boolean = false,
+) {
+    /** The same look with its ornaments off: no pattern, no brackets, no flourish. */
+    fun plain(): Look = copy(hexGrid = false, fans = false, brackets = false)
+}
 
 /** The dock's trio tile; see core's Trio. Sized to the tile's box, which is 1.75 hexagons wide. */
 object TrioShape : Shape {
@@ -123,9 +131,74 @@ object Looks {
         dockTrio = false,
     )
 
-    val all = listOf(SciFi, Classic)
+    /**
+     * Coffee, cream, and gold, with stepped corners and faint seigaiha fans. After
+     * the quest log's Dark (art deco) theme, with its tan and gold nudged lighter
+     * to reach 7:1.
+     */
+    val Deco = Look(
+        id = "deco",
+        label = R.string.look_deco,
+        palette = Palette(
+            bg = Color(0xFF1E1812),
+            surface = Color(0xFF2A221A),
+            text = Color(0xFFEADFC8),
+            dim = Color(0xFFBFB195),
+            accent = Color(0xFFE8AB62),
+            onAccent = Color(0xFF1E1812),
+            frame = Color(0xFF9A7448),
+            pattern = Color(0x26E0A054),
+        ),
+        cardShape = StepCornerShape(14.dp),
+        buttonShape = StepCornerShape(6.dp),
+        framed = true,
+        hexGrid = false,
+        accentLabels = true,
+        dockTrio = false,
+        fans = true,
+        brackets = true,
+    )
+
+    val all = listOf(SciFi, Classic, Deco)
 
     fun byId(id: String?): Look = all.firstOrNull { it.id == id } ?: SciFi
+}
+
+/**
+ * Art deco's stepped corner: each corner cut in two small square steps, like the
+ * setbacks of a skyscraper. [step] is how far in the corner reaches.
+ */
+class StepCornerShape(private val step: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val s = with(density) { step.toPx() }.coerceAtMost(minOf(size.width, size.height) / 2)
+        val h = s / 2
+        val w = size.width
+        val t = size.height
+        val path = Path().apply {
+            moveTo(s, 0f)
+            lineTo(w - s, 0f)
+            lineTo(w - s, h)
+            lineTo(w - h, h)
+            lineTo(w - h, s)
+            lineTo(w, s)
+            lineTo(w, t - s)
+            lineTo(w - h, t - s)
+            lineTo(w - h, t - h)
+            lineTo(w - s, t - h)
+            lineTo(w - s, t)
+            lineTo(s, t)
+            lineTo(s, t - h)
+            lineTo(h, t - h)
+            lineTo(h, t - s)
+            lineTo(0f, t - s)
+            lineTo(0f, s)
+            lineTo(h, s)
+            lineTo(h, h)
+            lineTo(s, h)
+            close()
+        }
+        return Outline.Generic(path)
+    }
 }
 
 val LocalLook = staticCompositionLocalOf { Looks.SciFi }

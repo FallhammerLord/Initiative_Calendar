@@ -95,6 +95,9 @@
     <string name="setting_theme">Theme</string>
     <string name="look_scifi">Sci-fi</string>
     <string name="look_classic">Classic</string>
+    <string name="look_deco">Deco</string>
+    <string name="setting_ornaments">Ornaments</string>
+    <string name="setting_ornaments_hint">The background pattern, corner details, and the All done flourish.</string>
     <string name="drawer_pin_hint">Hold an app to add it to the dock, or take it out.</string>
     <string name="pick_title">Pick an app</string>
     <string name="pick_clear">Empty this space</string>
