@@ -341,13 +341,16 @@ PY
 adb wait-for-device
 # Fix the clock at noon so the day window and placement are predictable.
 adb root > /dev/null 2>&1 && adb wait-for-device && sleep 2
-# adb restarts as root, so retry until the clock really reads noon.
+# adb restarts as root, so retry until the clock really reads noon. Android's
+# time service can still put back the real time a moment later (run 73), so it's
+# switched off too, and noon must hold for a few seconds before going on.
 for _ in 1 2 3 4 5 6 7 8 9 10; do
   adb wait-for-device
   adb shell settings put global auto_time 0 > /dev/null 2>&1
+  adb shell cmd time_detector set_auto_detection_enabled false > /dev/null 2>&1
   adb shell date "$(date -u +%m%d)1200$(date -u +%Y).00" > /dev/null 2>&1
+  sleep 5
   [ "$(adb shell date +%H | tr -d '\r')" = 12 ] && break
-  sleep 3
 done
 [ "$(adb shell date +%H | tr -d '\r')" = 12 ] || fail "couldn't set the emulator clock to noon"
 log "emulator time: $(adb shell date)"
