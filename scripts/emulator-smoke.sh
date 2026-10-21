@@ -85,10 +85,11 @@ if mode == "class":
     nodes.reverse()
 for n in nodes:
     # Text boxes echo what was typed; never treat them as labels.
-    # "field" mode finds a text box by what it holds.
+    # "field" mode finds a text box by what it holds, ignoring case: the keyboard
+    # capitalizes some words by itself, such as day names ("fri" becomes "Fri").
     is_box = n.get("class") == "android.widget.EditText"
     if mode == "field":
-        if is_box and (n.get("text") or "") == q:
+        if is_box and (n.get("text") or "").lower() == q.lower():
             x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
             print((x1 + x2) // 2, (y1 + y2) // 2)
             sys.exit(0)
