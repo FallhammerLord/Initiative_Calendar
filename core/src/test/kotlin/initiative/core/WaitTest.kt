@@ -54,6 +54,16 @@ class WaitTest {
         assertEquals("Ready since 10:00 AM", free.now.reason)
     }
 
+    @Test fun onlyTheLatestTaskPickedUpCountsAsUnderWay() {
+        // Kitchen was Now once and kept its clock; mail is the task in hand.
+        val waiting = laundry.startWait(60, at(9))
+        val stale = kitchen.copy(status = Status.ACTIVE, activeSince = at(9, 5))
+        val mail = Item(id = 4, title = "mail", kind = Kind.FLOAT, durationMinutes = 15, createdAt = at(6), status = Status.ACTIVE, activeSince = at(9, 40))
+        val b = engine.board(listOf(waiting, stale, mail), at(10, 5))
+        assertEquals("mail", b.now.item?.title)
+        assertEquals("laundry", b.next?.title)
+    }
+
     @Test fun pickedUpAgainItStaysFirstUntilSetAside() {
         // Back from the washer and under way: it keeps its place ahead of kitchen.
         val back = laundry.startWait(60, at(9)).copy(activeSince = at(10, 5))

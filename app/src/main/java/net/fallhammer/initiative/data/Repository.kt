@@ -176,11 +176,18 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
      * its hands-on time banked; the waiting item's wait ends now.
      */
     suspend fun switchTo(target: Item, current: Item?, now: LocalDateTime) {
-        if (current != null && current.id != target.id && !current.isAnchor && current.isOpen) {
-            val banked = current.workedMinutes + (Learning.runMinutes(current.activeSince, now) ?: 0)
-            update(current, current.copy(status = Status.PENDING, activeSince = null, pinnedSlot = null, workedMinutes = banked), note = "set aside")
-        }
+        if (current != null && current.id != target.id) setAside(current, now)
         if (target.waiting(now)) update(target, target.copy(waitUntil = now, notBefore = null), note = "wait ended early")
+    }
+
+    /**
+     * A task that was under way and is no longer Now: its hands-on time is banked
+     * and its clock stops, so only the task in hand counts as under way.
+     */
+    suspend fun setAside(item: Item, now: LocalDateTime) {
+        if (item.isAnchor || !item.isOpen || item.activeSince == null) return
+        val banked = item.workedMinutes + (Learning.runMinutes(item.activeSince, now) ?: 0)
+        update(item, item.copy(status = Status.PENDING, activeSince = null, pinnedSlot = null, workedMinutes = banked), note = "set aside")
     }
 
     suspend fun update(old: Item, new: Item, note: String = "") {

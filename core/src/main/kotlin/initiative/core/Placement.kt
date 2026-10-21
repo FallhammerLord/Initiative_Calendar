@@ -368,10 +368,11 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val place = order.withIndex().associate { (i, id) -> id to i }
         // A task back from a wait comes first; but while a task is under way, that one
         // stays first, and the waiting task is next: it never takes over by itself.
+        // Under way: the task most recently picked up, if it isn't one back from a wait.
         val waits = floats.any { it.waitUntil != null }
-        val underWay = waits && floats.any { it.activeSince != null && it.waitUntil == null }
+        val underWay = if (waits) floats.filter { it.activeSince != null && it.waitUntil == null }.maxByOrNull { it.activeSince!! }?.id else null
         return floats.sortedWith(
-            compareBy<Item> { !(underWay && it.activeSince != null && it.waitUntil == null) }
+            compareBy<Item> { it.id != underWay }
                 .thenBy { it.waitUntil == null }
                 .thenBy(nullsLast()) { it.waitUntil }
                 .thenByDescending { it.resolvePriority(today).level }

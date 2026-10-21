@@ -142,11 +142,16 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 }
             }
         }
-        // Start the duration clock the first time a float shows as Now.
+        // Start the duration clock the first time a float shows as Now; a task that
+        // stops being Now without being finished is set aside, its clock stopped.
         viewModelScope.launch {
+            var shown: Long? = null
             ui.collect { u ->
-                val f = u.board?.now?.item ?: return@collect
-                if (f.kind == Kind.FLOAT && f.activeSince == null) repo.markActive(f, u.now)
+                val f = u.board?.now?.item
+                val before = shown
+                shown = f?.id
+                if (before != null && before != f?.id) items.firstOrNull { it.id == before }?.let { repo.setAside(it, u.now) }
+                if (f != null && f.kind == Kind.FLOAT && f.activeSince == null) repo.markActive(f, u.now)
             }
         }
         // Focus ends by itself at the wall, or when its task is done some other way.
