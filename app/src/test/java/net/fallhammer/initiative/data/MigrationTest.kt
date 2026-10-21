@@ -14,7 +14,8 @@ import org.robolectric.annotation.Config
 
 /**
  * Upgrades a database built exactly as version 1 (the first release) left it,
- * and checks the data survives and the new alarms table works. Room validates
+ * through every version since, and checks the data survives, the alarms table
+ * works, and items start with no steps. Room validates
  * every table against the current code while it opens, so a layout mismatch
  * fails here before it can reach a phone.
  */
@@ -23,7 +24,7 @@ import org.robolectric.annotation.Config
 class MigrationTest {
 
     @Test
-    fun version1To2KeepsItemsAndAddsAlarms() {
+    fun version1ToLatestKeepsItemsAndAddsAlarmsAndSteps() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val name = "migration-test.db"
         context.deleteDatabase(name)
@@ -40,12 +41,13 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS)
             .allowMainThreadQueries()
             .build()
         runBlocking {
             val dao = room.items()
             assertEquals(listOf("call landlord"), dao.all().map { it.title })
+            assertEquals("", dao.all().single().steps)
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
         }

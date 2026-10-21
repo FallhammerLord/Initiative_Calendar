@@ -22,6 +22,7 @@ import initiative.core.MissPolicy
 import initiative.core.Priority
 import initiative.core.Recurrence
 import initiative.core.Status
+import initiative.core.Steps
 import initiative.core.WallStrength
 import kotlinx.coroutines.flow.Flow
 import java.time.DayOfWeek
@@ -58,6 +59,8 @@ data class ItemRow(
     val createdAt: String,
     val doneAt: String?,
     val activeSince: String?,
+    /** See core's Steps: one per line. */
+    val steps: String = "",
 )
 
 /** The event log: every status change, with a timestamp. */
@@ -200,7 +203,7 @@ interface ItemDao {
     suspend fun insertAlarms(rows: List<AlarmRow>)
 }
 
-@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 2, exportSchema = true)
+@Database(entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class], version = 3, exportSchema = true)
 abstract class InitiativeDb : RoomDatabase() {
     abstract fun items(): ItemDao
 
@@ -216,9 +219,15 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        internal val ADD_STEPS = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `steps` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS)
+                .addMigrations(ADD_ALARMS, ADD_STEPS)
                 .build()
                 .also { instance = it }
         }
@@ -253,6 +262,7 @@ fun Item.toRow() = ItemRow(
     createdAt = createdAt.toString(),
     doneAt = doneAt?.toString(),
     activeSince = activeSince?.toString(),
+    steps = Steps.encode(steps),
 )
 
 fun ItemRow.toItem() = Item(
@@ -286,4 +296,5 @@ fun ItemRow.toItem() = Item(
     createdAt = LocalDateTime.parse(createdAt),
     doneAt = doneAt?.let(LocalDateTime::parse),
     activeSince = activeSince?.let(LocalDateTime::parse),
+    steps = Steps.decode(steps),
 )

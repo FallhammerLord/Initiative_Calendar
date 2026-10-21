@@ -76,6 +76,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val backup = BackupModel(parts)
     val settings = SettingsModel(parts)
     val launcher = LauncherModel(parts)
+    val log = LogModel(parts, saved, repo.items, clock)
 
     private val _focus = MutableStateFlow<Focus?>(null)
 
@@ -108,6 +109,14 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     /** Kept across a restart, so the drawer or settings reopen where they were. */
     val overlay: StateFlow<Overlay> = saved.getStateFlow(OVERLAY, Overlay.NONE)
 
+    /**
+     * Done on an item with steps still open asks first: All done, or Not yet.
+     * The item, while that question is up; kept across a restart.
+     */
+    val confirming: StateFlow<Item?> = combine(saved.getStateFlow(CONFIRM, NONE), repo.items) { id, all ->
+        all.firstOrNull { it.id == id && it.isOpen }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     /** The dock slot an app is being picked for, while the picker is open. */
     val pickSlot: StateFlow<Int> = saved.getStateFlow(PICK_SLOT, -1)
 
@@ -118,7 +127,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     init {
         viewModelScope.launch {
             while (true) {
-                delay(TICK_MS)
+                // On the minute and half minute, so the clock on the board turns over on time.
+                delay(TICK_MS - System.currentTimeMillis() % TICK_MS)
                 val now = LocalDateTime.now()
                 clock.value = now
                 // A lapse or a due recopy shows even while the board stays open.
@@ -176,7 +186,34 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         }
     }
 
-    fun done(item: Item) = act(item) { repo.done(item, it); text(R.string.flash_done) }
+    /** Done, unless steps are still open: then the board asks first. */
+    fun done(item: Item) {
+        if (item.nextStep != null) {
+            saved[CONFIRM] = item.id
+        } else {
+            finish(item)
+        }
+    }
+
+    /** All done: the item and every step. */
+    fun allDone() {
+        val item = confirming.value
+        saved[CONFIRM] = NONE
+        if (item != null) finish(item)
+    }
+
+    /** Not yet: the item stays as it is. */
+    fun notYet() {
+        saved[CONFIRM] = NONE
+    }
+
+    fun toggleStep(item: Item, index: Int) {
+        val step = item.steps.getOrNull(index) ?: return
+        acted()
+        viewModelScope.launch { repo.setStep(item, index, !step.done) }
+    }
+
+    private fun finish(item: Item) = act(item) { repo.done(item, it); text(R.string.flash_done) }
     fun skip(item: Item) = act(item) { repo.skip(item, items, it) ?: text(R.string.flash_anchor_skipped) }
     fun tomorrow(item: Item) = act(item) { repo.tomorrow(item, it) }
 
@@ -268,11 +305,19 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         saved[OVERLAY] = if (open) Overlay.DRAWER else Overlay.NONE
     }
 
-    /** Home: closes the drawer, settings, the edit form, or a recopy walk, back to the board. */
+    /** Home: closes the drawer, settings, the edit form, the Log, or a recopy walk, back to the board. */
     fun home() {
         recopy.stop()
         edit.cancel()
+        log.close()
+        notYet()
         saved[OVERLAY] = Overlay.NONE
+    }
+
+    /** The Log, from the Plan ahead panel: today's Day view. */
+    fun openLog() {
+        acted()
+        log.show()
     }
 
     /** Initiative's own settings screen (as opposed to the phone's, [LauncherModel.openSettings]). */
@@ -280,12 +325,19 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         saved[OVERLAY] = Overlay.SETTINGS
     }
 
-    /** Back steps out one level: edit form or recopy walk, then settings to the drawer, then the drawer to the board. */
+    /**
+     * Back steps out one level: edit form or recopy walk, the Done question, the
+     * Log, then settings to the drawer, then the drawer to the board.
+     */
     fun back() {
         if (edit.isOpen) {
             edit.cancel()
         } else if (recopy.walking) {
             recopy.stop()
+        } else if (confirming.value != null) {
+            notYet()
+        } else if (log.isOpen) {
+            log.close()
         } else {
             saved[OVERLAY] = if (overlay.value == Overlay.SETTINGS) Overlay.DRAWER else Overlay.NONE
         }
@@ -369,5 +421,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val UNDO_MS = 8_000L
         const val OVERLAY = "overlay"
         const val PICK_SLOT = "pick_slot"
+        const val CONFIRM = "confirm_done"
+        const val NONE = -1L
     }
 }

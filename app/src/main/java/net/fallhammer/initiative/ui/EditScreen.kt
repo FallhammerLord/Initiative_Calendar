@@ -14,12 +14,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -32,6 +36,8 @@ import initiative.core.Kind
 import initiative.core.MissPolicy
 import initiative.core.Priority
 import initiative.core.Recurrence
+import initiative.core.Step
+import initiative.core.Steps
 import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import java.time.Duration
@@ -53,6 +59,18 @@ fun EditScreen(
     // Keyed by the item, so opening another item starts fresh; saved across a restart.
     var title by rememberSaveable(draft.id) { mutableStateOf(draft.title) }
     var notes by rememberSaveable(draft.id) { mutableStateOf(draft.notes) }
+    // Steps too, one line each (see core's Steps), so a tick made on the board is kept.
+    var steps by rememberSaveable(draft.id) { mutableStateOf(draft.steps.map(Steps::line)) }
+
+    // A step just added gets the cursor, ready to type.
+    val newStep = remember { FocusRequester() }
+    var focusNewStep by remember { mutableStateOf(false) }
+    LaunchedEffect(steps.size) {
+        if (focusNewStep) {
+            focusNewStep = false
+            runCatching { newStep.requestFocus() }
+        }
+    }
 
     fun pickTime(initial: LocalTime, onPicked: (LocalTime) -> Unit) {
         TimePickerDialog(context, { _, h, m -> onPicked(LocalTime.of(h, m)) }, initial.hour, initial.minute, false).show()
@@ -71,6 +89,29 @@ fun EditScreen(
             Field(stringResource(R.string.edit_title), title, { title = it }, singleLine = true)
             Spacer(Modifier.height(Space.s))
             Field(stringResource(R.string.edit_notes), notes, { notes = it }, singleLine = false)
+            Part {
+                Text(stringResource(R.string.edit_steps), style = Type.bodySmall, color = Ink.text)
+                steps.forEachIndexed { i, line ->
+                    val step = Steps.parse(line)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        val last = i == steps.lastIndex
+                        Field(
+                            stringResource(R.string.edit_step_n, i + 1),
+                            step.title,
+                            { text -> steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(title = text)) } },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f).then(if (last) Modifier.focusRequester(newStep) else Modifier),
+                        )
+                        QuietButton(stringResource(R.string.edit_step_remove), { steps = steps.filterIndexed { j, _ -> j != i } })
+                    }
+                }
+                SecondaryButton(
+                    stringResource(R.string.edit_step_add),
+                    { focusNewStep = true; steps = steps + Steps.line(Step("")) },
+                    Modifier.fillMaxWidth(),
+                    height = Tap.min,
+                )
+            }
             Part {
                 ChoiceRow(
                     stringResource(R.string.edit_type),
@@ -174,14 +215,19 @@ fun EditScreen(
         }
         Spacer(Modifier.height(Space.m))
         ActionRow(
-            Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes) }, it) },
-            Action { SecondaryButton(stringResource(R.string.edit_remove), edit::remove, it) },
+            Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, steps.map(Steps::parse)) }, it) },
+            // A done or removed item can go back on the board instead.
+            if (draft.isOpen) {
+                Action { SecondaryButton(stringResource(R.string.edit_remove), edit::remove, it) }
+            } else {
+                Action { SecondaryButton(stringResource(R.string.edit_put_back), edit::putBack, it) }
+            },
         )
     }
 }
 
 @Composable
-private fun Field(label: String, value: String, onChange: (String) -> Unit, singleLine: Boolean) {
+private fun Field(label: String, value: String, onChange: (String) -> Unit, singleLine: Boolean, modifier: Modifier = Modifier.fillMaxWidth()) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -190,7 +236,7 @@ private fun Field(label: String, value: String, onChange: (String) -> Unit, sing
         label = { Text(label, style = Type.bodySmall) },
         textStyle = Type.body.copy(color = Ink.text),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
     )
 }
 

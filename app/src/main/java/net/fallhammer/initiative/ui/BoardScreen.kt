@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -59,6 +61,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -69,6 +72,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import initiative.core.DayWindow
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkKind
@@ -102,6 +106,8 @@ fun BoardScreen(vm: BoardViewModel) {
     val draft by vm.edit.draft.collectAsStateWithLifecycle()
     val look = LocalLook.current
     val opened by vm.opened.collectAsStateWithLifecycle()
+    val confirming by vm.confirming.collectAsStateWithLifecycle()
+    val logOpen by vm.log.open.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
 
@@ -119,7 +125,7 @@ fun BoardScreen(vm: BoardViewModel) {
     // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
         when {
-            overlay != Overlay.NONE || recopyItem != null || draft != null -> vm.back()
+            overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen -> vm.back()
             expanded -> expanded = false
         }
     }
@@ -158,6 +164,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 )
             } else if (editing != null) {
                 EditScreen(editing, vm.edit)
+            } else if (logOpen) {
+                LogScreen(vm.log, ui.board?.now?.item, onEdit = vm.edit::open, onClose = vm.log::close)
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
             } else Box(Modifier.fillMaxSize()) {
@@ -173,17 +181,23 @@ fun BoardScreen(vm: BoardViewModel) {
                             }
                         },
                 ) {
-                    NowCard(
-                        ui = ui,
-                        flash = flash,
-                        modifier = Modifier.weight(1f),
-                        onDone = vm::done,
-                        onSkip = vm::skip,
-                        onTomorrow = vm::tomorrow,
-                        onUndo = vm::undo,
-                        onFocus = vm::startFocus,
-                        onEdit = vm.edit::open,
-                    )
+                    // Glance at the top; act at the bottom, in the thumb's reach. The
+                    // Now card sits on the bottom group and grows upward, so Done
+                    // and Skip stay in one place whatever the card holds.
+                    PlanPanel(ui.now, ui.window, onOpen = vm::openLog)
+                    Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
+                        NowCard(
+                            ui = ui,
+                            flash = flash,
+                            onDone = vm::done,
+                            onSkip = vm::skip,
+                            onTomorrow = vm::tomorrow,
+                            onUndo = vm::undo,
+                            onFocus = vm::startFocus,
+                            onEdit = vm.edit::open,
+                            onStep = vm::toggleStep,
+                        )
+                    }
                     Spacer(Modifier.height(Space.zone))
                     // Folded, the day panel is just the Next line: swipe it up or tap it to open.
                     DayBar(ui, open = false, onToggle = { expanded = true }, modifier = Modifier.onSwipeUp { expanded = true })
@@ -222,6 +236,9 @@ fun BoardScreen(vm: BoardViewModel) {
                 // Open, the day panel lies over the board, so the Now card keeps its shape.
                 if (expanded) {
                     DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) }, onMove = vm::moveTask)
+                }
+                confirming?.let { item ->
+                    StepsCheck(item, onStep = { i -> vm.toggleStep(item, i) }, onAllDone = vm::allDone, onNotYet = vm::notYet)
                 }
             }
         }
@@ -294,30 +311,29 @@ fun BoardScreen(vm: BoardViewModel) {
     }
 }
 
+/**
+ * Now: the item, its steps, why it's Now, and the actions. The words scroll when
+ * they overflow (large system fonts, many steps); the buttons stay below them,
+ * always in view.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NowCard(
     ui: BoardUi,
     flash: Flash?,
-    modifier: Modifier,
     onDone: (Item) -> Unit,
     onSkip: (Item) -> Unit,
     onTomorrow: (Item) -> Unit,
     onUndo: () -> Unit,
     onFocus: (Item) -> Unit,
     onEdit: (Item) -> Unit,
+    onStep: (Item, Int) -> Unit,
 ) {
     val board = ui.board
     val item = board?.now?.item
-    // Scrolls only when its content overflows (large system fonts), so the buttons
-    // are never pushed off the card. Otherwise a swipe up on the card passes
-    // through to open the drawer, since a scrollable area catches every swipe.
     val scroll = rememberScrollState()
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        Card(
-            Modifier.verticalScroll(scroll, enabled = scroll.maxValue > 0).heightIn(min = maxHeight),
-            arrangement = Arrangement.SpaceBetween,
-        ) {
+    Card {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(scroll, enabled = scroll.maxValue > 0)) {
             // Tapping the title area opens the edit form; holding it starts focus,
             // with the Focus button as the visible twin. TalkBack reads both actions.
             val editLabel = stringResource(R.string.edit_action)
@@ -345,33 +361,124 @@ private fun NowCard(
                 if (board != null) {
                     Title(item?.title ?: stringResource(R.string.free_time))
                     if (item != null && item.isAnchor) Body(Formats.anchorLine(item), style = Type.bodySmall)
-                    Spacer(Modifier.height(Space.m))
-                    Body(board.now.reason)
                 }
             }
-            Column(Modifier.padding(top = Space.xl)) {
-                flash?.let {
-                    FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
-                    Spacer(Modifier.height(Space.m))
+            // Steps tick off right here; Done asks about any left open.
+            if (item != null && item.steps.isNotEmpty()) {
+                Spacer(Modifier.height(Space.s))
+                item.steps.forEachIndexed { i, step -> StepRow(step.title, step.done) { onStep(item, i) } }
+            }
+            if (board != null) {
+                Spacer(Modifier.height(Space.m))
+                Body(board.now.reason)
+            }
+        }
+        Column(Modifier.padding(top = Space.xl)) {
+            flash?.let {
+                FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
+                Spacer(Modifier.height(Space.m))
+            }
+            // A done anchor still showing until its end has nothing left to act on.
+            if (item != null && item.isOpen) {
+                val done = stringResource(R.string.action_done)
+                val skip = stringResource(R.string.action_skip)
+                val tomorrow = stringResource(R.string.action_tomorrow)
+                if (item.isAnchor) {
+                    ActionRow(
+                        Action { PrimaryButton(done, { onDone(item) }, it) },
+                        Action { SecondaryButton(skip, { onSkip(item) }, it) },
+                    )
+                } else {
+                    ActionRow(
+                        Action { PrimaryButton(done, { onDone(item) }, it) },
+                        Action { SecondaryButton(skip, { onSkip(item) }, it) },
+                        Action(1.3f) { SecondaryButton(tomorrow, { onTomorrow(item) }, it) },
+                    )
                 }
-                // A done anchor still showing until its end has nothing left to act on.
-                if (item != null && item.isOpen) {
-                    val done = stringResource(R.string.action_done)
-                    val skip = stringResource(R.string.action_skip)
-                    val tomorrow = stringResource(R.string.action_tomorrow)
-                    if (item.isAnchor) {
-                        ActionRow(
-                            Action { PrimaryButton(done, { onDone(item) }, it) },
-                            Action { SecondaryButton(skip, { onSkip(item) }, it) },
-                        )
-                    } else {
-                        ActionRow(
-                            Action { PrimaryButton(done, { onDone(item) }, it) },
-                            Action { SecondaryButton(skip, { onSkip(item) }, it) },
-                            Action(1.3f) { SecondaryButton(tomorrow, { onTomorrow(item) }, it) },
-                        )
-                    }
+            }
+        }
+    }
+}
+
+/**
+ * The top of the board, for a glance: the time and date over a faint arc that
+ * shows how far the planning day has gone. Tap it to plan ahead in the Log. At
+ * large font sizes it keeps just the time, so the Now card has room.
+ */
+@Composable
+private fun PlanPanel(now: LocalDateTime, window: DayWindow, onOpen: () -> Unit) {
+    val label = stringResource(R.string.plan_ahead)
+    val large = LocalDensity.current.fontScale > LARGE_FONT
+    val start = window.start.toSecondOfDay()
+    val length = (window.end.toSecondOfDay() - start).coerceAtLeast(1)
+    val through = ((now.toLocalTime().toSecondOfDay() - start).toFloat() / length).coerceIn(0f, 1f)
+    val arcColor = Ink.line
+    val sunColor = Ink.accent
+    Strip(
+        Modifier.clickable(onClickLabel = label, onClick = onOpen),
+        behind = {
+            // A low curve from one end of the day to the other, and a dot for now.
+            val left = Space.l.toPx()
+            val right = size.width - left
+            val base = size.height - ARC_BASE.toPx()
+            val top = base - size.height * ARC_RISE * 2
+            val arc = Path().apply {
+                moveTo(left, base)
+                quadraticBezierTo(size.width / 2, top, right, base)
+            }
+            drawPath(arc, arcColor, style = Stroke(ARC_WIDTH.toPx()))
+            val u = 1 - through
+            val x = u * u * left + 2 * u * through * size.width / 2 + through * through * right
+            val y = u * u * base + 2 * u * through * top + through * through * base
+            drawCircle(sunColor.copy(alpha = SUN_ALPHA), radius = SUN.toPx(), center = Offset(x, y))
+        },
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(Formats.clock(now), style = if (large) Type.heading else Type.title, color = Ink.text)
+            if (!large) Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
+        }
+        Text(label, style = Type.bodySmall, color = Ink.accent)
+        Text(
+            stringResource(R.string.plan_ahead_mark),
+            style = Type.body,
+            color = Ink.accent,
+            modifier = Modifier.padding(start = Space.xs).clearAndSetSemantics { },
+        )
+    }
+}
+
+/**
+ * Done on an item with steps still open: tick what's done, then All done
+ * finishes it, steps and all, or Not yet leaves it as it is. Back, or a tap
+ * outside, is Not yet.
+ */
+@Composable
+private fun StepsCheck(item: Item, onStep: (Int) -> Unit, onAllDone: () -> Unit, onNotYet: () -> Unit) {
+    val notYet = stringResource(R.string.steps_not_yet)
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable(remember { MutableInteractionSource() }, indication = null, onClickLabel = notYet, onClick = onNotYet)
+                .semantics { contentDescription = notYet },
+        )
+        Box(
+            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = Space.l, vertical = Space.m),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            // Taps on the card stay on it; only a tap outside is Not yet.
+            Card(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
+                Title(item.title, style = Type.title)
+                Spacer(Modifier.height(Space.s))
+                Body(stringResource(R.string.steps_check))
+                Spacer(Modifier.height(Space.s))
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    item.steps.forEachIndexed { i, step -> StepRow(step.title, step.done) { onStep(i) } }
                 }
+                Spacer(Modifier.height(Space.xl))
+                PrimaryButton(stringResource(R.string.steps_all_done), onAllDone, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(Space.s))
+                SecondaryButton(notYet, onNotYet, Modifier.fillMaxWidth())
             }
         }
     }
@@ -587,6 +694,13 @@ private val SWIPE = 48.dp
  */
 private val DRAWER_BAND = 72.dp
 private val DRAWER_SWIPE = 64.dp
+
+// The Plan ahead arc: how high it rises, as a share of the panel; its line; the dot for now.
+private const val ARC_RISE = 0.3f
+private val ARC_BASE = 4.dp
+private val ARC_WIDTH = 2.dp
+private val SUN = 5.dp
+private const val SUN_ALPHA = 0.7f
 
 /** The open day panel takes at most this share of the screen. */
 private const val SHEET_SHARE = 0.7f

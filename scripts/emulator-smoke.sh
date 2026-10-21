@@ -760,6 +760,46 @@ expect_text "dentist call"
 pass "Back closes the edit form without saving"
 crash_check
 
+# --- Steps ------------------------------------------------------------------------
+# Add two steps in the edit form; each new step gets the cursor. They show on the
+# Now card and tick off there. Done with a step open asks first: Back is Not yet,
+# All done finishes it; Undo puts it back for the checks after this.
+# (The form may capitalize a step's first letter, so checks match the rest.)
+
+home
+tap "dentist call" exact
+wait_for Type exact || fail "edit form didn't open"
+tap "Add a step" exact
+adb shell input text "find%sthe%snumber"
+wait_for "find the number" field 3 || wait_for "Find the number" field 3 || fail "couldn't type the first step"
+tap "Add a step" exact
+adb shell input text "make%sthe%scall"
+wait_for "make the call" field 3 || wait_for "Make the call" field 3 || fail "couldn't type the second step"
+hide_keyboard
+shot edit-steps
+tap Save exact
+expect_text "Saved"
+expect_text "ind the number"
+expect_text "ake the call"
+shot now-steps
+tap "ind the number"
+tap Done exact
+expect_text "All done"
+expect_text "Not yet"
+shot done-steps
+adb shell input keyevent KEYCODE_BACK
+wait_gone "All done" exact || fail "Back should close the Done question"
+expect_text "dentist call"
+pass "Done with a step open asks first, and Back leaves the item as it was"
+tap Done exact
+tap "All done" exact
+expect_text "Undo"
+wait_gone "ake the call" || fail "All done should finish the item"
+tap Undo exact
+expect_text "dentist call"
+pass "All done finishes the item, and Undo puts it back"
+crash_check
+
 # --- Day forecast and dragging ---------------------------------------------------
 # The open day panel lists the rest of today with times. Hold a task and drag it
 # above another: it moves there, since it fits.
@@ -787,6 +827,45 @@ pass "dragging a task moves it to where it's dropped"
 shot forecast-after-drag
 adb shell input keyevent KEYCODE_BACK
 wait_gone "Today's line" || fail "Back should fold the day panel"
+crash_check
+
+# --- The Log ----------------------------------------------------------------------
+# Plan ahead opens the Log on today. It zooms to Week, Month, and Year, and the
+# Year view flips to next year. Search finds done items. Back, and Back to
+# board, return to the board.
+
+home
+tap "Plan ahead"
+wait_for "Earlier" exact || fail "Plan ahead should open the Log"
+expect_text "Today"
+expect_text "dentist call"
+shot log-day
+tap Week exact
+expect_text "dentist call"
+shot log-week
+tap Month exact
+expect_text "dentist call"
+shot log-month
+tap Year exact
+year=$(adb shell date +%Y | tr -d '\r')
+wait_for "$year" exact || fail "the Year view should show $year"
+tap Later exact
+wait_for "$((year + 1))" exact || fail "Later should flip the Year view to next year"
+pass "the Log zooms out and flips to next year"
+shot log-next-year
+# The search box is the screen's only text field, so quick_add types into it.
+quick_add "landlord"
+hide_keyboard
+expect_text "call landlord · done"
+shot log-search
+adb shell input keyevent KEYCODE_BACK
+wait_gone "Back to board" exact || fail "Back should close the Log"
+expect_text "Plan ahead"
+tap "Plan ahead"
+wait_for "Back to board" exact || fail "Plan ahead should open the Log again"
+tap "Back to board" exact
+wait_gone "Back to board" exact || fail "Back to board should close the Log"
+pass "Back and Back to board leave the Log"
 crash_check
 
 adb logcat -d > "$OUT/logcat.txt"

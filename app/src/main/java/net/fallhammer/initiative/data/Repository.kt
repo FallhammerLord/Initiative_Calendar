@@ -48,8 +48,9 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         if (fresh.isNotEmpty()) dao.insertAll(fresh.map { it.toRow() })
     }
 
+    /** Done, with every step ticked: "All done" covers them all. */
     suspend fun done(item: Item, now: LocalDateTime) {
-        update(item, item.copy(status = Status.DONE, doneAt = now))
+        update(item, item.copy(status = Status.DONE, doneAt = now, steps = item.steps.map { it.copy(done = true) }))
         if (item.isAnchor) return
         val run = Learning.runMinutes(item.activeSince, now) ?: return
         dao.insertRun(RunRow(titleKey = item.titleKey, minutes = run, at = now.toString()))
@@ -86,6 +87,17 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     /** Off the board for good, into the archive. */
     suspend fun drop(item: Item, note: String) {
         update(item, item.copy(status = Status.DROPPED, pinnedSlot = null), note = note)
+    }
+
+    /** Ticks one step on or off. */
+    suspend fun setStep(item: Item, index: Int, done: Boolean) {
+        if (index !in item.steps.indices) return
+        update(item, item.copy(steps = item.steps.mapIndexed { i, s -> if (i == index) s.copy(done = done) else s }))
+    }
+
+    /** From the Log: a done or removed item goes back on the board, as it was. */
+    suspend fun putBack(item: Item) {
+        update(item, item.copy(status = Status.PENDING, doneAt = null, notBefore = null, pinnedSlot = null, activeSince = null), note = "put back")
     }
 
     /** Back on the board from [notBefore]. */

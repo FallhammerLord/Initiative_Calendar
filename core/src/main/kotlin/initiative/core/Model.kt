@@ -46,6 +46,8 @@ data class Item(
     val doneAt: LocalDateTime? = null,
     /** When a float first became Now; feeds duration learning. */
     val activeSince: LocalDateTime? = null,
+    /** One level of steps inside the item, ticked off as it goes. */
+    val steps: List<Step> = emptyList(),
 ) {
     val isTemplate: Boolean get() = recurrence != null
     val isOpen: Boolean get() = status == Status.PENDING || status == Status.ACTIVE
@@ -53,6 +55,9 @@ data class Item(
     val anchorEnd: LocalDateTime? get() = end ?: start?.plusMinutes(DEFAULT_ANCHOR_MINUTES)
     val warnAt: LocalDateTime? get() = start?.minusMinutes(leadMinutes.toLong())
     val titleKey: String get() = keyFor(title)
+
+    /** The first step not yet ticked; null when there are none left. */
+    val nextStep: Step? get() = steps.firstOrNull { !it.done }
 
     companion object {
         const val DEFAULT_DURATION = 30
@@ -68,6 +73,27 @@ data class Item(
         /** Items with the same key count as the same repeated task. */
         fun keyFor(title: String): String = title.trim().lowercase().replace(Regex("\\s+"), " ")
     }
+}
+
+/** One step inside an item, like an objective inside a quest. */
+data class Step(val title: String, val done: Boolean = false)
+
+/** Steps stored as text: one per line, "x " before a ticked one and "- " before an open one. */
+object Steps {
+    private const val DONE = "x "
+    private const val OPEN = "- "
+
+    fun encode(steps: List<Step>): String = steps.joinToString("\n", transform = ::line)
+
+    fun decode(text: String): List<Step> = text.lines().filter { it.length > OPEN.length }.map(::parse)
+
+    /** One step as one line; the edit form keeps its steps this way while they're typed. */
+    fun line(step: Step): String = (if (step.done) DONE else OPEN) + step.title.replace('\n', ' ')
+
+    fun parse(line: String): Step = Step(line.drop(OPEN.length), line.startsWith(DONE))
+
+    /** Every step open again, for a new time of a series. */
+    fun fresh(steps: List<Step>): List<Step> = steps.map { it.copy(done = false) }
 }
 
 /** The part of the day the board plans in. Outside it, Now is Free time unless an anchor is due. */

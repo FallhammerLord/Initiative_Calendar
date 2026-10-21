@@ -10,6 +10,7 @@ import initiative.core.Recurrence
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -41,6 +42,22 @@ class SavedStateTest {
     private val items = listOf(template, gym, plants)
 
     @After fun stop() = scope.cancel()
+
+    @Test fun theLogReopensWhereItWas() {
+        val saved = SavedStateHandle()
+        val clock = MutableStateFlow(day.atTime(12, 0))
+        val log = LogModel(parts, saved, flowOf(items), clock)
+        log.show()
+        log.setZoom(Zoom.YEAR)
+        log.setQuery("gym")
+
+        val again = LogModel(parts, saved, flowOf(items), clock)
+        assertTrue(again.isOpen)
+        assertEquals(Zoom.YEAR, again.zoom.value)
+        assertEquals("gym", again.query.value)
+        again.close()
+        assertFalse(LogModel(parts, saved, flowOf(items), clock).isOpen)
+    }
 
     @Test fun anEditInProgressSurvivesARestart() {
         val saved = SavedStateHandle()

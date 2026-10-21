@@ -88,9 +88,10 @@ Repeated items get better estimates as you use them.
 
 The board is a hybrid. It uses Board B's single card and buttons, and folds Board A's Next card and wall strip into one ledger line.
 
-Top to bottom:
+Top to bottom: glance at the top, act at the bottom, where the thumb reaches. Steven Hoober's field study of how people hold phones found the bottom middle easiest to reach and the top corners hardest; Pixel's own home screen keeps glanceable facts at the top for the same reason (cited from memory).
 
-1. **Now card.** Fills most of the screen. One item in large type. A one-line reason under the title, such as "Due tomorrow, fits before pickup." Three buttons: **Done**, **Skip**, **Tomorrow**.
+0. **Plan ahead panel.** The time, large, and the date, over a faint arc running from the start of the planning day to its end, with a dot for now: how much day is left, without needing location. Tap it to open the Log. At large font sizes it keeps only the time. No weather: the app has no internet, and Android has no weather source an app can read.
+1. **Now card.** Sits on the bottom group, below an open space that takes up whatever's left. One item in large type, its steps as a checklist, and a one-line reason, such as "Due tomorrow, fits before pickup." Three buttons: **Done**, **Skip**, **Tomorrow**. The card grows upward, so the buttons stay in one place whatever the card holds; its words scroll if they overflow, and the buttons never do.
 2. **Next peek.** One small line under the card. For an anchor it shows a countdown: "School pickup in 1h 40m." It is also the handle of the day panel: tap it or swipe it up to open the panel; swipe down, tap outside, or press Back to fold it.
 3. **Ledger line and forecast.** Inside the day panel, above the forecast: done items as ticks, the current item marked, upcoming walls as markers. Hard walls are visually heavier. The open panel lies over the board as a sheet, so the Now card never shrinks to make room. Below the line, the forecast lists the rest of today with times: anchors at their starts, and tasks filling the free time between in rank order. A skipped or missed task lands at the time it's back, not at the bottom. Tasks that can't fit today sit under Later. It's a forecast, not a promise, and reshuffles as the day goes.
 
@@ -104,13 +105,13 @@ Top to bottom:
 
 **Initiative settings.** Opened from the app drawer's header. Grouped as Board (board after unlock, lock-screen card), Look (theme), and Alarms (quiet hours, with start and end times). The drawer itself holds only apps and the two exits to the normal phone.
 
-Swipe left for the full queue and a week view. Those views exist for planning and are never required.
+The Log, from the Plan ahead panel, holds the week and beyond. It exists for planning and is never required.
 
 When nothing needs doing, the Now card says **Free time**. An empty board is a valid, calm state.
 
 **Buttons.**
 
-- **Done** marks it finished.
+- **Done** marks it finished. With steps still open it asks first, on purpose: tick what's done, then **All done** (the item and every step) or **Not yet** (it stays as it is). Back, or a tap outside, is Not yet.
 - **Skip** moves the card to its next reasonable slot and shows where it landed, e.g. "Back at 3:30, after pickup." See Placement logic.
 - **Tomorrow** takes it off today's board entirely.
 
@@ -429,14 +430,15 @@ After v0.1, built:
 
 **The Log.** The board stays the default: the current task, with today's live timeline beneath. Planning is one tap away and closes back to the board.
 
-- *Way in.* Tap the day line ("Today · tap for the week") to open the Log. Tap the Next line to open that item in the edit form.
-- *Zoom.* Day, Week, Month, Year. It opens on Day (today's queue, as the day line showed before), and pages forward and back at each zoom, so next year's appointment is a few flips away.
-- *Lists, not folders.* Each zoom is a flat list grouped by date, with days that fold. Month and Year mark days that hold anchors, with no counts.
-- *Search.* One box across everything, including done and dropped items, so the archive is a filter, not a separate screen.
-- *Series as parents.* A repeating item opens to its times, past and coming, the way a quest opens to its subquests.
-- *Tap to edit.* Any item opens the edit form. Put back returns a done or dropped item to the board.
+- *Way in.* Tap the Plan ahead panel at the top of the board. **Back to board**, Back, or the Now bar along the Log's bottom returns.
+- *Zoom.* Day, Week, Month, Year. It opens on Day (today), and pages with **Earlier** and **Later** at each zoom, so next year's appointment is a few flips away.
+- *Lists, not folders.* Day and Week are flat lists grouped by date; Week's days fold, open by default when they hold something. Month is a grid, Monday first, with a small mark on days that hold anchors and no counts; tap a day to list it below. Year lists the twelve months with their fixed times written out ("Dentist 21"), in readable text rather than tiny grids; tap one to open it.
+- *Search.* One box across titles, notes, and steps, including done and removed items, so the archive is a filter, not a separate screen. Coming items first, soonest first; then past ones, latest first.
+- *Series.* A repeating item shows as one row on each date it falls, marked "repeats" beyond the three weeks already made. A series isn't a parent of steps; it's one rule on many dates.
+- *Now stays in view.* A bar along the bottom shows Now and its next step.
+- *Tap to edit.* Any item opens the edit form. **Put back** replaces Remove for a done or removed item and returns it to the board.
 
-**Subtasks.** One level of steps inside an item, shown as a short checklist on its card and in the form. An anchor can hold steps too: "school pickup" from 2:30 to 4:00 holds "pick up" and "playtime", like a quest holding its objectives. The board still shows one item; its next open step is the line under the title. Breaking work into steps is a core skill in adult ADHD treatment, so this ranks with the Log.
+**Subtasks.** One level of steps inside an item: "laundry" holds collect, wash and dry, fold, put away. They show as a checklist on the Now card, tick off there, and are typed in the edit form (Add a step puts the cursor in the new one). An anchor can hold steps too: "school pickup" from 2:30 to 4:00 holds "pick up" and "playtime", like a quest holding its objectives. A repeating item keeps its steps on the series, and each time starts with all of them open. The board still shows one item. The Log lists steps under their item, and search reaches them. Breaking work into steps is a core skill in adult ADHD treatment, so this ranks with the Log.
 
 **Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
 

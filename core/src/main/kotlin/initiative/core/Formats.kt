@@ -1,5 +1,6 @@
 package initiative.core
 
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -19,6 +20,8 @@ object Formats {
     private val CLOCK = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
     private val SHORT_DATE = DateTimeFormatter.ofPattern("MMM d", Locale.US)
     private val DAY = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US)
+    private val LONG_DAY = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US)
+    private val MONTH = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)
     private val ICS_LOCAL = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss", Locale.US)
     private val ICS_UTC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZoneOffset.UTC)
 
@@ -46,6 +49,22 @@ object Formats {
 
     /** "Tue, Oct 20" */
     fun day(d: LocalDate): String = d.format(DAY)
+
+    /** "Tuesday, October 20" */
+    fun longDay(d: LocalDate): String = d.format(LONG_DAY)
+
+    /** "October 2026" */
+    fun month(d: LocalDate): String = d.format(MONTH)
+
+    /** "October" */
+    fun monthName(d: LocalDate): String = d.month.getDisplayName(TextStyle.FULL, Locale.US)
+
+    /** "M" for Monday, for a calendar's column heads. */
+    fun weekdayLetter(d: DayOfWeek): String = d.getDisplayName(TextStyle.NARROW, Locale.US)
+
+    /** "Oct 19 to 25", or "Oct 26 to Nov 1" across a month's end. */
+    fun span(from: LocalDate, to: LocalDate): String =
+        if (from.month == to.month) "${shortDate(from)} to ${to.dayOfMonth}" else "${shortDate(from)} to ${shortDate(to)}"
 
     /** iCalendar floating local time: "20261020T150000". */
     fun icsLocal(t: LocalDateTime): String = t.format(ICS_LOCAL)

@@ -5,6 +5,7 @@ import initiative.core.Freq
 import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.Recurrence
+import initiative.core.Step
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,8 +22,8 @@ import java.time.LocalTime
 
 /**
  * The edit form: a draft of one item, saved in [saved] on every change so a
- * half-made edit survives a restart. Title and notes are typed in the screen
- * and handed over on Save.
+ * half-made edit survives a restart. Title, notes, and steps are typed in the
+ * screen and handed over on Save.
  *
  * For a repeating item, the draft also holds how it repeats and whether the
  * edit covers this time only or this and later times. A change to how it
@@ -106,7 +107,7 @@ class EditModel(
         d.copy(end = end.takeIf { it.isAfter(start) })
     }
 
-    fun save(title: String, notes: String) {
+    fun save(title: String, notes: String, steps: List<Step>) {
         val d = _draft.value ?: return
         if (title.isBlank()) {
             parts.show(Flash(parts.text(R.string.edit_need_title)))
@@ -119,9 +120,24 @@ class EditModel(
         if (old == null) return
         parts.acted()
         parts.scope.launch {
-            val edited = d.copy(title = title.trim(), notes = notes.trim())
+            // Empty steps are dropped.
+            val kept = steps.map { it.copy(title = it.title.trim()) }.filter { it.title.isNotEmpty() }
+            val edited = d.copy(title = title.trim(), notes = notes.trim(), steps = kept)
             if (series) graph.repo.editSeries(old, edited, rule, LocalDateTime.now()) else graph.repo.edit(old, edited)
             parts.show(Flash(parts.text(R.string.edit_saved)))
+        }
+    }
+
+    /** A done or removed item back on the board. */
+    fun putBack() {
+        val d = _draft.value ?: return
+        val old = current().firstOrNull { it.id == d.id }
+        set(null)
+        if (old == null) return
+        parts.acted()
+        parts.scope.launch {
+            graph.repo.putBack(old)
+            parts.show(Flash(parts.text(R.string.flash_restored)))
         }
     }
 

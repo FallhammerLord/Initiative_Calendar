@@ -126,6 +126,7 @@ object Backup {
         .set("notBefore", r.notBefore).set("recFreq", r.recFreq).set("recInterval", r.recInterval)
         .set("recDays", r.recDays).set("templateId", r.templateId).set("missPolicy", r.missPolicy)
         .set("status", r.status).set("createdAt", r.createdAt).set("doneAt", r.doneAt).set("activeSince", r.activeSince)
+        .set("steps", r.steps)
 
     fun itemRow(o: JSONObject) = ItemRow(
         id = o.getLong("id"),
@@ -155,6 +156,8 @@ object Backup {
         createdAt = o.getString("createdAt"),
         doneAt = o.str("doneAt"),
         activeSince = o.str("activeSince"),
+        // Backups from before steps have none.
+        steps = o.str("steps").orEmpty(),
     )
 
     /** A short name for the chosen folder, for the settings screen. */

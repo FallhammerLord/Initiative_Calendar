@@ -33,5 +33,6 @@ object Series {
         pinnedSlot = null,
         doneAt = null,
         activeSince = null,
+        steps = Steps.fresh(item.steps),
     )
 }

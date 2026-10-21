@@ -23,6 +23,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -34,10 +36,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -123,10 +127,15 @@ fun Screen(modifier: Modifier = Modifier, content: @Composable ColumnScope.() ->
 
 /**
  * A one-line panel, framed like a [Card], with the same side padding so its text
- * lines up with the card's. The folded day panel is one.
+ * lines up with the card's. The folded day panel is one. [behind] draws on the
+ * surface, under the content.
  */
 @Composable
-fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+fun Strip(
+    modifier: Modifier = Modifier,
+    behind: (DrawScope.() -> Unit)? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
     val look = LocalLook.current
     Row(
         modifier
@@ -134,6 +143,8 @@ fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Uni
             .heightIn(min = Tap.min)
             .clip(look.cardShape)
             .background(Ink.surface)
+            // A faint drawing over the surface and under the text, such as the Plan ahead arc.
+            .then(if (behind != null) Modifier.drawBehind(behind) else Modifier)
             .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
             .padding(horizontal = Space.xl, vertical = Space.s),
         verticalAlignment = Alignment.CenterVertically,
@@ -291,7 +302,8 @@ fun ActionRow(vararg actions: Action) {
 /** One button in an [ActionRow]; [weight] sets its share of the row. */
 class Action(val weight: Float = 1f, val content: @Composable (Modifier) -> Unit)
 
-private const val LARGE_FONT = 1.15f
+/** Above this system font scale, rows of buttons stack and panels drop extras. */
+internal const val LARGE_FONT = 1.15f
 
 /** One accent line, such as the next setup step. */
 @Composable
@@ -321,14 +333,14 @@ fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
 }
 
 /**
- * A labelled pick-one setting, such as the theme. Each option is a radio button
+ * A labelled pick-one setting, such as the theme, or unlabelled tabs. Each option is a radio button
  * for TalkBack. Options wrap onto more lines when they don't fit.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChoiceRow(label: String, options: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
+fun ChoiceRow(label: String?, options: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
     Column(Modifier.fillMaxWidth().selectableGroup()) {
-        Text(label, style = Type.bodySmall, color = Ink.text)
+        if (label != null) Text(label, style = Type.bodySmall, color = Ink.text)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(Space.s),
             verticalArrangement = Arrangement.spacedBy(Space.s),
@@ -343,6 +355,29 @@ fun ChoiceRow(label: String, options: List<String>, chosen: Int, onSelect: (Int)
                 }
             }
         }
+    }
+}
+
+/**
+ * One step of an item, ticked on or off. The whole row is one checkbox for
+ * TalkBack and touch. A ticked step dims; it isn't struck through, which is
+ * harder to read.
+ */
+@Composable
+fun StepRow(text: String, done: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.min)
+            .toggleable(value = done, role = Role.Checkbox, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = done,
+            onCheckedChange = null,
+            colors = CheckboxDefaults.colors(checkedColor = Ink.accent, uncheckedColor = Ink.accent, checkmarkColor = Ink.onAccent),
+        )
+        Text(text, style = Type.bodySmall, color = if (done) Ink.dim else Ink.text, modifier = Modifier.weight(1f).padding(start = Space.s))
     }
 }
 
