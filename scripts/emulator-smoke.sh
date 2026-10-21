@@ -188,6 +188,7 @@ quick_add() {
   for _ in 1 2 3; do
     adb shell input text "${1// /%s}"
     wait_for "$1" field 4 && break
+    log "note: quick-add holds '$(field_text)', not '$1'; retyping"
     adb shell input keyevent KEYCODE_MOVE_END
     adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq 40))
   done

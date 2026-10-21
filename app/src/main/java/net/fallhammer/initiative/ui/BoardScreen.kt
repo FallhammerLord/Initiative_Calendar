@@ -184,7 +184,9 @@ fun BoardScreen(vm: BoardViewModel) {
                     // Glance at the top; act at the bottom, in the thumb's reach. The
                     // Now card sits on the bottom group and grows upward, so Done
                     // and Skip stay in one place whatever the card holds.
-                    PlanPanel(ui.now, ui.window, onOpen = vm::openLog)
+                    // While typing, the board keeps only what typing needs: the panel
+                    // goes, and the card shrinks to its title, so nothing is squeezed.
+                    if (!keyboardUp) PlanPanel(ui.now, ui.window, onOpen = vm::openLog)
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
                         NowCard(
                             ui = ui,
@@ -196,6 +198,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             onFocus = vm::startFocus,
                             onEdit = vm.edit::open,
                             onStep = vm::toggleStep,
+                            compact = keyboardUp,
                         )
                     }
                     Spacer(Modifier.height(Space.zone))
@@ -314,7 +317,7 @@ fun BoardScreen(vm: BoardViewModel) {
 /**
  * Now: the item, its steps, why it's Now, and the actions. The words scroll when
  * they overflow (large system fonts, many steps); the buttons stay below them,
- * always in view.
+ * always in view. [compact], while typing: just the title and any flash line.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -328,6 +331,7 @@ private fun NowCard(
     onFocus: (Item) -> Unit,
     onEdit: (Item) -> Unit,
     onStep: (Item, Int) -> Unit,
+    compact: Boolean,
 ) {
     val board = ui.board
     val item = board?.now?.item
@@ -364,22 +368,22 @@ private fun NowCard(
                 }
             }
             // Steps tick off right here; Done asks about any left open.
-            if (item != null && item.steps.isNotEmpty()) {
+            if (!compact && item != null && item.steps.isNotEmpty()) {
                 Spacer(Modifier.height(Space.s))
                 item.steps.forEachIndexed { i, step -> StepRow(step.title, step.done) { onStep(item, i) } }
             }
-            if (board != null) {
+            if (!compact && board != null) {
                 Spacer(Modifier.height(Space.m))
                 Body(board.now.reason)
             }
         }
-        Column(Modifier.padding(top = Space.xl)) {
+        Column(Modifier.padding(top = if (compact && flash == null) Space.xs else Space.xl)) {
             flash?.let {
                 FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
                 Spacer(Modifier.height(Space.m))
             }
             // A done anchor still showing until its end has nothing left to act on.
-            if (item != null && item.isOpen) {
+            if (!compact && item != null && item.isOpen) {
                 val done = stringResource(R.string.action_done)
                 val skip = stringResource(R.string.action_skip)
                 val tomorrow = stringResource(R.string.action_tomorrow)
@@ -696,7 +700,7 @@ private val DRAWER_BAND = 72.dp
 private val DRAWER_SWIPE = 64.dp
 
 // The Plan ahead arc: how high it rises, as a share of the panel; its line; the dot for now.
-private const val ARC_RISE = 0.3f
+private const val ARC_RISE = 0.06f
 private val ARC_BASE = 4.dp
 private val ARC_WIDTH = 2.dp
 private val SUN = 5.dp
