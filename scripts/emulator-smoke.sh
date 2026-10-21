@@ -828,6 +828,10 @@ wait_for Type exact || fail "edit form didn't open"
 tap "Add a step" exact
 adb shell input text "find%sthe%snumber"
 wait_for "find the number" field 3 || wait_for "Find the number" field 3 || fail "couldn't type the first step"
+# The form's panels run past the keyboard: close it and scroll Add a step into view.
+hide_keyboard
+adb shell input swipe 540 1600 540 900 300
+sleep 1
 tap "Add a step" exact
 adb shell input text "make%sthe%scall"
 wait_for "make the call" field 3 || wait_for "Make the call" field 3 || fail "couldn't type the second step"

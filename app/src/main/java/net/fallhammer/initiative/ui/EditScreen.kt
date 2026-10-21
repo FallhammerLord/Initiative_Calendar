@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
@@ -26,6 +27,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import initiative.core.Effort
@@ -102,6 +104,8 @@ fun EditScreen(
                             { text -> steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(title = text)) } },
                             singleLine = true,
                             modifier = Modifier.weight(1f).then(if (last) Modifier.focusRequester(newStep) else Modifier),
+                            // Enter on the last step starts the next, so a list goes in without leaving the keyboard.
+                            onNext = if (last) ({ focusNewStep = true; steps = steps + Steps.line(Step("")) }) else null,
                         )
                         QuietButton(stringResource(R.string.edit_step_remove), { steps = steps.filterIndexed { j, _ -> j != i } })
                     }
@@ -239,7 +243,14 @@ fun EditScreen(
 }
 
 @Composable
-private fun Field(label: String, value: String, onChange: (String) -> Unit, singleLine: Boolean, modifier: Modifier = Modifier.fillMaxWidth()) {
+private fun Field(
+    label: String,
+    value: String,
+    onChange: (String) -> Unit,
+    singleLine: Boolean,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    onNext: (() -> Unit)? = null,
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -247,7 +258,11 @@ private fun Field(label: String, value: String, onChange: (String) -> Unit, sing
         minLines = if (singleLine) 1 else 2,
         label = { Text(label, style = Type.bodySmall) },
         textStyle = Type.body.copy(color = Ink.text),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = if (onNext != null) ImeAction.Next else ImeAction.Default,
+        ),
+        keyboardActions = KeyboardActions(onNext = { onNext?.invoke() }),
         colors = fieldColors(),
         modifier = modifier,
     )
