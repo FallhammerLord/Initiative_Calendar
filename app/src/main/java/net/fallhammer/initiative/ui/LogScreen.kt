@@ -203,7 +203,8 @@ private fun LazyListScope.entries(
 
 @Composable
 private fun periodTitle(view: LogView): String = when (view.zoom) {
-    Zoom.DAY -> if (view.date == view.today) stringResource(R.string.log_today, Formats.longDay(view.date)) else Formats.longDay(view.date)
+    // Short enough to fit on one line between the arrows.
+    Zoom.DAY -> if (view.date == view.today) stringResource(R.string.log_today, Formats.day(view.date)) else Formats.day(view.date)
     Zoom.WEEK -> Log.weekStart(view.date).let { Formats.span(it, it.plusDays(6)) }
     Zoom.MONTH -> Formats.month(view.date)
     Zoom.YEAR -> view.date.year.toString()
