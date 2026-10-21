@@ -32,8 +32,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import initiative.core.Forecast
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.Log
@@ -60,6 +59,7 @@ import initiative.core.Status
 import net.fallhammer.initiative.R
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 /**
  * The Log: planning beyond today. Day, Week, Month, and Year, each paged with
@@ -72,6 +72,7 @@ import java.time.LocalDate
 fun LogScreen(
     model: LogModel,
     nowItem: Item?,
+    forecast: Forecast,
     flash: Flash?,
     onAdd: (String, LocalDate) -> Boolean,
     onUndo: () -> Unit,
@@ -86,18 +87,13 @@ fun LogScreen(
     var flipped by rememberSaveable { mutableStateOf(longArrayOf()) }
     val zooms = listOf(R.string.log_day, R.string.log_week, R.string.log_month, R.string.log_year).map { stringResource(it) }
     val nowId = nowItem?.id
-    // The day whose add line is open, as an epoch day; one at a time. Hiding the
-    // keyboard closes it.
-    var adding by rememberSaveable { mutableStateOf<Long?>(null) }
-    val keyboardUp = WindowInsets.isImeVisible
-    LaunchedEffect(keyboardUp) { if (!keyboardUp) adding = null }
-    fun LazyListScope.addLine(date: LocalDate) {
-        // Plans go forward: no add line on a day that's past.
-        if (date < view.today) return
-        item(key = "add-${date.toEpochDay()}") {
-            AddLine(date, view.today, open = adding == date.toEpochDay(), onOpen = { adding = date.toEpochDay() }, onAdd = onAdd)
-        }
-    }
+    // Today's open tasks take their times and order from the forecast, as on the board.
+    val planned = remember(forecast) { forecast.slots.associate { it.item.id to it.at } }
+    // + Add swaps the search box for a quick-add line aimed at the day in view
+    // (never a past one); Search swaps back. Not in Year, which has no one day.
+    var adding by rememberSaveable { mutableStateOf(false) }
+    val showAdd = adding && zoom != Zoom.YEAR
+    val addDay = maxOf(view.date, view.today)
 
     Screen {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -105,18 +101,32 @@ fun LogScreen(
             QuietButton(stringResource(R.string.log_back), onClose, color = Ink.accent)
         }
         Spacer(Modifier.height(Space.inside))
-        ChoiceRow(null, zooms, zoom.ordinal) { model.setZoom(Zoom.entries[it]) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Box(Modifier.weight(1f)) { ChoiceRow(null, zooms, zoom.ordinal) { model.setZoom(Zoom.entries[it]) } }
+            if (zoom != Zoom.YEAR) {
+                QuietButton(
+                    stringResource(if (showAdd) R.string.log_search_mode else R.string.log_add),
+                    { adding = !showAdd },
+                    color = Ink.accent,
+                )
+            }
+        }
         Spacer(Modifier.height(Space.inside))
-        OutlinedTextField(
-            value = query,
-            onValueChange = model::setQuery,
-            singleLine = true,
-            placeholder = { Text(stringResource(R.string.log_search), style = Type.bodySmall, color = Ink.dim) },
-            textStyle = Type.body.copy(color = Ink.text),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (showAdd) {
+            AddField(addDay, view.today, onAdd)
+        } else {
+            OutlinedTextField(
+                value = query,
+                onValueChange = model::setQuery,
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.log_search), style = Type.bodySmall, color = Ink.dim) },
+                textStyle = Type.body.copy(color = Ink.text),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
+                colors = fieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(Modifier.height(Space.inside))
         val results = view.results
         if (results == null) {
@@ -134,16 +144,12 @@ fun LogScreen(
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                results != null -> entries(results, nowId, showDate = true, empty = R.string.log_no_results, onEdit = onEdit)
-                view.zoom == Zoom.DAY -> {
-                    entries(view.days.firstOrNull()?.second.orEmpty(), nowId, onEdit = onEdit)
-                    addLine(view.date)
-                }
-                // A day with nothing on it has nothing to fold: just its name and add line.
+                results != null -> entries(results, nowId, emptyMap(), showDate = true, empty = R.string.log_no_results, onEdit = onEdit)
+                view.zoom == Zoom.DAY -> entries(view.days.firstOrNull()?.second.orEmpty(), nowId, planned, onEdit = onEdit)
+                // A day with nothing on it has nothing to fold: just its name.
                 view.zoom == Zoom.WEEK -> view.days.forEach { (date, list) ->
                     if (list.isEmpty()) {
                         item { DayHeader(date, view.today, open = true, onToggle = null) }
-                        addLine(date)
                     } else {
                         val open = date.toEpochDay() !in flipped
                         item {
@@ -152,17 +158,13 @@ fun LogScreen(
                                 flipped = if (day in flipped) flipped.filter { it != day }.toLongArray() else flipped + day
                             }
                         }
-                        if (open) {
-                            entries(list, nowId, onEdit = onEdit)
-                            addLine(date)
-                        }
+                        if (open) entries(list, nowId, planned, onEdit = onEdit)
                     }
                 }
                 view.zoom == Zoom.MONTH -> {
                     item { MonthGrid(view, model::pick) }
                     item { DayHeader(view.date, view.today, open = true, onToggle = null) }
-                    entries(view.days.firstOrNull { it.first == view.date }?.second.orEmpty(), nowId, onEdit = onEdit)
-                    addLine(view.date)
+                    entries(view.days.firstOrNull { it.first == view.date }?.second.orEmpty(), nowId, planned, onEdit = onEdit)
                 }
                 else -> items(view.months) { MonthRow(it, view.today, model::openMonth) }
             }
@@ -181,15 +183,19 @@ fun LogScreen(
 private fun LazyListScope.entries(
     list: List<LogEntry>,
     nowId: Long?,
+    planned: Map<Long, LocalDateTime>,
     showDate: Boolean = false,
     empty: Int = R.string.log_empty_day,
     onEdit: (Item) -> Unit,
 ) {
     if (list.isEmpty()) {
         item { Body(stringResource(empty), Modifier.padding(vertical = Space.s), style = Type.bodySmall) }
-    } else {
-        items(list) { EntryRow(it, nowId, showDate, onEdit) }
+        return
     }
+    // An open task in today's forecast shows its planned time, in the forecast's order.
+    fun at(e: LogEntry): LocalDateTime? = (if (!e.projected && e.item.isOpen) planned[e.item.id] else null) ?: e.time
+    val ordered = if (showDate) list else list.sortedWith(compareBy({ it.date }, { at(it) == null }, { at(it) }))
+    items(ordered) { EntryRow(it, at(it), nowId, showDate, onEdit) }
 }
 
 @Composable
@@ -236,13 +242,13 @@ private fun DayHeader(date: LocalDate, today: LocalDate, open: Boolean, onToggle
  * edited on its own, so it isn't tappable.
  */
 @Composable
-private fun EntryRow(entry: LogEntry, nowId: Long?, showDate: Boolean, onEdit: (Item) -> Unit) {
+private fun EntryRow(entry: LogEntry, at: LocalDateTime?, nowId: Long?, showDate: Boolean, onEdit: (Item) -> Unit) {
     val item = entry.item
     val isNow = !entry.projected && item.id == nowId
     val time = when {
         showDate -> Formats.shortDate(entry.date)
         isNow -> stringResource(R.string.log_now)
-        else -> entry.time?.let { Formats.clock(it) } ?: stringResource(R.string.log_any_time)
+        else -> at?.let { Formats.clock(it) } ?: stringResource(R.string.log_any_time)
     }
     val title = when {
         entry.projected -> stringResource(R.string.log_repeats, item.title)
@@ -291,35 +297,30 @@ private fun EntryText(entry: LogEntry, title: String, modifier: Modifier = Modif
 }
 
 /**
- * The way to add to a day from the Log: "+ Add to Friday", which opens into a
- * quick-add line in place. A line is read as for quick-add, on this day unless
- * it names another. Enter adds and leaves the line open for the next one.
+ * Quick-add for the day in view, in place of the search box: read as quick-add
+ * reads a line, on this day unless the text names another ("dentist fri").
+ * Enter adds and leaves the line ready for the next one.
  */
 @Composable
-private fun AddLine(date: LocalDate, today: LocalDate, open: Boolean, onOpen: () -> Unit, onAdd: (String, LocalDate) -> Boolean) {
-    if (!open) {
-        val name = if (date == today) stringResource(R.string.log_add_today) else stringResource(R.string.log_add_to, Formats.weekday(date))
-        Row(Modifier.fillMaxWidth().heightIn(min = Tap.min).clickable(onClick = onOpen), verticalAlignment = Alignment.CenterVertically) {
-            Text(name, style = Type.bodySmall, color = Ink.accent)
-        }
-        return
-    }
+private fun AddField(day: LocalDate, today: LocalDate, onAdd: (String, LocalDate) -> Boolean) {
     // Saved across a restart, so a half-typed line survives.
-    var text by rememberSaveable(date) { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf("") }
     val cursor = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { cursor.requestFocus() } }
     fun submit() {
-        if (onAdd(text, date)) text = ""
+        if (onAdd(text, day)) text = ""
     }
+    val hint = if (day == today) stringResource(R.string.log_add_hint_today) else stringResource(R.string.log_add_hint, Formats.weekday(day))
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
         singleLine = true,
-        placeholder = { Text(stringResource(R.string.quick_add_hint), style = Type.bodySmall, color = Ink.dim) },
+        placeholder = { Text(hint, style = Type.bodySmall, color = Ink.dim) },
         textStyle = Type.body.copy(color = Ink.text),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { submit() }),
         trailingIcon = if (text.isBlank()) null else ({ QuietButton(stringResource(R.string.quick_add_button), ::submit, color = Ink.accent) }),
+        colors = fieldColors(),
         modifier = Modifier.fillMaxWidth().focusRequester(cursor),
     )
 }

@@ -196,6 +196,7 @@ fun BoardScreen(vm: BoardViewModel) {
                 LogScreen(
                     vm.log,
                     ui.board?.now?.item,
+                    forecast = ui.forecast,
                     flash = flash,
                     onAdd = vm::addOn,
                     onUndo = vm::undo,
@@ -854,6 +855,7 @@ private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifie
         } else {
             { QuietButton(stringResource(R.string.quick_add_button), { if (onSubmit(text)) text = "" }, color = Ink.accent) }
         },
+        colors = fieldColors(),
         modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     )
 }

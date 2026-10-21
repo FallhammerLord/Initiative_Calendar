@@ -236,6 +236,7 @@ private fun Field(label: String, value: String, onChange: (String) -> Unit, sing
         label = { Text(label, style = Type.bodySmall) },
         textStyle = Type.body.copy(color = Ink.text),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        colors = fieldColors(),
         modifier = modifier,
     )
 }

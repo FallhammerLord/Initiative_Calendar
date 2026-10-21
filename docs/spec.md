@@ -446,7 +446,9 @@ After v0.1, built:
 - *Series.* A repeating item shows as one row on each date it falls, marked "repeats" beyond the three weeks already made. A series isn't a parent of steps; it's one rule on many dates.
 - *Now stays in view.* A bar along the bottom shows Now and its next step.
 - *Tap to edit.* Any item opens the edit form. **Put back** replaces Remove for a done or removed item and returns it to the board.
-- *Add to a day.* Each day from today on ends with **+ Add to Friday** (or today). It opens a quick-add line in place, read as quick-add reads it, on that day unless the text names another. Enter adds and leaves the line open for the next; hiding the keyboard closes it. A line that would ask "anchor or float?" on the board becomes a task, since the day is chosen. In Week, a day with nothing on it shows just its name and the add line; days with items fold, open by default.
+- *Add to a day.* **+ Add**, right of the zoom tabs, swaps the search box for a quick-add line aimed at the day in view ("Add to Wednesday"; never a past day), read as quick-add reads it, on that day unless the text names another ("dentist fri"). Enter adds and leaves the line ready for the next; **Search** swaps back. A line that would ask "anchor or float?" on the board becomes a task, since the day is chosen. Not in Year, which has no one day. In Week, a day with nothing on it shows just its name; days with items fold, open by default.
+- *Today as planned.* Today's open tasks show their forecast times, in the forecast's order, the same as the day panel.
+- *Fields stand out.* Every text field sits on the panel's dark surface, clear of the background pattern.
 - *Messages where you are.* Added, Saved, and Undo show in the Log, not only on the board.
 - *Never lost.* Every path ends where it started: edits from the Log return to the Log, Back steps out one level, Home is always the board.
 

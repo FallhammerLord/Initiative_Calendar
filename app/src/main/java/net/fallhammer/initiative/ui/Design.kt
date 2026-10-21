@@ -30,6 +30,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -549,6 +551,19 @@ fun rememberHaptics(): Haptics {
     val view = LocalView.current
     return remember(view) { Haptics(view) }
 }
+
+/**
+ * Every text field's colors: the panel's dark surface underneath, so typed text
+ * stands clear of the background pattern; the frame color for the outline, and
+ * the accent while typing.
+ */
+@Composable
+fun fieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Ink.surface,
+    unfocusedContainerColor = Ink.surface,
+    focusedBorderColor = Ink.accent,
+    unfocusedBorderColor = Ink.frame,
+)
 
 /** A short note after an action, with Undo when the action can be taken back. */
 @Composable

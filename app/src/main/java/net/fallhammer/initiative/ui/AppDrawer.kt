@@ -70,6 +70,7 @@ fun AppDrawer(
             textStyle = Type.body.copy(color = Ink.text),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { shown.firstOrNull()?.let(onLaunch) }),
+            colors = fieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(Space.s))

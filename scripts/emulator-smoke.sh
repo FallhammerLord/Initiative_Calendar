@@ -866,13 +866,15 @@ wait_for "Earlier" exact || fail "Plan ahead should open the Log"
 expect_text "Today"
 expect_text "dentist call"
 shot log-day
-# Add to a day from the Log: the line opens in place and stays open for the next.
-tap "+ Add to today" exact
+# + Add swaps search for quick-add aimed at the day in view; Search swaps back.
+tap "+ Add" exact
+wait_for "Add to today" || fail "+ Add should open quick-add for today"
 quick_add "pack lunch"
 expect_text "pack lunch"
 hide_keyboard
-wait_for "+ Add to today" exact || fail "the add line should close with the keyboard"
-pass "a day in the Log takes a new task, and the message shows in the Log"
+tap Search exact
+wait_for "Search everything" || fail "Search should bring the search box back"
+pass "+ Add takes a new task for the day in view, and Search returns"
 tap Week exact
 expect_text "dentist call"
 shot log-week

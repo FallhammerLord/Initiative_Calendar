@@ -272,6 +272,8 @@
     <string name="log_fold_day">Fold this day</string>
     <string name="log_open_month">Open this month</string>
     <string name="log_folded_mark">›</string>
-    <string name="log_add_today">+ Add to today</string>
-    <string name="log_add_to">+ Add to %1$s</string>
+    <string name="log_add">+ Add</string>
+    <string name="log_search_mode">Search</string>
+    <string name="log_add_hint_today">Add to today</string>
+    <string name="log_add_hint">Add to %1$s</string>
 </resources>
