@@ -33,7 +33,7 @@ fun RecapScreen(
     onBack: () -> Unit,
 ) {
     Screen {
-        Title(stringResource(R.string.recap_title), style = Type.title)
+        Strip { Title(stringResource(R.string.recap_title), style = Type.title) }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Part(stringResource(R.string.recap_passed)) {
                 if (recap.passed.isEmpty()) Body(stringResource(R.string.recap_nothing))
@@ -97,10 +97,11 @@ fun RecopyScreen(
     onStop: () -> Unit,
 ) {
     Screen {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Strip {
             Label(stringResource(R.string.recopy_label), Modifier.weight(1f))
             QuietButton(stringResource(R.string.recopy_stop), onStop)
         }
+        Spacer(Modifier.height(Space.panel))
         Card(Modifier.weight(1f).verticalScroll(rememberScrollState()), arrangement = Arrangement.spacedBy(Space.m)) {
             Title(item.title)
             if (Recopy.nudge(item)) Body(stringResource(R.string.recopy_nudge))
@@ -119,8 +120,10 @@ fun RecopyScreen(
 
 @Composable
 private fun Part(title: String, content: @Composable () -> Unit) {
-    Spacer(Modifier.height(Space.zone))
-    Label(title)
-    Spacer(Modifier.height(Space.xs))
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.inside)) { content() }
+    // Each part is a panel, so its words never sit on the background pattern.
+    Spacer(Modifier.height(Space.panel))
+    Card(inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) {
+        Label(title)
+        content()
+    }
 }

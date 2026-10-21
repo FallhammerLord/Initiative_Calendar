@@ -110,6 +110,7 @@
     <string name="look_scifi">Sci-fi</string>
     <string name="look_classic">Classic</string>
     <string name="look_deco">Deco</string>
+    <string name="look_glass">Stained glass</string>
     <string name="setting_ornaments">Ornaments</string>
     <string name="setting_ornaments_hint">The background pattern, corner details, and the All done flourish.</string>
     <string name="setting_texture">Texture strength</string>
@@ -257,7 +258,7 @@
 
     <!-- The Log: planning beyond today -->
     <string name="plan_ahead">Plan ahead</string>
-    <string name="plan_ahead_mark">›</string>
+    <string name="plan_ahead_button">Plan ahead ›</string>
     <string name="log_back">Back to board</string>
     <string name="log_day">Day</string>
     <string name="log_week">Week</string>

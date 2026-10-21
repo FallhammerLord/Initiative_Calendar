@@ -290,7 +290,7 @@ set_clock() {
 open_settings() {
   open_drawer
   tap "Initiative settings" exact
-  wait_for "Quiet hours" exact || fail "Initiative settings didn't open"
+  wait_for "Lock-screen card" exact || fail "Initiative settings didn't open"
 }
 
 crash_check() {
@@ -665,7 +665,19 @@ shot deco-plain
 open_settings
 tap Ornaments exact
 pass "Deco and the Ornaments switch"
+# Stained glass: leaded glass, arched panes, a rose on the Now card's arch.
+tap "Stained glass" exact
+wait_for "Texture strength" exact || fail "the texture slider should show for Stained glass"
+shot glass-settings
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot glass-board
+pass "Stained glass look"
+open_settings
 tap Sci-fi exact
+# The sections are panels now; scroll the alarms into view.
+adb shell input swipe 540 1800 540 800 300
+sleep 1
 tap "Quiet hours" exact
 expect_text "From 10:00 PM"
 shot quiet-hours

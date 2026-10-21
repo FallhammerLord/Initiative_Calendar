@@ -1,7 +1,10 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -74,6 +78,7 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
     val earlier = stringResource(R.string.move_earlier)
     val later = stringResource(R.string.move_later)
     val edit = stringResource(R.string.edit_action)
+    val shape = LocalLook.current.buttonShape
 
     @Composable
     fun Entry(item: Item, time: String?, place: Int?) {
@@ -127,10 +132,14 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
                 .heightIn(min = Tap.min)
                 .zIndex(if (dragging == item.id) 1f else 0f)
                 .graphicsLayer { translationY = if (dragging == item.id) dragY else 0f }
+                // A button, like everything tappable: it opens the edit form.
+                .clip(shape)
+                .background(Ink.surface)
+                .border(1.dp, if (dragging == item.id) Ink.accent else Ink.frame, shape)
                 .then(drag)
                 .clickable(onClickLabel = edit) { onEdit(item) }
                 .semantics { customActions = actions }
-                .padding(vertical = Space.xs),
+                .padding(horizontal = Space.m, vertical = Space.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(time.orEmpty(), style = Type.bodySmall, color = Ink.dim, modifier = Modifier.width(TIME_COLUMN))
@@ -142,7 +151,10 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
         }
     }
 
-    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.xs)) {
+    Column(
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Space.xs),
+        verticalArrangement = Arrangement.spacedBy(Space.xs),
+    ) {
         forecast.slots.forEachIndexed { i, slot -> Entry(slot.item, Formats.clock(slot.at), i) }
         if (forecast.later.isNotEmpty()) {
             Spacer(Modifier.height(Space.inside))

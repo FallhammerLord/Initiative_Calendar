@@ -7,7 +7,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
@@ -76,6 +79,7 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /*
  * The design system. Screens are assembled from these tokens and components and
@@ -146,6 +150,7 @@ fun Screen(modifier: Modifier = Modifier, pulse: () -> Pulse? = { null }, conten
                 when {
                     LocalLook.current.hexGrid -> Modifier.hexGrid(Ink.pattern, Ink.accent, LocalHexLattice.current.value, pulse)
                     LocalLook.current.fans -> Modifier.fans(Ink.pattern, Ink.bg, Ink.accent, pulse)
+                    LocalLook.current.leaded -> Modifier.leadedGlass(LocalLook.current.palette.jewels, LocalLook.current.texture, Ink.bg, Ink.accent, pulse)
                     else -> Modifier
                 },
             )
@@ -171,7 +176,7 @@ fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Uni
             .clip(look.cardShape)
             .then(modifier)
             .background(Ink.surface)
-            .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
+            .then(if (look.framed) Modifier.border(look.came, Ink.frame, look.cardShape) else Modifier)
             .padding(horizontal = Space.xl, vertical = Space.s),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -179,44 +184,227 @@ fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Uni
 }
 
 /**
- * A slim pull tab along the bottom edge: just a mark, with a full-size touch
- * target and a spoken [label].
+ * The Apps button along the bottom edge: the word, with a chevron, on a tab
+ * fixed to a rail that runs the board's width. Each look has its own fixture
+ * (see [HandleStyle]); the whole width is the touch target.
  */
 @Composable
-fun Handle(mark: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun AppsHandle(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val look = LocalLook.current
+    val style = look.handle
+    val accent = Ink.accent
+    val frame = Ink.frame
+    val surface = Ink.surface
+    val bg = Ink.bg
+    val jewels = look.palette.jewels
+    // The tab's outline: the accent for the bolder fixtures, the frame for the quiet ones.
+    val edge = if (style == HandleStyle.CLAMP || style == HandleStyle.ZIGGURAT) accent else frame
     Box(
         modifier
             .fillMaxWidth()
             .heightIn(min = Tap.min)
-            .clickable(onClickLabel = label, onClick = onClick)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
+            .drawBehind { rail(style, accent, frame) }
+            .clickable(onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.BottomCenter,
     ) {
-        Text(mark, style = Type.title, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
+        Row(
+            Modifier
+                .drawBehind { tab(style, surface, edge, accent, bg, jewels) }
+                .padding(start = Space.xl, end = Space.xl, top = Space.l, bottom = Space.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(CHEVRON)
+                    .drawBehind {
+                        val c = Path().apply {
+                            moveTo(0f, size.height * 0.75f)
+                            lineTo(size.width / 2, size.height * 0.25f)
+                            lineTo(size.width, size.height * 0.75f)
+                        }
+                        drawPath(c, accent, style = Stroke(CHEVRON_LINE.toPx()))
+                    },
+            )
+            Text(label, style = Type.label, color = Ink.text, modifier = Modifier.padding(start = Space.s))
+        }
     }
 }
 
-/** The raised surface the Now card and alarm sit on. */
+/** The rail the Apps tab is fixed to, along the bottom of its band. */
+private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color) {
+    val y = size.height - RAIL_INSET.toPx()
+    val line = RAIL_LINE.toPx()
+    when (style) {
+        HandleStyle.PILL -> Unit
+        HandleStyle.CLAMP -> {
+            drawLine(accent.copy(alpha = RAIL_ALPHA), Offset(0f, y), Offset(size.width, y), line)
+            val step = RAIL_STEP.toPx()
+            var x = step / 2
+            while (x < size.width) {
+                drawLine(accent.copy(alpha = RAIL_ALPHA), Offset(x, y - RAIL_TICK.toPx()), Offset(x, y + RAIL_TICK.toPx()), line)
+                x += step
+            }
+        }
+        HandleStyle.ZIGGURAT -> repeat(FLUTES) { k ->
+            val fy = y - k * FLUTE_GAP.toPx()
+            drawLine(frame, Offset(0f, fy), Offset(size.width, fy), Hairline.toPx())
+        }
+        HandleStyle.LANCET -> {
+            drawLine(frame, Offset(0f, y), Offset(size.width, y), line)
+            val step = RAIL_STEP.toPx()
+            val d = RAIL_TICK.toPx()
+            var x = step / 2
+            while (x < size.width) {
+                val diamond = Path().apply {
+                    moveTo(x - d, y)
+                    lineTo(x, y - d)
+                    lineTo(x + d, y)
+                    lineTo(x, y + d)
+                    close()
+                }
+                drawPath(diamond, frame, style = Stroke(line))
+                x += step
+            }
+        }
+    }
+}
+
+/** The Apps tab itself, drawn around its word and chevron. */
+private fun DrawScope.tab(style: HandleStyle, fill: Color, edge: Color, accent: Color, lead: Color, jewels: List<Color>) {
+    val w = size.width
+    val h = size.height
+    val line = RAIL_LINE.toPx()
+    val shape = when (style) {
+        HandleStyle.PILL -> Path().apply {
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, TAB_TOP.toPx(), w, h, h / 2, h / 2))
+        }
+        HandleStyle.CLAMP -> Path().apply {
+            val lean = TAB_LEAN.toPx()
+            moveTo(0f, h)
+            lineTo(lean, TAB_TOP.toPx())
+            lineTo(w - lean, TAB_TOP.toPx())
+            lineTo(w, h)
+            close()
+        }
+        HandleStyle.ZIGGURAT -> Path().apply {
+            val step = TAB_LEAN.toPx()
+            val rise = (h - TAB_TOP.toPx()) / 3
+            moveTo(0f, h)
+            lineTo(0f, h - rise)
+            lineTo(step, h - rise)
+            lineTo(step, h - 2 * rise)
+            lineTo(2 * step, h - 2 * rise)
+            lineTo(2 * step, TAB_TOP.toPx())
+            lineTo(w - 2 * step, TAB_TOP.toPx())
+            lineTo(w - 2 * step, h - 2 * rise)
+            lineTo(w - step, h - 2 * rise)
+            lineTo(w - step, h - rise)
+            lineTo(w, h - rise)
+            lineTo(w, h)
+            close()
+        }
+        HandleStyle.LANCET -> Path().apply {
+            val side = h * LANCET_SIDE
+            moveTo(0f, h)
+            lineTo(0f, side)
+            cubicTo(0f, side * ARCH_PULL_TAB, w * 0.3f, 0f, w / 2, 0f)
+            cubicTo(w * 0.7f, 0f, w, side * ARCH_PULL_TAB, w, side)
+            lineTo(w, h)
+            close()
+        }
+    }
+    drawPath(shape, fill)
+    drawPath(shape, edge, style = Stroke(line))
+    when (style) {
+        // A small sun rising over the word.
+        HandleStyle.ZIGGURAT -> {
+            val c = Offset(w / 2, TAB_TOP.toPx() + SUN.toPx())
+            for (k in 0..4) {
+                val a = Math.toRadians(180.0 + 30.0 + 30.0 * k).toFloat()
+                drawLine(accent, c, Offset(c.x + cos(a) * SUN.toPx(), c.y + sin(a) * SUN.toPx()), Hairline.toPx())
+            }
+        }
+        // A small rose of four panes in the arch's head.
+        HandleStyle.LANCET -> if (jewels.size >= 4) {
+            val r = ROSE.toPx()
+            val c = Offset(w / 2, r + Space.xs.toPx())
+            for (k in 0..3) {
+                drawArc(jewels[k], 90f * k - 90f, 90f, useCenter = true, topLeft = Offset(c.x - r, c.y - r), size = Size(2 * r, 2 * r))
+                drawArc(lead, 90f * k - 90f, 90f, useCenter = true, topLeft = Offset(c.x - r, c.y - r), size = Size(2 * r, 2 * r), style = Stroke(Hairline.toPx()))
+            }
+            drawCircle(accent, radius = r, center = c, style = Stroke(Hairline.toPx()))
+        }
+        else -> Unit
+    }
+}
+
+// The Apps handle: its chevron, rail, and tab.
+private val CHEVRON = 16.dp
+private val CHEVRON_LINE = 3.dp
+private val RAIL_LINE = 2.dp
+private val RAIL_INSET = 3.dp
+private val RAIL_STEP = 18.dp
+private val RAIL_TICK = 4.dp
+private const val RAIL_ALPHA = 0.8f
+private const val FLUTES = 3
+private val FLUTE_GAP = 4.dp
+private val TAB_TOP = 4.dp
+private val TAB_LEAN = 12.dp
+private val SUN = 7.dp
+private val ROSE = 6.dp
+private const val LANCET_SIDE = 0.45f
+private const val ARCH_PULL_TAB = 0.3f
+
+/**
+ * The raised surface the Now card and alarm sit on, and the panel every other
+ * screen's words sit in, so plain text never lies on the background pattern.
+ * [now] gives it the look's Now shape (a window's arch, in glass) and crown.
+ */
 @Composable
 fun Card(
     modifier: Modifier = Modifier,
     arrangement: Arrangement.Vertical = Arrangement.Top,
+    now: Boolean = false,
+    inner: Dp = Space.xl,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val look = LocalLook.current
+    val shape = if (now) look.nowShape ?: look.cardShape else look.cardShape
     val gold = Ink.accent.copy(alpha = BRACKET_ALPHA)
+    val accent = Ink.accent
+    val lead = Ink.bg
+    val jewels = look.palette.jewels
     Column(
         modifier
             .fillMaxWidth()
-            .clip(look.cardShape)
+            .clip(shape)
             .background(Ink.surface)
             .then(if (look.brackets) Modifier.drawBehind { brackets(gold) } else Modifier)
-            .then(if (look.framed) Modifier.border(Hairline, Ink.frame, look.cardShape) else Modifier)
-            .padding(Space.xl),
+            .then(if (now && look.keystone) Modifier.drawBehind { keystone(accent, lead, jewels) } else Modifier)
+            .then(if (look.framed) Modifier.border(look.came, Ink.frame, shape) else Modifier)
+            .padding(start = inner, end = inner, bottom = inner, top = inner + if (now) look.nowRise else 0.dp),
         verticalArrangement = arrangement,
         content = content,
     )
 }
+
+/** Glass's crown for the Now card: a small rose window at the top of its arch. */
+private fun DrawScope.keystone(gold: Color, lead: Color, jewels: List<Color>) {
+    if (jewels.size < 2) return
+    val r = KEYSTONE.toPx()
+    val c = Offset(size.width / 2, KEYSTONE_DROP.toPx())
+    drawCircle(lead, radius = r, center = c)
+    val petal = r * 0.42f
+    for (k in 0..3) {
+        val a = Math.toRadians(90.0 * k - 90.0).toFloat()
+        drawCircle(jewels[k % 2], radius = petal, center = Offset(c.x + cos(a) * petal, c.y + sin(a) * petal))
+    }
+    drawCircle(gold, radius = r, center = c, style = Stroke(RAIL_LINE.toPx()))
+    drawCircle(gold, radius = r * 0.18f, center = c)
+}
+
+private val KEYSTONE = 13.dp
+private val KEYSTONE_DROP = 18.dp
 
 private val Hairline = 1.dp
 
@@ -337,6 +525,82 @@ private fun Modifier.fans(color: Color, ground: Color, glow: Color, pulse: () ->
     }
 }
 
+/**
+ * Leaded glass behind a screen: diamond quarries in the look's jewel colors and
+ * clear panes, set in dark lead, at the chosen [strength]. A [pulse] opens a
+ * rose window from its center that blooms and fades: the All done flourish.
+ */
+private fun Modifier.leadedGlass(jewels: List<Color>, strength: Float, lead: Color, gold: Color, pulse: () -> Pulse?): Modifier = drawWithCache {
+    val qw = QUARRY_W.toPx()
+    val qh = QUARRY_H.toPx()
+    // The screen's size, taken before buildList, where "size" means the list's.
+    val width = size.width
+    val height = size.height
+    // Each quarry's color, fixed by its place, so the glass doesn't shift; about a third are clear.
+    val panes = buildList {
+        var row = 0
+        var y = 0f
+        while (y < height + qh) {
+            var col = 0
+            var x = if (row % 2 == 0) 0f else qw / 2
+            while (x < width + qw) {
+                val pick = (col * 7 + row * 13 + (col * row) % 5) % (jewels.size + CLEAR_SHARE)
+                val color = jewels.getOrNull(pick)
+                val diamond = Path().apply {
+                    moveTo(x, y - qh / 2)
+                    lineTo(x + qw / 2, y)
+                    lineTo(x, y + qh / 2)
+                    lineTo(x - qw / 2, y)
+                    close()
+                }
+                add(diamond to color)
+                x += qw
+                col++
+            }
+            y += qh / 2
+            row++
+        }
+    }
+    val came = LEAD.toPx()
+    val far = hypot(size.width, size.height)
+    onDrawBehind {
+        panes.forEach { (diamond, color) ->
+            if (color != null) drawPath(diamond, color.copy(alpha = strength))
+            drawPath(diamond, lead, style = Stroke(came))
+        }
+        val p = pulse() ?: return@onDrawBehind
+        if (p.progress <= 0f || p.progress >= 1f || jewels.isEmpty()) return@onDrawBehind
+        // The rose window: twelve panes and a ring of roundels, opening out, then fading.
+        val fade = 1f - p.progress
+        val r = minOf(far * ROSE_REACH, ROSE_MAX.toPx()) * sqrt(p.progress)
+        val box = Size(2 * r, 2 * r)
+        val corner = Offset(p.center.x - r, p.center.y - r)
+        for (k in 0 until ROSE_PANES) {
+            val start = 360f * k / ROSE_PANES - 90f
+            val sweep = 360f / ROSE_PANES
+            drawArc(jewels[k % jewels.size].copy(alpha = fade), start, sweep, useCenter = true, topLeft = corner, size = box)
+            drawArc(lead.copy(alpha = fade), start, sweep, useCenter = true, topLeft = corner, size = box, style = Stroke(came))
+        }
+        drawCircle(lead.copy(alpha = fade), radius = r * ROSE_HEART, center = p.center)
+        drawCircle(gold.copy(alpha = fade), radius = r * ROSE_HEART, center = p.center, style = Stroke(came))
+        drawCircle(gold.copy(alpha = fade), radius = r * ROSE_EYE, center = p.center)
+        drawCircle(gold.copy(alpha = fade), radius = r, center = p.center, style = Stroke(came))
+    }
+}
+
+// The leaded glass: each quarry's size, the lead between them, and how many clear panes to each colored one's kinds.
+private val QUARRY_W = 40.dp
+private val QUARRY_H = 60.dp
+private val LEAD = 3.dp
+private const val CLEAR_SHARE = 3
+
+// The rose window flourish: how far it opens, its panes, and its center.
+private const val ROSE_REACH = 0.35f
+private val ROSE_MAX = 180.dp
+private const val ROSE_PANES = 12
+private const val ROSE_HEART = 0.3f
+private const val ROSE_EYE = 0.08f
+
 // The fans: radius, and the rings inside each (shares of the radius), as in the quest log.
 private val FAN = 28.dp
 private val FAN_RINGS = listOf(0.3f, 0.55f, 0.8f, 0.97f)
@@ -400,13 +664,14 @@ fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Mod
     }
 }
 
-/** A text-only action, for Close, Cancel, and Apps; on the dark surface, with no outline. */
+/** A small action, for Close, Cancel, and Undo: outlined, like every button, so anything tappable looks it. */
 @Composable
 fun QuietButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = Ink.dim) {
     TextButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = Tap.min),
         shape = LocalLook.current.buttonShape,
+        border = BorderStroke(Hairline, Ink.frame),
         colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
     ) {
         Text(label, style = Type.caption, color = color)
@@ -454,7 +719,13 @@ internal const val LARGE_FONT = 1.15f
 /** One accent line, such as the next setup step. */
 @Composable
 fun PromptLine(text: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = Tap.min)) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = Tap.min),
+        shape = LocalLook.current.buttonShape,
+        border = BorderStroke(Hairline, Ink.frame),
+        colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
+    ) {
         Text(text, style = Type.caption, color = Ink.accent, modifier = Modifier.fillMaxWidth())
     }
 }
@@ -476,6 +747,43 @@ fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
             colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.onAccent),
         )
     }
+}
+
+/**
+ * A row in a list that opens something, such as an entry in the Log: outlined,
+ * like every button, so anything tappable looks it. [lit] outlines it in the
+ * accent, for Now. With no [onClick] it's a plain row, and has no outline.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RowButton(
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    onClickLabel: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    lit: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val shape = LocalLook.current.buttonShape
+    Column(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.min)
+            .then(
+                if (onClick == null) {
+                    Modifier
+                } else {
+                    Modifier
+                        .clip(shape)
+                        .background(Ink.surface)
+                        .border(Hairline, if (lit) Ink.accent else Ink.frame, shape)
+                        .combinedClickable(onClickLabel = onClickLabel, onClick = onClick, onLongClick = onLongClick)
+                },
+            )
+            .padding(horizontal = Space.m, vertical = Space.xs),
+        verticalArrangement = Arrangement.Center,
+        content = content,
+    )
 }
 
 /**

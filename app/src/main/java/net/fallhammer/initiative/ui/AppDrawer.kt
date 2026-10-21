@@ -1,14 +1,12 @@
 package net.fallhammer.initiative.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -57,11 +54,12 @@ fun AppDrawer(
 
     // Catch taps on empty space so they never reach the board underneath.
     Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
-        Row(Modifier.fillMaxWidth().onSwipeDown(onClose), verticalAlignment = Alignment.CenterVertically) {
+        Strip(Modifier.onSwipeDown(onClose)) {
             Title(stringResource(if (picking) R.string.pick_title else R.string.drawer_title), style = Type.title, modifier = Modifier.weight(1f))
             if (!picking) QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
             QuietButton(stringResource(R.string.drawer_close), onClose)
         }
+        Spacer(Modifier.height(Space.s))
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -82,23 +80,29 @@ fun AppDrawer(
         } else if (onClearSlot != null) {
             SecondaryButton(stringResource(R.string.pick_clear), onClearSlot, height = Tap.min)
         }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+        Spacer(Modifier.height(Space.s))
+        // Each app is a button, like everything tappable.
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             items(shown, key = { it.key }) { app ->
                 val isPinned = app.key in pinned
                 val spoken = if (isPinned) stringResource(R.string.drawer_pinned, app.label) else app.label
-                Text(
-                    text = if (isPinned) "${app.label}  •" else app.label,
-                    style = Type.heading,
-                    color = Ink.text,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = Tap.min)
-                        .combinedClickable(onClick = { onLaunch(app) }, onLongClick = if (picking) null else ({ onTogglePin(app) }))
-                        .semantics { contentDescription = spoken }
-                        .padding(vertical = Space.m),
-                )
+                RowButton(
+                    { onLaunch(app) },
+                    Modifier.semantics { contentDescription = spoken },
+                    onLongClick = if (picking) null else ({ onTogglePin(app) }),
+                ) {
+                    Text(
+                        text = if (isPinned) "${app.label}  •" else app.label,
+                        style = Type.heading,
+                        color = Ink.text,
+                        modifier = Modifier.padding(vertical = Space.xs),
+                    )
+                }
             }
         }
-        if (!picking) Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim)
+        if (!picking) {
+            Spacer(Modifier.height(Space.xs))
+            Strip { Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim) }
+        }
     }
 }

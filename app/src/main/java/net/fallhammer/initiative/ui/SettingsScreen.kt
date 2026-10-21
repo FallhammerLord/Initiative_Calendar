@@ -62,7 +62,7 @@ fun SettingsScreen(
 
     // Catch taps on empty space so they never reach the board underneath.
     Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
-        Row(Modifier.fillMaxWidth().onSwipeDown(onClose), verticalAlignment = Alignment.CenterVertically) {
+        Strip(Modifier.onSwipeDown(onClose)) {
             Title(stringResource(R.string.settings_title), style = Type.title, modifier = Modifier.weight(1f))
             QuietButton(stringResource(R.string.drawer_close), onClose)
         }
@@ -165,10 +165,13 @@ fun SettingsScreen(
 /** A labelled group of settings. */
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Spacer(Modifier.height(Space.zone))
-    Label(title)
-    Spacer(Modifier.height(Space.xs))
-    Column(Modifier.fillMaxWidth()) { content() }
+    // Each section is a panel, so its words never sit on the background pattern.
+    Spacer(Modifier.height(Space.panel))
+    Card(inner = Space.l) {
+        Label(title)
+        Spacer(Modifier.height(Space.xs))
+        content()
+    }
 }
 
 // Choices for the lapse and recopy timings.

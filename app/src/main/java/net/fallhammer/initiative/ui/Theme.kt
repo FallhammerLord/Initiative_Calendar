@@ -48,7 +48,24 @@ data class Palette(
     val frame: Color,
     /** Faint background pattern; drawn only when the Look asks for it. */
     val pattern: Color,
+    /** Colored glass for a leaded ground and its ornaments; never under text. */
+    val jewels: List<Color> = emptyList(),
 )
+
+/** The Apps handle's fixture, one per look. */
+enum class HandleStyle {
+    /** A hexagon-cut tab rising from a ticked rail. */
+    CLAMP,
+
+    /** A plain pill. */
+    PILL,
+
+    /** A stepped tower with a small rising sun, on fluted rails. */
+    ZIGGURAT,
+
+    /** A pointed window with a small rose, on a leaded rail. */
+    LANCET,
+}
 
 data class Look(
     val id: String,
@@ -70,13 +87,51 @@ data class Look(
     val brackets: Boolean = false,
     /** How strongly the background pattern shows, 0 to 1; set in Settings. */
     val texture: Float = DEFAULT_TEXTURE,
+    /** The Apps handle's fixture. */
+    val handle: HandleStyle = HandleStyle.PILL,
+    /** Leaded glass behind every screen, in the [Palette.jewels]. */
+    val leaded: Boolean = false,
+    /** A small rose window at the top of the Now card. */
+    val keystone: Boolean = false,
+    /** The Now card's own shape, such as a window's arch; null: [cardShape]. */
+    val nowShape: Shape? = null,
+    /** How far the Now card's top rises above its sides, so its words clear the arch. */
+    val nowRise: Dp = 0.dp,
+    /** The dial's marks as relics: a pomegranate seed for now, coins for things done. */
+    val relics: Boolean = false,
+    /** Outline width for cards and panels: a hairline, or heavier came for glass. */
+    val came: Dp = 1.dp,
 ) {
     /** Whether a pattern shows behind the screens, so its strength can be set. */
-    val patterned: Boolean get() = hexGrid || fans
+    val patterned: Boolean get() = hexGrid || fans || leaded
 
     /** The same look with its ornaments off: no pattern, no brackets, no flourish. */
-    fun plain(): Look = copy(hexGrid = false, fans = false, brackets = false)
+    fun plain(): Look = copy(hexGrid = false, fans = false, brackets = false, leaded = false, keystone = false)
 }
+
+/**
+ * A window's arch: square feet, straight sides, and a top that rises [rise]
+ * from each side to a soft point at the middle.
+ */
+class ArchShape(private val rise: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val r = with(density) { rise.toPx() }.coerceAtMost(size.height / 2)
+        val w = size.width
+        val path = Path().apply {
+            moveTo(0f, size.height)
+            lineTo(0f, r)
+            cubicTo(0f, r * ARCH_PULL, w * ARCH_SHOULDER, 0f, w / 2, 0f)
+            cubicTo(w * (1 - ARCH_SHOULDER), 0f, w, r * ARCH_PULL, w, r)
+            lineTo(w, size.height)
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
+
+// The arch's curve: how far down each side its pull starts, and where its shoulders sit.
+private const val ARCH_PULL = 0.35f
+private const val ARCH_SHOULDER = 0.28f
 
 /** The dock's trio tile; see core's Trio. Sized to the tile's box, which is 1.75 hexagons wide. */
 object TrioShape : Shape {
@@ -112,6 +167,7 @@ object Looks {
         hexGrid = true,
         accentLabels = true,
         dockTrio = true,
+        handle = HandleStyle.CLAMP,
     )
 
     /** Black and amber, rounded. The first look. */
@@ -162,9 +218,52 @@ object Looks {
         dockTrio = false,
         fans = true,
         brackets = true,
+        handle = HandleStyle.ZIGGURAT,
     )
 
-    val all = listOf(SciFi, Classic, Deco)
+    /**
+     * Stained glass, after a cathedral window: dark panes in bronze came over a
+     * ground of leaded glass, ivory text, gold light. Its glass is pomegranate,
+     * garnet, violet, night blue, asphodel, and amber, for Hades and Persephone;
+     * the dial keeps time with a pomegranate seed, and things done are coins.
+     */
+    val Glass = Look(
+        id = "glass",
+        label = R.string.look_glass,
+        palette = Palette(
+            bg = Color(0xFF0E0B12),
+            surface = Color(0xFF17121C),
+            text = Color(0xFFF1E8D8),
+            dim = Color(0xFFC9BBA6),
+            accent = Color(0xFFE3B65A),
+            onAccent = Color(0xFF1A1208),
+            frame = Color(0xFF8E6C38),
+            pattern = Color(0xFFE3B65A),
+            jewels = listOf(
+                Color(0xFFA8283C),
+                Color(0xFF4A2A66),
+                Color(0xFF22305A),
+                Color(0xFF3E5A3A),
+                Color(0xFF8A5A1E),
+                Color(0xFF7E1F2E),
+            ),
+        ),
+        cardShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 4.dp, bottomStart = 4.dp),
+        buttonShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomEnd = 3.dp, bottomStart = 3.dp),
+        framed = true,
+        hexGrid = false,
+        accentLabels = true,
+        dockTrio = false,
+        handle = HandleStyle.LANCET,
+        leaded = true,
+        keystone = true,
+        nowShape = ArchShape(36.dp),
+        nowRise = 28.dp,
+        relics = true,
+        came = 2.dp,
+    )
+
+    val all = listOf(SciFi, Classic, Deco, Glass)
 
     fun byId(id: String?): Look = all.firstOrNull { it.id == id } ?: SciFi
 }

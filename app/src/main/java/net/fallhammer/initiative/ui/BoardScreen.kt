@@ -281,8 +281,8 @@ fun BoardScreen(vm: BoardViewModel) {
                         verticalArrangement = Arrangement.spacedBy(Space.panel, Alignment.Bottom),
                     ) {
                         Dock(dock, icons, onTap = vm::tapSlot, onHold = vm::holdSlot)
-                        // The Apps button, as a slim pull tab: the swipe's visible twin.
-                        Handle(stringResource(R.string.day_open_mark), stringResource(R.string.apps_open), onClick = { vm.setDrawer(true) })
+                        // The Apps button, on its look's fixture: the swipe's visible twin.
+                        AppsHandle(stringResource(R.string.apps_open), onClick = { vm.setDrawer(true) })
                     }
                 }
                 // Open, the day panel lies over the board, so the Now card keeps its shape.
@@ -413,7 +413,7 @@ private fun NowCard(
     val scroll = rememberScrollState()
     val hint = Ink.accent
     val surface = Ink.surface
-    Card(modifier) {
+    Card(modifier, now = true) {
         Column(
             Modifier
                 .weight(1f, fill = false)
@@ -613,13 +613,8 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
                         Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
                     }
                 }
-                Text(label, style = Type.bodySmall, color = Ink.accent)
-                Text(
-                    stringResource(R.string.plan_ahead_mark),
-                    style = Type.body,
-                    color = Ink.accent,
-                    modifier = Modifier.padding(start = Space.xs).clearAndSetSemantics { },
-                )
+                // A button, like everything tappable; the whole panel opens the Log too.
+                QuietButton(stringResource(R.string.plan_ahead_button), onOpen, color = Ink.accent)
             }
             Spacer(Modifier.height(Space.xs))
             DayDial(ui)
@@ -666,6 +661,11 @@ private fun DayDial(ui: BoardUi) {
     val taskColor = Ink.frame
     val hollowColor = Ink.surface
     val nowColor = Ink.accent
+    // Glass keeps time with relics: a pomegranate seed for now, coins for things done.
+    val relics = LocalLook.current.relics
+    val seedColor = LocalLook.current.palette.jewels.firstOrNull() ?: nowColor
+    val coinColor = Ink.accent
+    val coinHole = Ink.surface
     Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT).semantics { contentDescription = description }) {
         val base = size.height - POINTER_ROOM.toPx()
         val rise = DIAL_RISE.toPx()
@@ -717,7 +717,13 @@ private fun DayDial(ui: BoardUi) {
         ui.ledger.filter { it.kind == MarkKind.DONE }.forEach { mark ->
             val f = frac(mark.at).coerceIn(0f, 1f)
             val c = Offset(f * w, y(f))
-            drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
+            if (relics) {
+                // An obol, the ferryman's coin.
+                drawCircle(coinColor, radius = COIN.toPx(), center = c)
+                drawCircle(coinHole, radius = COIN.toPx() * COIN_RING, center = c, style = Stroke(ARC_WIDTH.toPx() / 2))
+            } else {
+                drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
+            }
         }
 
         // The pointer: a small triangle under the arc, on the curve's perpendicular at
@@ -744,7 +750,29 @@ private fun DayDial(ui: BoardUi) {
             lineTo(backX + tx * half, backY + ty * half)
             close()
         }
-        if (inDay) drawPath(pointer, nowColor) else drawPath(pointer, nowColor, style = Stroke(ARC_WIDTH.toPx()))
+        if (relics) {
+            // A pomegranate seed: round at the back, coming to a point at now.
+            val seed = Path().apply {
+                moveTo(tipX, tipY)
+                cubicTo(
+                    tipX + nx * tall * SEED_SHOULDER - tx * half * SEED_WIDTH, tipY + ny * tall * SEED_SHOULDER - ty * half * SEED_WIDTH,
+                    backX - tx * half * SEED_WIDTH, backY - ty * half * SEED_WIDTH,
+                    backX, backY,
+                )
+                cubicTo(
+                    backX + tx * half * SEED_WIDTH, backY + ty * half * SEED_WIDTH,
+                    tipX + nx * tall * SEED_SHOULDER + tx * half * SEED_WIDTH, tipY + ny * tall * SEED_SHOULDER + ty * half * SEED_WIDTH,
+                    tipX, tipY,
+                )
+                close()
+            }
+            if (inDay) drawPath(seed, seedColor)
+            drawPath(seed, nowColor, style = Stroke(ARC_WIDTH.toPx() / 2))
+        } else if (inDay) {
+            drawPath(pointer, nowColor)
+        } else {
+            drawPath(pointer, nowColor, style = Stroke(ARC_WIDTH.toPx()))
+        }
     }
 }
 
@@ -1008,6 +1036,12 @@ private val FADE = 24.dp
 
 /** The app's log tag, as the emulator test reads it. */
 private const val LOG_TAG = "Initiative"
+
+// Glass's relics on the dial: a coin's size and its inner ring; the seed's shoulders and width.
+private val COIN = 4.dp
+private const val COIN_RING = 0.55f
+private const val SEED_SHOULDER = 0.35f
+private const val SEED_WIDTH = 1.3f
 
 /** Waitmarks shown at once; the rest wait their turn. */
 private const val MAX_WAITMARKS = 2

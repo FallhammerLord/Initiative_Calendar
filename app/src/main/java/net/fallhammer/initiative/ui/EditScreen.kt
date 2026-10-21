@@ -81,10 +81,11 @@ fun EditScreen(
     }
 
     Screen {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Strip {
             Label(stringResource(R.string.edit_label), Modifier.weight(1f))
             QuietButton(stringResource(R.string.edit_cancel), edit::cancel)
         }
+        Spacer(Modifier.height(Space.panel))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Field(stringResource(R.string.edit_title), title, { title = it }, singleLine = true)
             Spacer(Modifier.height(Space.s))
@@ -269,9 +270,10 @@ private fun DateLine(set: String?, unset: String, onPick: () -> Unit, onClear: (
 
 @Composable
 private fun Part(content: @Composable () -> Unit) {
-    // Form fields sit Space.l apart; the controls of one field, Space.inside.
-    Spacer(Modifier.height(Space.l))
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.inside)) { content() }
+    // Each part of the form is a panel, so its words never sit on the background
+    // pattern. Parts sit Space.panel apart; the controls of one part, Space.inside.
+    Spacer(Modifier.height(Space.panel))
+    Card(inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) { content() }
 }
 
 private fun minutes(n: Int): String = Formats.countdown(Duration.ofMinutes(n.toLong()))

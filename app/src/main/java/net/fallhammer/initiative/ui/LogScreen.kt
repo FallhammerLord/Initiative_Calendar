@@ -96,7 +96,7 @@ fun LogScreen(
     val addDay = maxOf(view.date, view.today)
 
     Screen {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Strip {
             Title(stringResource(R.string.plan_ahead), style = Type.title, modifier = Modifier.weight(1f))
             QuietButton(stringResource(R.string.log_back), onClose, color = Ink.accent)
         }
@@ -129,44 +129,47 @@ fun LogScreen(
         }
         Spacer(Modifier.height(Space.inside))
         val results = view.results
-        if (results == null) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                QuietButton(stringResource(R.string.log_earlier), { model.page(-1) }, color = Ink.accent)
-                Text(
-                    periodTitle(view),
-                    style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
-                    color = Ink.text,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).semantics { heading() },
-                )
-                QuietButton(stringResource(R.string.log_later), { model.page(1) }, color = Ink.accent)
+        // The period and its entries sit in one panel, so no words lie on the pattern.
+        Card(Modifier.weight(1f), inner = Space.m) {
+            if (results == null) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    QuietButton(stringResource(R.string.log_earlier), { model.page(-1) }, color = Ink.accent)
+                    Text(
+                        periodTitle(view),
+                        style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = Ink.text,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f).semantics { heading() },
+                    )
+                    QuietButton(stringResource(R.string.log_later), { model.page(1) }, color = Ink.accent)
+                }
             }
-        }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                results != null -> entries(results, nowId, emptyMap(), showDate = true, empty = R.string.log_no_results, onEdit = onEdit)
-                view.zoom == Zoom.DAY -> entries(view.days.firstOrNull()?.second.orEmpty(), nowId, planned, onEdit = onEdit)
-                // A day with nothing on it has nothing to fold: just its name.
-                view.zoom == Zoom.WEEK -> view.days.forEach { (date, list) ->
-                    if (list.isEmpty()) {
-                        item { DayHeader(date, view.today, open = true, onToggle = null) }
-                    } else {
-                        val open = date.toEpochDay() !in flipped
-                        item {
-                            DayHeader(date, view.today, open) {
-                                val day = date.toEpochDay()
-                                flipped = if (day in flipped) flipped.filter { it != day }.toLongArray() else flipped + day
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+                when {
+                    results != null -> entries(results, nowId, emptyMap(), showDate = true, empty = R.string.log_no_results, onEdit = onEdit)
+                    view.zoom == Zoom.DAY -> entries(view.days.firstOrNull()?.second.orEmpty(), nowId, planned, onEdit = onEdit)
+                    // A day with nothing on it has nothing to fold: just its name.
+                    view.zoom == Zoom.WEEK -> view.days.forEach { (date, list) ->
+                        if (list.isEmpty()) {
+                            item { DayHeader(date, view.today, open = true, onToggle = null) }
+                        } else {
+                            val open = date.toEpochDay() !in flipped
+                            item {
+                                DayHeader(date, view.today, open) {
+                                    val day = date.toEpochDay()
+                                    flipped = if (day in flipped) flipped.filter { it != day }.toLongArray() else flipped + day
+                                }
                             }
+                            if (open) entries(list, nowId, planned, onEdit = onEdit)
                         }
-                        if (open) entries(list, nowId, planned, onEdit = onEdit)
                     }
+                    view.zoom == Zoom.MONTH -> {
+                        item { MonthGrid(view, model::pick) }
+                        item { DayHeader(view.date, view.today, open = true, onToggle = null) }
+                        entries(view.days.firstOrNull { it.first == view.date }?.second.orEmpty(), nowId, planned, onEdit = onEdit)
+                    }
+                    else -> items(view.months) { MonthRow(it, view.today, model::openMonth) }
                 }
-                view.zoom == Zoom.MONTH -> {
-                    item { MonthGrid(view, model::pick) }
-                    item { DayHeader(view.date, view.today, open = true, onToggle = null) }
-                    entries(view.days.firstOrNull { it.first == view.date }?.second.orEmpty(), nowId, planned, onEdit = onEdit)
-                }
-                else -> items(view.months) { MonthRow(it, view.today, model::openMonth) }
             }
         }
         Spacer(Modifier.height(Space.inside))
@@ -210,28 +213,27 @@ private fun periodTitle(view: LogView): String = when (view.zoom) {
 @Composable
 private fun DayHeader(date: LocalDate, today: LocalDate, open: Boolean, onToggle: (() -> Unit)?) {
     val name = Formats.longDay(date)
-    val tap = if (onToggle == null) {
-        Modifier
-    } else {
-        Modifier.clickable(onClickLabel = stringResource(if (open) R.string.log_fold_day else R.string.log_show_day), onClick = onToggle)
-    }
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = Tap.min).then(tap).semantics { heading() },
-        verticalAlignment = Alignment.CenterVertically,
+    // Folding a day is a button; a day with nothing to fold is a plain heading.
+    RowButton(
+        onToggle,
+        Modifier.semantics { heading() },
+        onClickLabel = stringResource(if (open) R.string.log_fold_day else R.string.log_show_day),
     ) {
-        Text(
-            if (date == today) stringResource(R.string.log_today, name) else name,
-            style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
-            color = if (date == today) Ink.accent else Ink.text,
-            modifier = Modifier.weight(1f),
-        )
-        if (onToggle != null) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(if (open) R.string.day_close_mark else R.string.log_folded_mark),
-                style = Type.body,
-                color = Ink.accent,
-                modifier = Modifier.clearAndSetSemantics { },
+                if (date == today) stringResource(R.string.log_today, name) else name,
+                style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = if (date == today) Ink.accent else Ink.text,
+                modifier = Modifier.weight(1f),
             )
+            if (onToggle != null) {
+                Text(
+                    stringResource(if (open) R.string.day_close_mark else R.string.log_folded_mark),
+                    style = Type.body,
+                    color = Ink.accent,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
+            }
         }
     }
 }
@@ -257,19 +259,22 @@ private fun EntryRow(entry: LogEntry, at: LocalDateTime?, nowId: Long?, showDate
         item.status == Status.MISSED -> stringResource(R.string.log_passed, item.title)
         else -> item.title
     }
-    val tap = if (entry.projected) Modifier else Modifier.clickable(onClickLabel = stringResource(R.string.edit_action)) { onEdit(item) }
-    val frame = Modifier.fillMaxWidth().heightIn(min = Tap.min).then(tap).padding(vertical = Space.xs)
     val timeText = @Composable { m: Modifier -> Text(time, style = Type.bodySmall, color = if (isNow) Ink.accent else Ink.dim, modifier = m) }
-    // At large font sizes the time sits above the title, rather than squeezing it.
-    if (LocalDensity.current.fontScale > LARGE_FONT) {
-        Column(frame) {
+    // Each entry opens its edit form, so it's a button; Now's is lit.
+    RowButton(
+        if (entry.projected) null else ({ onEdit(item) }),
+        onClickLabel = stringResource(R.string.edit_action),
+        lit = isNow,
+    ) {
+        // At large font sizes the time sits above the title, rather than squeezing it.
+        if (LocalDensity.current.fontScale > LARGE_FONT) {
             timeText(Modifier)
             EntryText(entry, title)
-        }
-    } else {
-        Row(frame, verticalAlignment = Alignment.CenterVertically) {
-            timeText(Modifier.width(TIME_COLUMN))
-            EntryText(entry, title, Modifier.weight(1f))
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                timeText(Modifier.width(TIME_COLUMN))
+                EntryText(entry, title, Modifier.weight(1f))
+            }
         }
     }
 }
@@ -397,25 +402,20 @@ private fun MonthRow(month: LogMonth, today: LocalDate, onOpen: (LocalDate) -> U
         // A month with nothing fixed stays blank, rather than saying so twelve times.
         else -> ""
     }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = Tap.min)
-            .clickable(onClickLabel = stringResource(R.string.log_open_month)) { onOpen(month.first) }
-            .padding(vertical = Space.xs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            Formats.monthName(month.first),
-            style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
-            color = when {
-                month.first == thisMonth -> Ink.accent
-                past -> Ink.dim
-                else -> Ink.text
-            },
-            modifier = Modifier.width(MONTH_COLUMN),
-        )
-        Text(summary, style = Type.bodySmall, color = Ink.dim, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+    RowButton({ onOpen(month.first) }, onClickLabel = stringResource(R.string.log_open_month)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                Formats.monthName(month.first),
+                style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = when {
+                    month.first == thisMonth -> Ink.accent
+                    past -> Ink.dim
+                    else -> Ink.text
+                },
+                modifier = Modifier.width(MONTH_COLUMN),
+            )
+            Text(summary, style = Type.bodySmall, color = Ink.dim, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        }
     }
 }
 
