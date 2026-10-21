@@ -406,13 +406,22 @@ adb shell input tap $xy
 for _ in 1 2 3 4; do ime_shown && break; sleep 1; done
 ime_shown || fail "tapping quick-add should open the keyboard"
 adb shell input keyevent KEYCODE_BACK
-sleep 1
-ui > "$OUT/focus.xml"
-python3 - "$OUT/focus.xml" <<'PY' || fail "quick-add stayed focused after the keyboard closed"
+# The field lets go once the keyboard's closing animation ends; allow a few seconds.
+released=no
+for _ in 1 2 3 4 5 6 7 8; do
+  sleep 0.5
+  ui > "$OUT/focus.xml"
+  if python3 - "$OUT/focus.xml" <<'PY'
 import sys, xml.etree.ElementTree as ET
-root = ET.parse(sys.argv[1]).getroot()
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except Exception:
+    sys.exit(1)
 sys.exit(1 if any(n.get("class") == "android.widget.EditText" and n.get("focused") == "true" for n in root.iter("node")) else 0)
 PY
+  then released=yes; break; fi
+done
+[ $released = yes ] || fail "quick-add stayed focused after the keyboard closed"
 pass "closing the keyboard releases the quick-add field"
 # Swipe up on the Next line opens the day panel; a tap outside it folds it.
 xy=$(find_node "Next: call landlord" exact) || fail "no Next line"
