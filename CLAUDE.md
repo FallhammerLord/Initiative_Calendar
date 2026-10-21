@@ -28,7 +28,9 @@ sideloaded, no Google services, no internet. The plan and every rule live in
 - `scripts/design-guard.sh`: no hand-set font sizes or spacing outside `Design.kt`, no
   colors or corner shapes outside `Theme.kt`; no wording outside `strings.xml`; no time
   formatting outside `core/.../Formats.kt`; no service built outside `AppGraph`;
-  no all-caps labels. Run it locally before pushing.
+  no all-caps labels; no Material button outside `Design.kt`, and every text field
+  uses `fieldColors()`, so buttons and fields always sit on the dark surface, never
+  on the background pattern. Run it locally before pushing.
 - A changed saved database layout fails. Raise the version, add a `Migration`,
   extend `MigrationTest`, and commit the new `app/schemas/.../N.json` (CI prints
   it as a warning the first time).

@@ -27,6 +27,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
@@ -72,6 +74,7 @@ import initiative.core.Trio
 import net.fallhammer.initiative.data.Apps
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /*
@@ -379,7 +382,10 @@ fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
     ) { ButtonText(label) }
 }
 
-/** Every other action. */
+/**
+ * Every other action. Like every button and text field, it sits on the panel's
+ * dark surface, so its words stand clear of the background pattern.
+ */
 @Composable
 fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.primary) {
     OutlinedButton(
@@ -387,16 +393,22 @@ fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Mod
         modifier = modifier.heightIn(min = height),
         shape = LocalLook.current.buttonShape,
         border = BorderStroke(Hairline, Ink.frame),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Ink.surface, contentColor = Ink.text),
         contentPadding = ButtonPadding,
     ) {
         ButtonText(label, color = Ink.text, weight = FontWeight.Normal)
     }
 }
 
-/** A text-only action, for Close, Cancel, and Apps. */
+/** A text-only action, for Close, Cancel, and Apps; on the dark surface, with no outline. */
 @Composable
 fun QuietButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = Ink.dim) {
-    TextButton(onClick = onClick, modifier = modifier.heightIn(min = Tap.min)) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = Tap.min),
+        shape = LocalLook.current.buttonShape,
+        colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
+    ) {
         Text(label, style = Type.caption, color = color)
     }
 }
@@ -462,6 +474,31 @@ fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) 
             checked = checked,
             onCheckedChange = null,
             colors = SwitchDefaults.colors(checkedTrackColor = Ink.accent, checkedThumbColor = Ink.onAccent),
+        )
+    }
+}
+
+/**
+ * A labelled setting picked along a range, such as the texture's strength, with
+ * its value in words beside the label. Moves in [range]'s steps.
+ */
+@Composable
+fun SettingSlider(label: String, valueText: String, value: Int, range: IntProgression, onChange: (Int) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = Type.bodySmall, color = Ink.text, modifier = Modifier.weight(1f))
+            Text(valueText, style = Type.bodySmall, color = Ink.dim)
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { v ->
+                val snapped = range.first + ((v - range.first) / range.step).roundToInt() * range.step
+                onChange(snapped.coerceIn(range.first, range.last))
+            },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = (range.last - range.first) / range.step - 1,
+            colors = SliderDefaults.colors(thumbColor = Ink.accent, activeTrackColor = Ink.accent, inactiveTrackColor = Ink.frame),
+            modifier = Modifier.heightIn(min = Tap.min).semantics { contentDescription = label },
         )
     }
 }

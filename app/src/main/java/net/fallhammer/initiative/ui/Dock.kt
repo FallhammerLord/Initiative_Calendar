@@ -98,7 +98,8 @@ private fun TrioDock(slots: List<AppEntry?>, icons: Map<String, ImageBitmap>, on
                         .size(tileWidth, tileHeight)
                         .clip(TrioShape)
                         .background(Ink.surface)
-                        .border(1.dp, Ink.frame, TrioShape),
+                        // Heavier than the honeycomb behind it, so the tiles stand out from it.
+                        .border(TRIO_LINE, Ink.frame, TrioShape),
                 ) {
                     Box(Modifier.offset { iconOffset }.size(iconSize), contentAlignment = Alignment.Center) { it() }
                 }
@@ -164,6 +165,9 @@ private fun Tile(
         }
     }
 }
+
+/** The trio tiles' outline: twice the background grid's hairline. */
+private val TRIO_LINE = 2.dp
 
 /** How much of a hexagon's width the icon takes. */
 private const val ICON_SHARE = 0.8f

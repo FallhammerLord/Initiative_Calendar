@@ -37,6 +37,8 @@ fun SettingsScreen(
     onLook: (String) -> Unit,
     ornaments: Boolean,
     onOrnaments: (Boolean) -> Unit,
+    texture: Int,
+    onTexture: (Int) -> Unit,
     quiet: QuietSetting,
     onQuiet: (QuietSetting) -> Unit,
     lapseHours: Int,
@@ -91,6 +93,16 @@ fun SettingsScreen(
                 ) { onLook(Looks.all[it].id) }
                 SettingSwitch(stringResource(R.string.setting_ornaments), ornaments, onOrnaments)
                 Body(stringResource(R.string.setting_ornaments_hint), style = Type.bodySmall)
+                // The pattern's strength, for looks that have one: lighter when text over it feels busy.
+                if (ornaments && Looks.byId(lookId).patterned) {
+                    SettingSlider(
+                        stringResource(R.string.setting_texture),
+                        stringResource(R.string.percent, texture),
+                        texture,
+                        0..100 step TEXTURE_STEP,
+                        onTexture,
+                    )
+                }
             }
             Section(stringResource(R.string.section_alarms)) {
                 SettingSwitch(stringResource(R.string.setting_quiet), quiet.on) { onQuiet(quiet.copy(on = it)) }
@@ -165,3 +177,6 @@ private val RECOPY_DAYS = listOf(7, 14)
 
 // Synced files don't always keep their JSON type, so the picker also offers plain files.
 private val BACKUP_TYPES = arrayOf("application/json", "application/octet-stream", "text/*")
+
+/** The texture slider moves in tenths. */
+private const val TEXTURE_STEP = 10

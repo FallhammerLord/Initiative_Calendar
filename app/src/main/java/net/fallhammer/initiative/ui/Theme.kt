@@ -68,7 +68,12 @@ data class Look(
     val fans: Boolean = false,
     /** Stepped gold brackets inside each card's top corners, as in the quest log's Dark theme. */
     val brackets: Boolean = false,
+    /** How strongly the background pattern shows, 0 to 1; set in Settings. */
+    val texture: Float = DEFAULT_TEXTURE,
 ) {
+    /** Whether a pattern shows behind the screens, so its strength can be set. */
+    val patterned: Boolean get() = hexGrid || fans
+
     /** The same look with its ornaments off: no pattern, no brackets, no flourish. */
     fun plain(): Look = copy(hexGrid = false, fans = false, brackets = false)
 }
@@ -99,7 +104,7 @@ object Looks {
             accent = Color(0xFF3FD0E8),
             onAccent = Color(0xFF05121A),
             frame = Color(0xFF2E6F85),
-            pattern = Color(0x803FD0E8),
+            pattern = Color(0xFF3FD0E8),
         ),
         cardShape = CutCornerShape(topStart = 14.dp, bottomEnd = 14.dp),
         buttonShape = CutCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
@@ -147,7 +152,7 @@ object Looks {
             accent = Color(0xFFE8AB62),
             onAccent = Color(0xFF1E1812),
             frame = Color(0xFF9A7448),
-            pattern = Color(0x80E0A054),
+            pattern = Color(0xFFE0A054),
         ),
         cardShape = StepCornerShape(14.dp),
         buttonShape = StepCornerShape(6.dp),
@@ -213,7 +218,8 @@ object Ink {
     val accent: Color @Composable @ReadOnlyComposable get() = p.accent
     val onAccent: Color @Composable @ReadOnlyComposable get() = p.onAccent
     val frame: Color @Composable @ReadOnlyComposable get() = p.frame
-    val pattern: Color @Composable @ReadOnlyComposable get() = p.pattern
+    /** The pattern's color at the strength chosen in Settings. */
+    val pattern: Color @Composable @ReadOnlyComposable get() = p.pattern.copy(alpha = p.pattern.alpha * LocalLook.current.texture)
     /** Thin lines that aren't controls, such as the ledger's baseline. */
     val line: Color @Composable @ReadOnlyComposable get() = p.frame
     val label: Color @Composable @ReadOnlyComposable get() = if (LocalLook.current.accentLabels) p.accent else p.dim
@@ -259,3 +265,6 @@ fun InitiativeTheme(look: Look = Looks.SciFi, content: @Composable () -> Unit) {
         )
     }
 }
+
+/** The pattern's strength out of the box: half. */
+const val DEFAULT_TEXTURE = 0.5f

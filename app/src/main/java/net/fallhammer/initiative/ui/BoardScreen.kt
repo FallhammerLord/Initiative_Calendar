@@ -127,6 +127,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val setup by vm.settings.setup.collectAsStateWithLifecycle()
     val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
     val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
+    val texture by vm.settings.texture.collectAsStateWithLifecycle()
     val recap by vm.recap.state.collectAsStateWithLifecycle()
     val recopyDue by vm.recopy.due.collectAsStateWithLifecycle()
     val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
@@ -361,6 +362,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 onLook = vm.settings::setLook,
                 ornaments = ornaments,
                 onOrnaments = vm.settings::setOrnaments,
+                texture = texture,
+                onTexture = vm.settings::setTexture,
                 quiet = quiet,
                 onQuiet = vm.settings::setQuiet,
                 lapseHours = lapseHours,

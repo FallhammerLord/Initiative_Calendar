@@ -48,6 +48,10 @@ class SettingsModel(private val parts: BoardParts) {
     /** Whether the look's ornaments show. */
     val ornaments: StateFlow<Boolean> = _ornaments.asStateFlow()
 
+    private val _texture = MutableStateFlow(50)
+    /** The background pattern's strength, in percent. */
+    val texture: StateFlow<Int> = _texture.asStateFlow()
+
     /** Reads settings and permission state. Call off the main thread. */
     fun load(prefs: Prefs) {
         _unlock.value = UnlockSetting(prefs.boardOnUnlock, prefs.canJumpToBoard())
@@ -55,6 +59,7 @@ class SettingsModel(private val parts: BoardParts) {
         _lockCard.value = prefs.lockCard
         _look.value = prefs.lookId
         _ornaments.value = prefs.ornaments
+        _texture.value = prefs.texture
         _quiet.value = prefs.quiet
         _lapseHours.value = prefs.lapseHours
         _recopyDays.value = prefs.recopyDays
@@ -86,6 +91,12 @@ class SettingsModel(private val parts: BoardParts) {
     fun setOrnaments(on: Boolean) {
         _ornaments.value = on
         parts.scope.launch(Dispatchers.IO) { graph.prefs.ornaments = on }
+    }
+
+    fun setTexture(percent: Int) {
+        if (percent == _texture.value) return
+        _texture.value = percent
+        parts.scope.launch(Dispatchers.IO) { graph.prefs.texture = percent }
     }
 
     fun setLockCard(on: Boolean) {

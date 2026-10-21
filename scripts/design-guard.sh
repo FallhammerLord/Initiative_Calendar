@@ -43,6 +43,24 @@ check "Services come from AppGraph, never built directly" \
 check "No all-caps labels (hard to read with dyslexia)" \
   'Text\("[A-Z]{3,}"|textTransform|uppercase\(\)' ""
 
+check "Buttons come from Design.kt (each sits on the dark surface)" \
+  '(^|[^A-Za-z.])(Button|TextButton|OutlinedButton|FilledTonalButton|ElevatedButton)\(' "$APP/ui/Design.kt"
+
+# Every text field sits on the dark surface too: each OutlinedTextField passes fieldColors().
+field_hits=""
+for f in $(grep -rlE 'OutlinedTextField\(' "$APP" --include=*.kt); do
+  fields=$(grep -cE 'OutlinedTextField\(' "$f")
+  colored=$(grep -cE 'colors *= *fieldColors\(\)' "$f")
+  [ "$colored" -lt "$fields" ] && field_hits="$field_hits    $f: $fields fields, $colored with fieldColors()\n"
+done
+if [ -n "$field_hits" ]; then
+  echo "::error::Text fields use fieldColors(), so they sit on the dark surface"
+  printf "$field_hits"
+  failed=1
+else
+  echo "ok   Text fields use fieldColors(), so they sit on the dark surface"
+fi
+
 # The engine writes its own few English reason lines; it may not format times itself.
 if grep -rnE 'ofPattern\(' core/src/main --include=*.kt | grep -v "core/src/main/kotlin/initiative/core/Formats.kt" ; then
   echo "::error::Engine times and dates are formatted only in Formats.kt"

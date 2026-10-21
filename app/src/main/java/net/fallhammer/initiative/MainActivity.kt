@@ -28,7 +28,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val look by vm.settings.look.collectAsStateWithLifecycle()
             val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
-            InitiativeTheme(Looks.byId(look).let { if (ornaments) it else it.plain() }) { BoardScreen(vm) }
+            val texture by vm.settings.texture.collectAsStateWithLifecycle()
+            InitiativeTheme(Looks.byId(look).let { if (ornaments) it.copy(texture = texture / 100f) else it.plain() }) { BoardScreen(vm) }
         }
     }
 

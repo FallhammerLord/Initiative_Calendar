@@ -649,12 +649,16 @@ shot classic-board
 # Deco: coffee and gold, stepped corners, fans. Ornaments off leaves it plain.
 open_settings
 tap Deco exact
+# Texture strength shows while ornaments are on, for looks with a pattern.
+wait_for "Texture strength" exact || fail "the texture slider should show for Deco"
+expect_text "50%"
 shot deco-settings
 tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 shot deco-board
 open_settings
 tap Ornaments exact
+wait_gone "Texture strength" exact || fail "the texture slider should hide with ornaments off"
 tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 shot deco-plain

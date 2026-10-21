@@ -131,7 +131,9 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 - **Classic**: black and amber, rounded. The plainest, highest-contrast look.
 - **Deco**, after the quest log's Dark (art deco) theme: coffee and chocolate panels, cream text, gold accents, stepped corners (each corner cut in two small steps), faint seigaiha fans behind each screen, and nested gold brackets inside each card's top corners. Its All done flourish is a sunburst of gold rays from the Now card. The quest log's letter-spaced capitals stay out (sentence case only), and its tan and gold are nudged lighter to reach 7:1.
 
-**Ornaments.** One switch in Initiative settings, on by default, for every look: the background pattern, the corner brackets, and the All done flourish. Off, any look turns calm and plain, for low-energy days or a busy head.
+**Ornaments.** One switch in Initiative settings, on by default, for every look: the background pattern, the corner brackets, and the All done flourish. Off, any look turns calm and plain, for low-energy days or a busy head. While on, a **Texture strength** slider (in tenths, half by default) sets how strongly the pattern shows, for looks that have one.
+
+**Text over the pattern.** Every button and text field sits on the panel's dark surface, so its words never sit on the pattern; this holds for every screen, now and later. In the Sci-fi look the dock's hexagons are outlined twice as heavily as the grid behind them, so they stand apart from it.
 
 Every theme keeps all text at 7:1 contrast or better and outlines at 3:1; a CI test checks each one. Atkinson Hyperlegible stays the body font in every theme; a decorative font may only ever be used for titles.
 
@@ -287,7 +289,7 @@ The app requests no location, contacts, or storage-wide access.
 
 Three rule sets every change follows. Under each, the checklist names the gaps found in the October audit; ticked items are closed. Where the pieces live: tokens and components in `app/.../ui/Design.kt`, colors and font in `Theme.kt`, formatters in `core/.../Formats.kt`, wording in `res/values/strings.xml`, services in `AppGraph.kt`, versions in `gradle/libs.versions.toml`.
 
-**Guards.** CI enforces what it can: `scripts/design-guard.sh` blocks hand-set sizes, colors, shapes, wording, time formats, and services outside their one home; the emulator test sweeps every screen it visits for unlabelled controls and fails on StrictMode main-thread writes, network use, or leaked handles. `CLAUDE.md` carries the rest for any future session.
+**Guards.** CI enforces what it can: `scripts/design-guard.sh` blocks hand-set sizes, colors, shapes, wording, time formats, and services outside their one home, and buttons or text fields that skip the dark surface; the emulator test sweeps every screen it visits for unlabelled controls and fails on StrictMode main-thread writes, network use, or leaked handles. `CLAUDE.md` carries the rest for any future session.
 
 ### Android engineering
 

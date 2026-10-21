@@ -53,6 +53,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(ORNAMENTS, true)
         set(value) = prefs.edit().putBoolean(ORNAMENTS, value).apply()
 
+    /** The background pattern's strength, in percent. Half by default. */
+    var texture: Int
+        get() = prefs.getInt(TEXTURE, 50)
+        set(value) = prefs.edit().putInt(TEXTURE, value).apply()
+
     var quiet: QuietSetting
         get() = QuietSetting(
             on = prefs.getBoolean(QUIET_ON, false),
@@ -184,6 +189,7 @@ class Prefs(private val context: Context) {
         const val LOCK_CARD = "lockCard"
         const val LOOK = "look"
         const val ORNAMENTS = "ornaments"
+        const val TEXTURE = "texture"
         const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val QUIET_ON = "quietOn"
         const val QUIET_START = "quietStart"
