@@ -14,6 +14,10 @@ import initiative.core.Kind
 import initiative.core.LedgerMark
 import initiative.core.Parsed
 import initiative.core.Parser
+import initiative.core.Report
+import initiative.core.ReportLine
+import initiative.core.Status
+import initiative.core.occurrenceDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,10 +27,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.fallhammer.initiative.R
+import net.fallhammer.initiative.alarms.AlarmActions
 import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.AppEntry
 import net.fallhammer.initiative.data.Focus
@@ -53,8 +59,19 @@ data class FocusView(val item: Item, val until: LocalDateTime, val wall: Item?)
 /** What's drawn over the board. */
 enum class Overlay { NONE, DRAWER, SETTINGS, PICK }
 
-/** A short note after an action. [undo] holds the item as it was, when the action can be taken back. */
-data class Flash(val text: String, val undo: Item? = null)
+/**
+ * A short note after an action. Undo puts [undo] and [undoAlso] back as they
+ * were, and adds [readd] back after it was taken off (deleted for good, or a
+ * series' later times).
+ */
+data class Flash(
+    val text: String,
+    val undo: Item? = null,
+    val undoAlso: List<Item> = emptyList(),
+    val readd: List<Item> = emptyList(),
+) {
+    val canUndo: Boolean get() = undo != null || readd.isNotEmpty()
+}
 
 /**
  * The home screen's state. The board, focus, quick-add, and which screen is open
@@ -105,6 +122,47 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     private val _flash = MutableStateFlow<Flash?>(null)
     val flash: StateFlow<Flash?> = _flash.asStateFlow()
     private var flashJob: Job? = null
+
+    /** The day whose report is open, saved so it survives a restart; null when closed. */
+    val report: StateFlow<LocalDate?> = saved.getStateFlow(REPORT, "")
+        .map { s -> s.takeIf { it.isNotEmpty() }?.let(LocalDate::parse) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** The open report's lines, kept up to date. */
+    val reportLines: StateFlow<List<ReportLine>> = combine(repo.items, report) { all, day -> all to day }
+        .map { (all, day) -> day?.let { Report.of(all, it, LocalDate.now(), repo.movedOn(it, all)) }.orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Whether the report shows notes; off by default, since notes are often private. */
+    val reportNotes: StateFlow<Boolean> = saved.getStateFlow(REPORT_NOTES, false)
+
+    fun openReport(day: LocalDate) {
+        saved[REPORT] = day.toString()
+    }
+
+    fun closeReport() {
+        saved[REPORT] = ""
+    }
+
+    fun setReportNotes(on: Boolean) {
+        saved[REPORT_NOTES] = on
+    }
+
+    private val _dupe = MutableStateFlow<Pair<Parsed, Item>?>(null)
+
+    /** A new series that matches one already running, and that one: asks Replace or Keep both. */
+    val dupe: StateFlow<Pair<Parsed, Item>?> = _dupe.asStateFlow()
+
+    /**
+     * Every running series, each with its next open time (null when none is made
+     * yet), for the Repeats list in Plan ahead.
+     */
+    val repeats: StateFlow<List<Pair<Item, Item?>>> = repo.items.map { all ->
+        val today = LocalDate.now()
+        all.filter { it.isTemplate && it.status != Status.DROPPED }.sortedBy { it.title.lowercase() }.map { t ->
+            t to all.filter { it.templateId == t.id && it.isOpen && it.occurrenceDate?.isBefore(today) == false }.minByOrNull { it.occurrenceDate!! }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _ask = MutableStateFlow<Parsed?>(null)
     /** A quick-add the parser couldn't place: "Anchor or float?" */
@@ -280,6 +338,21 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         return true
     }
 
+    /**
+     * On it: the task is in hand, not skipped. A fixed event's alarms stop, as
+     * from the notification; duration learning counts from now.
+     */
+    fun onIt(item: Item) {
+        acted()
+        viewModelScope.launch {
+            if (item.isAnchor) {
+                withContext(Dispatchers.IO) { AlarmActions.onIt(getApplication(), item.id) }
+            } else {
+                repo.onIt(item, LocalDateTime.now())
+            }
+        }
+    }
+
     /** Focus on [item] until the next Firm or Hard wall. Soft alarms stay silent meanwhile. */
     fun startFocus(item: Item) {
         val focus = Focus(item.id, placement.focusEnd(items, LocalDateTime.now()))
@@ -302,9 +375,12 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
 
     /** Takes back the last Done, Skip, or Tomorrow. */
     fun undo() {
-        val before = _flash.value?.undo ?: return
+        val f = _flash.value?.takeIf { it.canUndo } ?: return
         viewModelScope.launch {
-            repo.restore(before)
+            repo.reinsert(f.readd)
+            f.undo?.let { repo.restore(it) }
+            f.undoAlso.forEach { repo.restore(it) }
+            repo.ensureInstances(LocalDateTime.now())
             show(Flash(text(R.string.flash_restored)))
         }
     }
@@ -377,7 +453,9 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
      * Log, then settings to the drawer, then the drawer to the board.
      */
     fun back() {
-        if (edit.isOpen) {
+        if (report.value != null && !edit.isOpen) {
+            closeReport()
+        } else if (edit.isOpen) {
             edit.cancel()
         } else if (recopy.walking) {
             recopy.stop()
@@ -434,11 +512,55 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         }
     }
 
+    /**
+     * A new series with the same name as one already running asks first: two of
+     * them would fill the days twice. Replace stops the old one from today.
+     */
     private fun save(parsed: Parsed) {
+        if (parsed.item.recurrence != null) {
+            items.firstOrNull { it.isTemplate && it.status != Status.DROPPED && it.titleKey == parsed.item.titleKey }?.let {
+                _dupe.value = parsed to it
+                return
+            }
+        }
+        add(parsed)
+    }
+
+    private fun add(parsed: Parsed) {
         acted()
         viewModelScope.launch {
             repo.add(parsed, LocalDateTime.now())
             show(Flash(getApplication<Application>().getString(R.string.flash_added, parsed.item.title)))
+        }
+    }
+
+    fun dupeReplace() {
+        val (parsed, old) = _dupe.value ?: return
+        _dupe.value = null
+        acted()
+        viewModelScope.launch {
+            repo.stopSeries(old, LocalDate.now())
+            repo.add(parsed, LocalDateTime.now())
+            show(Flash(getApplication<Application>().getString(R.string.flash_added, parsed.item.title)))
+        }
+    }
+
+    fun dupeKeep() {
+        val (parsed, _) = _dupe.value ?: return
+        _dupe.value = null
+        add(parsed)
+    }
+
+    fun dupeCancel() {
+        _dupe.value = null
+    }
+
+    /** From the Repeats list: the series makes no more times from today, with Undo. */
+    fun stopSeries(template: Item) {
+        acted()
+        viewModelScope.launch {
+            val off = repo.stopSeries(template, LocalDate.now())
+            show(Flash(text(R.string.series_stopped), undo = template, readd = off))
         }
     }
 
@@ -455,7 +577,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         _flash.value = flash
         flashJob?.cancel()
         flashJob = viewModelScope.launch {
-            delay(if (flash.undo != null) UNDO_MS else FLASH_MS)
+            delay(if (flash.canUndo) UNDO_MS else FLASH_MS)
             _flash.value = null
         }
     }
@@ -467,6 +589,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val FLASH_MS = 4_000L
         const val UNDO_MS = 8_000L
         const val OVERLAY = "overlay"
+        const val REPORT = "report"
+        const val REPORT_NOTES = "report_notes"
         const val PICK_SLOT = "pick_slot"
         const val CONFIRM = "confirm_done"
         const val NONE = -1L

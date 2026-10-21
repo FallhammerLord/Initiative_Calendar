@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import initiative.core.Forecast
+import initiative.core.Freq
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.Log
@@ -78,7 +79,12 @@ fun LogScreen(
     onUndo: () -> Unit,
     onEdit: (Item) -> Unit,
     onClose: () -> Unit,
+    repeats: List<Pair<Item, Item?>> = emptyList(),
+    onStopSeries: (Item) -> Unit = {},
+    onReport: (LocalDate) -> Unit = {},
 ) {
+    // The Repeats list, in place of the days: every running series, to change or stop.
+    var showRepeats by rememberSaveable { mutableStateOf(false) }
     val view by model.view.collectAsStateWithLifecycle()
     val zoom by model.zoom.collectAsStateWithLifecycle()
     val query by model.query.collectAsStateWithLifecycle()
@@ -103,10 +109,17 @@ fun LogScreen(
         Spacer(Modifier.height(Space.inside))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Box(Modifier.weight(1f)) { ChoiceRow(null, zooms, zoom.ordinal) { model.setZoom(Zoom.entries[it]) } }
-            if (zoom != Zoom.YEAR) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+                if (zoom != Zoom.YEAR && !showRepeats) {
+                    QuietButton(
+                        stringResource(if (showAdd) R.string.log_search_mode else R.string.log_add),
+                        { adding = !showAdd },
+                        color = Ink.accent,
+                    )
+                }
                 QuietButton(
-                    stringResource(if (showAdd) R.string.log_search_mode else R.string.log_add),
-                    { adding = !showAdd },
+                    stringResource(if (showRepeats) R.string.repeats_days else R.string.repeats_button),
+                    { showRepeats = !showRepeats },
                     color = Ink.accent,
                 )
             }
@@ -131,6 +144,10 @@ fun LogScreen(
         val results = view.results
         // The period and its entries sit in one panel, so no words lie on the pattern.
         Card(Modifier.weight(1f), inner = Space.m) {
+            if (showRepeats) {
+                Repeats(repeats, onEdit, onStopSeries)
+                return@Card
+            }
             if (results == null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     ArrowButton(stringResource(R.string.log_earlier_mark), stringResource(R.string.log_earlier), { model.page(-1) })
@@ -170,16 +187,72 @@ fun LogScreen(
                     }
                     else -> items(view.months) { MonthRow(it, view.today, model::openMonth) }
                 }
+                // The day's report, to keep or to share.
+                if (results == null && view.zoom == Zoom.DAY) {
+                    item {
+                        SecondaryButton(
+                            stringResource(R.string.report_open),
+                            { onReport(view.date) },
+                            Modifier.fillMaxWidth().padding(top = Space.s),
+                            height = Tap.min,
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(Space.inside))
         // What was just done (Added, Saved), here where it was done, with Undo when there is one.
         flash?.let {
-            FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
+            FlashLine(it.text, if (it.canUndo) stringResource(R.string.action_undo) else null, onUndo)
             Spacer(Modifier.height(Space.inside))
         }
         NowBar(nowItem, onClose)
     }
+}
+
+/**
+ * Every running series: its name and how it repeats, as a button that opens its
+ * next time to edit (this and later), and Stop, which ends it from today.
+ */
+@Composable
+private fun Repeats(repeats: List<Pair<Item, Item?>>, onEdit: (Item) -> Unit, onStop: (Item) -> Unit) {
+    Label(stringResource(R.string.repeats_title), Modifier.semantics { heading() })
+    Spacer(Modifier.height(Space.s))
+    if (repeats.isEmpty()) {
+        Body(stringResource(R.string.repeats_none), style = Type.bodySmall)
+        return
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+        items(repeats, key = { it.first.id }) { (template, next) ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RowButton(next?.let { n -> { onEdit(n) } }, Modifier.weight(1f), onClickLabel = stringResource(R.string.edit_action)) {
+                    Text(template.title, style = Type.bodySmall.copy(fontWeight = FontWeight.Bold), color = Ink.text)
+                    Text(ruleText(template), style = Type.caption, color = Ink.dim)
+                }
+                QuietButton(stringResource(R.string.repeats_stop), { onStop(template) }, Modifier.padding(start = Space.s))
+            }
+        }
+    }
+}
+
+/** How a series repeats, in words: "Weekdays · 2:30 PM", "Every week: Mon, Thu". */
+@Composable
+private fun ruleText(t: Item): String {
+    val r = t.recurrence ?: return ""
+    val base = stringResource(
+        when {
+            r.freq == Freq.DAILY && r.interval == 1 -> R.string.repeat_daily
+            r.freq == Freq.WEEKDAYS -> R.string.repeat_weekdays
+            r.freq == Freq.WEEKLY && r.interval == 1 -> R.string.repeat_weekly
+            r.freq == Freq.WEEKLY && r.interval == 2 -> R.string.repeat_biweekly
+            r.freq == Freq.MONTHLY_DATE && r.interval == 1 -> R.string.repeat_monthly
+            r.freq == Freq.YEARLY -> R.string.repeat_yearly
+            else -> R.string.repeat_custom
+        },
+    )
+    val days = if (r.freq == Freq.WEEKLY && r.days.isNotEmpty()) r.days.sorted().joinToString(", ") { Formats.weekdayShort(it) } else null
+    val withDays = days?.let { stringResource(R.string.repeats_on, base, it) } ?: base
+    return t.start?.let { stringResource(R.string.repeats_at, withDays, Formats.clock(it)) } ?: withDays
 }
 
 /** A list of entries, or a plain line when there are none. */

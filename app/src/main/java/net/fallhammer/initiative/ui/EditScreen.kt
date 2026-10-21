@@ -38,6 +38,7 @@ import initiative.core.Kind
 import initiative.core.MissPolicy
 import initiative.core.Priority
 import initiative.core.Recurrence
+import initiative.core.Status
 import initiative.core.Step
 import initiative.core.Steps
 import initiative.core.WallStrength
@@ -58,6 +59,9 @@ fun EditScreen(
     val context = LocalContext.current
     val rule by edit.rule.collectAsStateWithLifecycle()
     val later by edit.later.collectAsStateWithLifecycle()
+    val dupe by edit.dupe.collectAsStateWithLifecycle()
+    // Remove on a time of a series asks which: just this time, or this and later.
+    var asking by rememberSaveable(draft.id) { mutableStateOf(false) }
     // Keyed by the item, so opening another item starts fresh; saved across a restart.
     var title by rememberSaveable(draft.id) { mutableStateOf(draft.title) }
     var notes by rememberSaveable(draft.id) { mutableStateOf(draft.notes) }
@@ -230,15 +234,55 @@ fun EditScreen(
             Spacer(Modifier.height(Space.l))
         }
         Spacer(Modifier.height(Space.m))
-        ActionRow(
-            Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, steps.map(Steps::parse)) }, it) },
-            // A done or removed item can go back on the board instead.
-            if (draft.isOpen) {
-                Action { SecondaryButton(stringResource(R.string.edit_remove), edit::remove, it) }
-            } else {
-                Action { SecondaryButton(stringResource(R.string.edit_put_back), edit::putBack, it) }
-            },
-        )
+        val typed = { steps.map(Steps::parse) }
+        val matched = dupe
+        when {
+            // Saving would start a series named like one already running.
+            matched != null -> Question(
+                stringResource(R.string.dupe_ask, matched.title),
+                Action { SecondaryButton(stringResource(R.string.dupe_replace), { edit.answerDupe(replace = true) }, it) },
+                Action { SecondaryButton(stringResource(R.string.dupe_keep), { edit.answerDupe(replace = false) }, it) },
+                onCancel = edit::cancelDupe,
+            )
+            asking -> Question(
+                stringResource(R.string.remove_which),
+                Action { SecondaryButton(stringResource(R.string.remove_this), { edit.remove(later = false) }, it) },
+                Action { SecondaryButton(stringResource(R.string.remove_later), { edit.remove(later = true) }, it) },
+                onCancel = { asking = false },
+            )
+            draft.isOpen -> ActionRow(
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                // Done here works for any open item, Now or not.
+                Action { SecondaryButton(stringResource(R.string.edit_done), { edit.done(title, notes, typed()) }, it) },
+                Action {
+                    SecondaryButton(
+                        stringResource(R.string.edit_remove),
+                        { if (draft.templateId != null) asking = true else edit.remove() },
+                        it,
+                    )
+                },
+            )
+            // A done or removed item can go back on the board; a removed one can also go for good.
+            draft.status == Status.DROPPED -> ActionRow(
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action { SecondaryButton(stringResource(R.string.edit_put_back), edit::putBack, it) },
+                Action { SecondaryButton(stringResource(R.string.edit_delete), edit::deleteForGood, it) },
+            )
+            else -> ActionRow(
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action { SecondaryButton(stringResource(R.string.edit_put_back), edit::putBack, it) },
+            )
+        }
+    }
+}
+
+/** A question in place of the form's buttons: its answers, and Cancel. */
+@Composable
+private fun Question(text: String, vararg answers: Action, onCancel: () -> Unit) {
+    Card(inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) {
+        Body(text, color = Ink.text, style = Type.bodySmall)
+        ActionRow(*answers)
+        QuietButton(stringResource(R.string.ask_cancel), onCancel)
     }
 }
 

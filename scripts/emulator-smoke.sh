@@ -451,6 +451,11 @@ adb shell input tap 540 300
 wait_gone "Hide today" exact || fail "a tap outside should fold the day panel"
 pass "swipe up opens the day panel; a tap outside folds it"
 expect_notification "Now: taxes" "lock-screen card shows the Now card"
+# On it: the task is in hand, not skipped; the card says so, with when.
+tap "On it" exact
+wait_for "on it since" || fail "On it should show on the Now card"
+shot on-it
+pass "On it marks the task in hand"
 
 tap Skip exact
 expect_text "Back at"
@@ -936,6 +941,28 @@ wait_for "Earlier" exact || fail "Plan ahead should open the Log"
 expect_text "Today"
 expect_text "dentist call"
 shot log-day
+# The day's report: each item with what became of it. Share opens Android's
+# share menu. (Save PDF opens Android's print screen; check that by hand.)
+tap "Day report" exact
+wait_for "Day report ·" || fail "Day report should open the day's report"
+expect_text "dentist call"
+expect_text "Include notes"
+shot report
+tap Share exact
+expect_front "intentresolver|ChooserActivity|ResolverActivity" "Share opens Android's share menu"
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+wait_for "Day report ·" || fail "Back from the share menu should return to the report"
+tap Close exact
+wait_for "Earlier" exact || fail "Close should return to the Log"
+pass "the day's report opens, shares, and closes"
+# Repeats lists every running series, in place of the days.
+tap Repeats exact
+wait_for "Days" exact || fail "Repeats should show the series list"
+shot repeats
+tap Days exact
+wait_for "Earlier" exact || fail "Days should bring the days back"
+pass "the Repeats list opens and closes"
 # + Add swaps search for quick-add aimed at the day in view; Search swaps back.
 tap "+ Add" exact
 wait_for "Add to today" || fail "+ Add should open quick-add for today"

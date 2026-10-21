@@ -108,6 +108,7 @@ import androidx.compose.ui.platform.LocalView
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkKind
+import initiative.core.Status
 import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.SetupStep
@@ -121,6 +122,11 @@ fun BoardScreen(vm: BoardViewModel) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val flash by vm.flash.collectAsStateWithLifecycle()
     val ask by vm.ask.collectAsStateWithLifecycle()
+    val dupe by vm.dupe.collectAsStateWithLifecycle()
+    val repeats by vm.repeats.collectAsStateWithLifecycle()
+    val reportDay by vm.report.collectAsStateWithLifecycle()
+    val reportLines by vm.reportLines.collectAsStateWithLifecycle()
+    val reportNotes by vm.reportNotes.collectAsStateWithLifecycle()
     val overlay by vm.overlay.collectAsStateWithLifecycle()
     val quiet by vm.settings.quiet.collectAsStateWithLifecycle()
     val lapseHours by vm.settings.lapseHours.collectAsStateWithLifecycle()
@@ -166,7 +172,7 @@ fun BoardScreen(vm: BoardViewModel) {
     // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
         when {
-            overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen -> vm.back()
+            overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen || reportDay != null -> vm.back()
             expanded -> expanded = false
         }
     }
@@ -187,6 +193,7 @@ fun BoardScreen(vm: BoardViewModel) {
         val shownRecap = recap
         val walkItem = recopyItem
         val editing = draft
+        val reportOn = reportDay
         // Each of these takes the board's place, so nothing hides underneath:
         // "Previously on" after a lapse, then the recopy walk, then focus.
         // Under the drawer or settings, the screen below is hidden from TalkBack,
@@ -205,6 +212,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 )
             } else if (editing != null) {
                 EditScreen(editing, vm.edit)
+            } else if (reportOn != null) {
+                ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport)
             } else if (logOpen) {
                 LogScreen(
                     vm.log,
@@ -215,6 +224,9 @@ fun BoardScreen(vm: BoardViewModel) {
                     onUndo = vm::undo,
                     onEdit = vm.edit::open,
                     onClose = vm.log::close,
+                    repeats = repeats,
+                    onStopSeries = vm::stopSeries,
+                    onReport = vm::openReport,
                 )
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
@@ -257,6 +269,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             onEdit = vm.edit::open,
                             onStep = vm::toggleStep,
                             compact = keyboardUp,
+                            onOnIt = vm::onIt,
                         )
                       }
                     }
@@ -275,6 +288,9 @@ fun BoardScreen(vm: BoardViewModel) {
                             onAnchor = vm::answerAnchor,
                             onCancel = vm::cancelAsk,
                         )
+                    }
+                    dupe?.let { (_, old) ->
+                        DupeChips(old.title, onReplace = vm::dupeReplace, onKeep = vm::dupeKeep, onCancel = vm::dupeCancel)
                     }
                     // One setup step at a time, until all are done.
                     setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
@@ -413,6 +429,7 @@ private fun NowCard(
     onEdit: (Item) -> Unit,
     onStep: (Item, Int) -> Unit,
     compact: Boolean,
+    onOnIt: (Item) -> Unit = {},
 ) {
     val board = ui.board
     val item = board?.now?.item
@@ -464,8 +481,17 @@ private fun NowCard(
                     )
                 },
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Label(stringResource(R.string.now_label), Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    // On it, once tapped, says so in place of the button, with when.
+                    val onIt = item != null && item.status == Status.ACTIVE
+                    val since = item?.activeSince
+                    Label(
+                        if (onIt && since != null) stringResource(R.string.now_on_it, Formats.clock(since)) else stringResource(R.string.now_label),
+                        Modifier.weight(1f),
+                    )
+                    if (item != null && item.isOpen && !onIt) {
+                        QuietButton(stringResource(R.string.on_it_action), { onOnIt(item) }, color = Ink.accent)
+                    }
                     if (item != null && !item.isAnchor) {
                         QuietButton(stringResource(R.string.focus_action), { onFocus(item) }, color = Ink.accent)
                     }
@@ -523,7 +549,7 @@ private fun NowCard(
         }
         Column(Modifier.padding(top = if (compact && flash == null) Space.xs else Space.xl)) {
             flash?.let {
-                FlashLine(it.text, if (it.undo != null) stringResource(R.string.action_undo) else null, onUndo)
+                FlashLine(it.text, if (it.canUndo) stringResource(R.string.action_undo) else null, onUndo)
                 Spacer(Modifier.height(Space.m))
             }
             // A done anchor still showing until its end has nothing left to act on.
@@ -969,7 +995,8 @@ private fun DaySheet(ui: BoardUi, onClose: () -> Unit, onEdit: (Item) -> Unit, o
 @Composable
 private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
-    Column(Modifier.fillMaxWidth().padding(bottom = Space.s)) {
+    // In a panel, so the question never sits on the background pattern.
+    Card(Modifier.padding(bottom = Space.s), inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) {
         Body(stringResource(R.string.ask_kind, title), color = Ink.text, style = Type.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalAlignment = Alignment.CenterVertically) {
             SecondaryButton(stringResource(R.string.ask_float), onFloat, height = Tap.min)
@@ -978,6 +1005,20 @@ private fun AskChips(title: String, onFloat: () -> Unit, onAnchor: (LocalTime) -
                 { TimePickerDialog(context, { _, h, m -> onAnchor(LocalTime.of(h, m)) }, 9, 0, false).show() },
                 height = Tap.min,
             )
+            QuietButton(stringResource(R.string.ask_cancel), onCancel)
+        }
+    }
+}
+
+/** A new series named like one already running: replace that one, or keep both. */
+@Composable
+private fun DupeChips(title: String, onReplace: () -> Unit, onKeep: () -> Unit, onCancel: () -> Unit) {
+    // In a panel, so the question never sits on the background pattern.
+    Card(Modifier.padding(bottom = Space.s), inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) {
+        Body(stringResource(R.string.dupe_ask, title), color = Ink.text, style = Type.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalAlignment = Alignment.CenterVertically) {
+            SecondaryButton(stringResource(R.string.dupe_replace), onReplace, height = Tap.min)
+            SecondaryButton(stringResource(R.string.dupe_keep), onKeep, height = Tap.min)
             QuietButton(stringResource(R.string.ask_cancel), onCancel)
         }
     }
@@ -1106,7 +1147,7 @@ private const val SEED_WIDTH = 1.3f
 private const val MAX_WAITMARKS = 2
 
 // The waitmark bookmarks: how wide at most (a share of the board), their icon and its line, and the slide in.
-private const val BOOKMARK_SHARE = 0.7f
+private const val BOOKMARK_SHARE = 0.85f
 private val BOOKMARK_ICON = 18.dp
 private val BOOKMARK_LINE = 2.dp
 private const val BOOKMARK_MS = 300

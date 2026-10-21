@@ -178,6 +178,13 @@ interface ItemDao {
     )
     suspend fun shortenQuickDefaults(from: Int, to: Int)
 
+    /** Deleted for good: off the ledger, as if it never was. */
+    @Query("DELETE FROM items WHERE id IN (:ids)")
+    suspend fun deleteItems(ids: List<Long>)
+
+    @Query("DELETE FROM events WHERE itemId = :id")
+    suspend fun deleteEventsOf(id: Long)
+
     /** Forgets an anchor's alarm progress, so the ladder runs again for a new time. */
     @Query("DELETE FROM alarms WHERE itemId = :id")
     suspend fun clearAlarm(id: Long)

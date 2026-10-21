@@ -90,6 +90,51 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         update(item, item.copy(status = Status.DROPPED, pinnedSlot = null), note = note)
     }
 
+    /**
+     * Remove on a time of a series, for this and later times: the series stops,
+     * this time is removed, and its open times after this one are taken off.
+     * Returns what Undo needs: the items as they were, and the times taken off.
+     */
+    suspend fun removeLater(item: Item, now: LocalDateTime): Pair<List<Item>, List<Item>> {
+        val template = item.templateId?.let { dao.byId(it)?.toItem() }
+        drop(item, note = "edited: removed")
+        if (template == null) return listOf(item) to emptyList()
+        val from = item.occurrenceDate ?: now.toLocalDate()
+        return listOf(item, template) to stopSeries(template, from, keep = item.id)
+    }
+
+    /**
+     * A series stops from [from] on: it makes no more times, and its open times
+     * from then are taken off (done and passed ones stay). Returns the times taken off.
+     */
+    suspend fun stopSeries(template: Item, from: java.time.LocalDate, keep: Long = NONE): List<Item> {
+        update(template, template.copy(status = Status.DROPPED), note = "series stopped")
+        val off = dao.all().map { it.toItem() }.filter {
+            it.templateId == template.id && it.id != keep && (it.status == Status.PENDING || it.status == Status.ACTIVE) &&
+                it.occurrenceDate?.isBefore(from) == false
+        }
+        if (off.isNotEmpty()) dao.deleteItems(off.map { it.id })
+        return off
+    }
+
+    /** Puts items back exactly as they were, with their ids: Undo for taking them off. */
+    suspend fun reinsert(items: List<Item>) {
+        if (items.isNotEmpty()) dao.insertAll(items.map { it.toRow() })
+    }
+
+    /** Off the ledger for good: the item and its history. Undo can put the item back. */
+    suspend fun deleteForGood(item: Item) {
+        dao.deleteItems(listOf(item.id))
+        dao.deleteEventsOf(item.id)
+        dao.clearAlarm(item.id)
+    }
+
+    /** Items moved to tomorrow on [date], for that day's report. */
+    suspend fun movedOn(date: java.time.LocalDate, all: List<Item>): List<Item> {
+        val ids = dao.events().filter { it.note == MOVED_NOTE && it.at.startsWith(date.toString()) }.map { it.itemId }.toSet()
+        return all.filter { it.id in ids }
+    }
+
     /** Ticks one step on or off. */
     suspend fun setStep(item: Item, index: Int, done: Boolean) {
         if (index !in item.steps.indices) return
@@ -159,11 +204,19 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         update(item, item.copy(pinnedSlot = at, notBefore = null, status = Status.PENDING), note = "moved by hand")
     }
 
-    /** First time a float becomes Now, start its clock. */
+    /**
+     * First time a float becomes Now, start its clock, quietly: it isn't On it
+     * until the person says so, but learning has a start if they never do.
+     */
     suspend fun markActive(item: Item, now: LocalDateTime) {
         if (item.activeSince != null || item.isAnchor) return
         // Back from a wait, it keeps its wait time, so it stays first until it's done or set aside.
-        update(item, item.copy(status = Status.ACTIVE, activeSince = now, notBefore = null))
+        update(item, item.copy(activeSince = now, notBefore = null))
+    }
+
+    /** On it: in hand, and timed from now. Skip, Tomorrow, or another task taking Now ends it. */
+    suspend fun onIt(item: Item, now: LocalDateTime) {
+        update(item, item.copy(status = Status.ACTIVE, activeSince = now, notBefore = null), note = "on it")
     }
 
     /** A step with a wait was ticked: the item steps aside until the wait ends. */
@@ -208,5 +261,8 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     private companion object {
         const val LOOKAHEAD_DAYS = 21L
         const val NONE = -1L
+
+        /** What Tomorrow writes in the event log; see Placement.tomorrow. */
+        const val MOVED_NOTE = "Back tomorrow"
     }
 }

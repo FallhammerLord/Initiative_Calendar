@@ -35,6 +35,12 @@ object Parser {
     )
     private val TODAY = setOf("today", "tonight")
     private val TOMORROW = setOf("tomorrow", "tmrw", "tmr")
+    private val MONTH_NAMES = listOf(
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+    )
+    private val DAY_OF_MONTH = Regex("""^(\d{1,2})(st|nd|rd|th)?$""")
+    private val SLASH_DATE = Regex("""^(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?$""")
     private val TIME = Regex("""^(\d{1,2})(?::(\d{2}))?(am|pm|a|p)?$""")
     private val DURATION = Regex("""^(\d+)(m|min|mins|h|hr|hrs)$""")
     private val MINUTE_WORDS = setOf("m", "min", "mins", "minute", "minutes")
@@ -72,6 +78,35 @@ object Parser {
             in TODAY -> today
             in TOMORROW -> today.plusDays(1)
             else -> DAYS[l]?.let { nextOn(today, it) }
+        }
+
+        // A month's date: "nov 14", "november 14th", "14 nov", or "11/14" (US order),
+        // this year, or next once it's passed. Returns the date and how many tokens it used.
+        fun monthOf(word: String): Int? =
+            if (word.length < 3) null else MONTH_NAMES.indexOfFirst { it.startsWith(word) || word == "sept" && it == "september" }.takeIf { it >= 0 }?.plus(1)
+
+        fun dated(month: Int, day: Int, year: Int?): LocalDate? {
+            if (month !in 1..12 || day !in 1..31) return null
+            fun on(y: Int) = runCatching { LocalDate.of(y, month, day) }.getOrNull()
+            if (year != null) return on(if (year < 100) 2000 + year else year)
+            val d = on(today.year) ?: return null
+            return if (d.isBefore(today)) on(today.year + 1) else d
+        }
+
+        fun monthDateAt(i: Int): Pair<LocalDate, Int>? {
+            SLASH_DATE.matchEntire(low[i])?.let { m ->
+                val y = m.groupValues[3].takeIf { it.isNotEmpty() }?.toInt()
+                return dated(m.groupValues[1].toInt(), m.groupValues[2].toInt(), y)?.let { it to 1 }
+            }
+            val month = monthOf(low[i])
+            if (month != null && i + 1 < n) {
+                DAY_OF_MONTH.matchEntire(low[i + 1])?.let { m -> return dated(month, m.groupValues[1].toInt(), null)?.let { it to 2 } }
+            }
+            val day = DAY_OF_MONTH.matchEntire(low[i])
+            if (day != null && i + 1 < n) {
+                monthOf(low[i + 1])?.let { mo -> return dated(mo, day.groupValues[1].toInt(), null)?.let { it to 2 } }
+            }
+            return null
         }
 
         // Returns the time and how many tokens it used.
@@ -167,6 +202,15 @@ object Parser {
                 i += 2
                 continue
             }
+            if (l == "by" && i + 1 < n) {
+                val md = monthDateAt(i + 1)
+                if (md != null) {
+                    deadline = md.first
+                    for (k in i..i + md.second) used[k] = true
+                    i += 1 + md.second
+                    continue
+                }
+            }
 
             when (l) {
                 "hard" -> { wall = WallStrength.HARD; used[i] = true; i++; continue }
@@ -195,6 +239,16 @@ object Parser {
                 used[i + 1] = true
                 takePrev(i, setOf("for"))
                 i += 2
+                continue
+            }
+
+            val md = monthDateAt(i)
+            if (md != null) {
+                date = md.first
+                weekday = null
+                for (k in i until i + md.second) used[k] = true
+                takePrev(i, setOf("on"))
+                i += md.second
                 continue
             }
 

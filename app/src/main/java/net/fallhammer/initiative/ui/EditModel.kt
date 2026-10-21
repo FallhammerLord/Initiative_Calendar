@@ -5,6 +5,7 @@ import initiative.core.Freq
 import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.Recurrence
+import initiative.core.Status
 import initiative.core.Step
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,7 +62,10 @@ class EditModel(
         set(item)
     }
 
-    fun cancel() = set(null)
+    fun cancel() {
+        cancelDupe()
+        set(null)
+    }
 
     fun setRule(rule: Recurrence?) {
         _rule.value = rule
@@ -107,6 +111,15 @@ class EditModel(
         d.copy(end = end.takeIf { it.isAfter(start) })
     }
 
+    private val _dupe = MutableStateFlow<Item?>(null)
+
+    /**
+     * Saving would start a series named like one already running: that one,
+     * while the form asks Replace it or Keep both.
+     */
+    val dupe: StateFlow<Item?> = _dupe.asStateFlow()
+    private var pending: Triple<String, String, List<Step>>? = null
+
     fun save(title: String, notes: String, steps: List<Step>) {
         val d = _draft.value ?: return
         if (title.isBlank()) {
@@ -114,17 +127,66 @@ class EditModel(
             return
         }
         val old = current().firstOrNull { it.id == d.id }
+        // A one-off becoming a series: does one by that name already run?
+        if (old != null && old.templateId == null && _rule.value != null) {
+            val key = d.copy(title = title.trim()).titleKey
+            current().firstOrNull { it.isTemplate && it.status != Status.DROPPED && it.titleKey == key }?.let {
+                pending = Triple(title, notes, steps)
+                _dupe.value = it
+                return
+            }
+        }
+        commit(title, notes, steps, replace = null)
+    }
+
+    /** The answer to "already repeats": [replace] stops that series from today first. */
+    fun answerDupe(replace: Boolean) {
+        val match = _dupe.value ?: return
+        val (title, notes, steps) = pending ?: return
+        _dupe.value = null
+        pending = null
+        commit(title, notes, steps, replace = match.takeIf { replace })
+    }
+
+    fun cancelDupe() {
+        _dupe.value = null
+        pending = null
+    }
+
+    private fun commit(title: String, notes: String, steps: List<Step>, replace: Item?) {
+        val d = _draft.value ?: return
+        val old = current().firstOrNull { it.id == d.id }
         val rule = _rule.value
         val series = rule != originalRule || (old?.templateId != null && _later.value)
         set(null)
         if (old == null) return
         parts.acted()
         parts.scope.launch {
-            // Empty steps are dropped.
-            val kept = steps.map { it.copy(title = it.title.trim()) }.filter { it.title.isNotEmpty() }
-            val edited = d.copy(title = title.trim(), notes = notes.trim(), steps = kept)
+            replace?.let { graph.repo.stopSeries(it, LocalDate.now()) }
+            val edited = edited(d, title, notes, steps)
             if (series) graph.repo.editSeries(old, edited, rule, LocalDateTime.now()) else graph.repo.edit(old, edited)
             parts.show(Flash(parts.text(R.string.edit_saved)))
+        }
+    }
+
+    /** The draft with what was typed; empty steps are dropped. */
+    private fun edited(d: Item, title: String, notes: String, steps: List<Step>): Item {
+        val kept = steps.map { it.copy(title = it.title.trim()) }.filter { it.title.isNotEmpty() }
+        return d.copy(title = title.trim().ifEmpty { d.title }, notes = notes.trim(), steps = kept)
+    }
+
+    /** Done from the form, with what was typed kept, and Undo. Any open item, Now or not. */
+    fun done(title: String, notes: String, steps: List<Step>) {
+        val d = _draft.value ?: return
+        val old = current().firstOrNull { it.id == d.id }
+        set(null)
+        if (old == null) return
+        parts.acted()
+        parts.scope.launch {
+            val edited = edited(d, title, notes, steps)
+            if (edited != old) graph.repo.edit(old, edited)
+            graph.repo.done(edited, LocalDateTime.now())
+            parts.show(Flash(parts.text(R.string.flash_done), undo = old))
         }
     }
 
@@ -141,16 +203,37 @@ class EditModel(
         }
     }
 
-    /** Off the board, with Undo. */
-    fun remove() {
+    /**
+     * Off the board, with Undo. For a time of a series, [later] also stops the
+     * series and takes off its later times; Undo puts it all back.
+     */
+    fun remove(later: Boolean = false) {
         val d = _draft.value ?: return
         val old = current().firstOrNull { it.id == d.id }
         set(null)
         if (old == null) return
         parts.acted()
         parts.scope.launch {
-            graph.repo.drop(old, note = "edited: removed")
-            parts.show(Flash(parts.text(R.string.edit_removed), undo = old))
+            if (later && old.templateId != null) {
+                val (before, off) = graph.repo.removeLater(old, LocalDateTime.now())
+                parts.show(Flash(parts.text(R.string.series_removed_later), undo = before.first(), undoAlso = before.drop(1), readd = off))
+            } else {
+                graph.repo.drop(old, note = "edited: removed")
+                parts.show(Flash(parts.text(R.string.edit_removed), undo = old))
+            }
+        }
+    }
+
+    /** A removed item off the ledger for good, as if it never was; Undo puts it back. */
+    fun deleteForGood() {
+        val d = _draft.value ?: return
+        val old = current().firstOrNull { it.id == d.id }
+        set(null)
+        if (old == null) return
+        parts.acted()
+        parts.scope.launch {
+            graph.repo.deleteForGood(old)
+            parts.show(Flash(parts.text(R.string.edit_deleted), readd = listOf(old)))
         }
     }
 

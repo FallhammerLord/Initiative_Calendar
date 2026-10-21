@@ -21,6 +21,24 @@ class ParserTest {
         assertEquals(WallStrength.FIRM, r.wall)
     }
 
+    @Test fun monthDates() {
+        // Today is Monday, October 19, 2026.
+        assertEquals(LocalDateTime.of(2026, 11, 14, 15, 0), p("dentist nov 14 3pm").item.start)
+        assertEquals("dentist", p("dentist nov 14 3pm").item.title)
+        assertEquals(LocalDate.of(2026, 11, 14), p("dentist november 14th").item.earliestStart)
+        assertEquals(LocalDate.of(2026, 11, 14), p("dentist 14 nov").item.earliestStart)
+        assertEquals(LocalDate.of(2026, 11, 14), p("dentist 11/14").item.earliestStart)
+        assertEquals(LocalDate.of(2027, 1, 5), p("dentist on jan 5").item.earliestStart)
+        assertEquals("dentist", p("dentist on jan 5").item.title)
+        // Passed this year: next year.
+        assertEquals(LocalDate.of(2027, 3, 2), p("renew 3/2").item.earliestStart)
+        assertEquals(LocalDate.of(2026, 12, 1), p("taxes by dec 1").item.deadline)
+        assertEquals("taxes", p("taxes by dec 1").item.title)
+        // A month word with no day stays in the title.
+        assertEquals("march band", p("march band").item.title)
+        assertEquals("may call", p("may call").item.title)
+    }
+
     @Test fun aDayFromTheLogIsTheDefault() {
         val friday = LocalDate.of(2026, 10, 23)
         // No day typed: the Log's day.

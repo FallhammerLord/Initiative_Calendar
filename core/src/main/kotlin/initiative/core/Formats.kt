@@ -62,6 +62,9 @@ object Formats {
     /** "M" for Monday, for a calendar's column heads. */
     fun weekdayLetter(d: DayOfWeek): String = d.getDisplayName(TextStyle.NARROW, Locale.US)
 
+    /** "Mon" */
+    fun weekdayShort(d: DayOfWeek): String = d.getDisplayName(TextStyle.SHORT, Locale.US)
+
     /** "Oct 19 to 25", or "Oct 26 to Nov 1" across a month's end. */
     fun span(from: LocalDate, to: LocalDate): String =
         if (from.month == to.month) "${shortDate(from)} to ${to.dayOfMonth}" else "${shortDate(from)} to ${shortDate(to)}"

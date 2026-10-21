@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import initiative.core.Status
 import initiative.core.AlarmState
 import initiative.core.Escalation
 import kotlinx.coroutines.CoroutineScope
@@ -81,7 +82,9 @@ object AlarmActions {
         val now = LocalDateTime.now()
         val state = dao.alarm(id)?.toState() ?: AlarmState()
         dao.putAlarm(state.copy(ackedAt = now, snoozedUntil = null).toRow(id))
-        dao.insertEvent(EventRow(itemId = id, fromStatus = item.status.name, toStatus = item.status.name, at = now.toString(), note = "on it"))
+        // On it shows on the Now card too, with when.
+        if (item.isOpen) dao.update(item.copy(status = Status.ACTIVE, activeSince = item.activeSince ?: now).toRow())
+        dao.insertEvent(EventRow(itemId = id, fromStatus = item.status.name, toStatus = Status.ACTIVE.name, at = now.toString(), note = "on it"))
         Notifier.cancelRung(context, id)
         Log.i(TAG, "on it: ${item.title}")
         Scheduler.sync(context)

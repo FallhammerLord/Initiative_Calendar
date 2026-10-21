@@ -421,3 +421,9 @@ fun InitiativeTheme(look: Look = Looks.SciFi, content: @Composable () -> Unit) {
 
 /** The pattern's strength out of the box: half. */
 const val DEFAULT_TEXTURE = 0.5f
+
+/** Paper for a printed or saved report: black ink on white, whatever the look. */
+object Paper {
+    val ink = Color(0xFF000000)
+    val dim = Color(0xFF4A4A4A)
+}
