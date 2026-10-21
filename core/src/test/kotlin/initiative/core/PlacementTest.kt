@@ -29,7 +29,7 @@ class PlacementTest {
         val pickupDone = pickup.copy(start = at(14, 30), end = at(16), status = Status.DONE, doneAt = at(14, 35))
         val b = engine.board(listOf(pickupDone, float(2, "call", mins = 15)), at(15, 3))
         assertEquals(pickupDone.id, b.now.item?.id)
-        assertEquals("Under way until 4:00 PM", b.now.reason)
+        assertEquals("Done · under way until 4:00 PM", b.now.reason)
         // After it ends, the float gets its turn.
         assertEquals(2L, engine.board(listOf(pickupDone, float(2, "call", mins = 15)), at(16, 5)).now.item?.id)
     }

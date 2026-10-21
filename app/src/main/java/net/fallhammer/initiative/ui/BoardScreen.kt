@@ -89,6 +89,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.ViewCompat
+import androidx.compose.ui.platform.LocalView
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkKind
@@ -388,6 +392,9 @@ private fun NowCard(
 ) {
     val board = ui.board
     val item = board?.now?.item
+    // An anchor marked done whose time isn't over: it stays Now, folded to its
+    // title and one "done" line, with nothing left to tap by mistake.
+    val settled = item != null && item.isAnchor && !item.isOpen
     val haptics = rememberHaptics()
     val scroll = rememberScrollState()
     val hint = Ink.accent
@@ -453,19 +460,26 @@ private fun NowCard(
                     ) { shown ->
                         Column {
                             Title(shown?.title ?: stringResource(R.string.free_time))
-                            if (shown != null && shown.isAnchor) Body(Formats.anchorLine(shown), style = Type.bodySmall)
+                            if (shown != null && shown.isAnchor && shown.isOpen) Body(Formats.anchorLine(shown), style = Type.bodySmall)
                         }
                     }
                 }
             }
             // Steps tick off right here; Done asks about any left open.
-            if (!compact && item != null && item.steps.isNotEmpty()) {
+            if (!compact && !settled && item != null && item.steps.isNotEmpty()) {
                 Spacer(Modifier.height(Space.s))
                 item.steps.forEachIndexed { i, step -> StepRow(step.title, step.done) { onStep(item, i) } }
             }
             if (!compact && board != null) {
                 Spacer(Modifier.height(Space.m))
-                Body(board.now.reason)
+                if (settled) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.now_done_mark), style = Type.body, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
+                        Body(board.now.reason, Modifier.padding(start = Space.s))
+                    }
+                } else {
+                    Body(board.now.reason)
+                }
             }
         }
         Column(Modifier.padding(top = if (compact && flash == null) Space.xs else Space.xl)) {
@@ -801,15 +815,23 @@ private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifie
     // Once the keyboard has been up while the field has focus, the keyboard going
     // down lets the field go too, so it never stays lit with no keyboard. Forced,
     // so nothing can hold on to it. The board's own check backs this up.
+    // It reads the window's own keyboard state, checked while the field has focus,
+    // rather than Compose's keyboard signal, which didn't always arrive.
     val focus = LocalFocusManager.current
-    val keyboardUp = WindowInsets.isImeVisible
+    val view = LocalView.current
     var focused by remember { mutableStateOf(false) }
-    var sawKeyboard by remember { mutableStateOf(false) }
-    LaunchedEffect(focused, keyboardUp) {
-        when {
-            !focused -> sawKeyboard = false
-            keyboardUp -> sawKeyboard = true
-            sawKeyboard -> focus.clearFocus(force = true)
+    LaunchedEffect(focused) {
+        if (!focused) return@LaunchedEffect
+        var sawKeyboard = false
+        while (true) {
+            val up = ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            if (up) {
+                sawKeyboard = true
+            } else if (sawKeyboard) {
+                focus.clearFocus(force = true)
+                break
+            }
+            delay(KEYBOARD_CHECK_MS)
         }
     }
     OutlinedTextField(
@@ -886,6 +908,9 @@ private val SCROLL_WIDTH = 3.dp
 private val SCROLL_INSET = 10.dp
 private const val HINT_ALPHA = 0.7f
 private val FADE = 24.dp
+
+/** While quick-add has focus, how often it checks whether the keyboard has closed. */
+private const val KEYBOARD_CHECK_MS = 300L
 
 /** The day panel's fold, open and closed. */
 private const val FOLD_MS = 250

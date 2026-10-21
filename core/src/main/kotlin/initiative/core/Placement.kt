@@ -70,7 +70,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         live.firstOrNull {
             it.isAnchor && it.status == Status.DONE && it.start != null && !it.start.isAfter(now) && now.isBefore(it.anchorEnd!!)
         }?.let {
-            return Board(NowPick(it, "Under way until ${Formats.clock(it.anchorEnd!!)}"), upcoming.firstOrNull())
+            return Board(NowPick(it, "Done · under way until ${Formats.clock(it.anchorEnd!!)}"), upcoming.firstOrNull())
         }
 
         upcoming.firstOrNull()?.takeIf { !now.isBefore(it.warnAt!!) }?.let {

@@ -109,6 +109,8 @@ The Log, from the Plan ahead panel, holds the week and beyond. It exists for pla
 
 When nothing needs doing, the Now card says **Free time**. An empty board is a valid, calm state.
 
+**A done anchor still under way** (pickup marked Done on arrival, until 4:00) stays Now, folded to its title and one line, "✓ Done · under way until 4:00 PM": no steps and no buttons, so nothing is left to tap by mistake. Undo shows for a moment after Done; after that, the title opens the edit form, where Put back undoes it.
+
 **Buttons.**
 
 - **Done** marks it finished. With steps still open it asks first, on purpose: tick what's done, then **All done** (the item and every step) or **Not yet** (it stays as it is). Back, or a tap outside, is Not yet.
