@@ -884,11 +884,16 @@ tap Later exact
 wait_for "$((year + 1))" exact || fail "Later should flip the Year view to next year"
 pass "the Log zooms out and flips to next year"
 shot log-next-year
-# The search box is the screen's only text field, so quick_add types into it.
-quick_add "landlord"
-# Search closes the keyboard itself; Back here would close the Log, so only wait.
-for _ in 1 2 3 4 5 6; do ime_shown || break; sleep 0.5; done
+# Search filters as you type, so no Enter: type, then close the keyboard with
+# Back while it's surely open (Back with the keyboard down would close the Log).
+xy=$(find_node android.widget.EditText class) || fail "no search box in the Log"
+adb shell input tap $xy
+for _ in 1 2 3 4 5 6; do ime_shown && break; sleep 0.5; done
+adb shell input text landlord
+wait_for "landlord" field || fail "couldn't type into the Log's search"
 expect_text "call landlord · done"
+ime_shown && adb shell input keyevent KEYCODE_BACK
+sleep 1
 shot log-search
 adb shell input keyevent KEYCODE_BACK
 wait_gone "Back to board" exact || fail "Back should close the Log"
