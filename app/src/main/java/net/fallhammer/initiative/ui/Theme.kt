@@ -129,6 +129,60 @@ class ArchShape(private val rise: Dp) : Shape {
     }
 }
 
+/**
+ * A waitmark's bookmark: square on the right, where it meets the screen's edge,
+ * and pointing in on the left with its look's end: a chevron cut (Sci-fi), a
+ * round end (Classic), steps (Deco), or half a pointed arch (Stained glass).
+ */
+class BookmarkShape(private val style: HandleStyle) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            moveTo(w, 0f)
+            when (style) {
+                HandleStyle.CLAMP -> {
+                    lineTo(h * BOOKMARK_CUT, 0f)
+                    lineTo(0f, h / 2)
+                    lineTo(h * BOOKMARK_CUT, h)
+                }
+                HandleStyle.PILL -> {
+                    lineTo(h / 2, 0f)
+                    arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, h, h), 270f, -180f, false)
+                }
+                HandleStyle.ZIGGURAT -> {
+                    val s = h * BOOKMARK_STEP
+                    lineTo(3 * s, 0f)
+                    lineTo(3 * s, s)
+                    lineTo(2 * s, s)
+                    lineTo(2 * s, 2 * s)
+                    lineTo(s, 2 * s)
+                    lineTo(s, h - 2 * s)
+                    lineTo(2 * s, h - 2 * s)
+                    lineTo(2 * s, h - s)
+                    lineTo(3 * s, h - s)
+                    lineTo(3 * s, h)
+                }
+                HandleStyle.LANCET -> {
+                    val r = h * BOOKMARK_ARCH
+                    lineTo(r, 0f)
+                    cubicTo(r * ARCH_PULL_SIDE, 0f, 0f, h * 0.3f, 0f, h / 2)
+                    cubicTo(0f, h * 0.7f, r * ARCH_PULL_SIDE, h, r, h)
+                }
+            }
+            lineTo(w, h)
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
+
+// The bookmark's ends: the chevron's cut, the steps' size, and the arch's reach, as shares of its height.
+private const val BOOKMARK_CUT = 0.4f
+private const val BOOKMARK_STEP = 0.18f
+private const val BOOKMARK_ARCH = 0.9f
+private const val ARCH_PULL_SIDE = 0.45f
+
 // The arch's curve: how far down each side its pull starts, and where its shoulders sit.
 private const val ARCH_PULL = 0.35f
 private const val ARCH_SHOULDER = 0.28f

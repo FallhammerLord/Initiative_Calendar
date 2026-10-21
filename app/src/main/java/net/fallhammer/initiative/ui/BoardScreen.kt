@@ -12,6 +12,13 @@ import kotlin.math.sqrt
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.key
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.expandVertically
@@ -233,8 +240,11 @@ fun BoardScreen(vm: BoardViewModel) {
                     if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog)
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
                       Column {
-                        // Items stepped aside for a wait sit on the card's top edge, like bookmarks.
-                        if (!keyboardUp) Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::switchTo)
+                        // Items stepped aside for a wait: bookmarks from the screen's edge, above the card.
+                        if (!keyboardUp) {
+                            Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::switchTo)
+                            if (ui.board?.waits.orEmpty().isNotEmpty()) Spacer(Modifier.height(Space.inside))
+                        }
                         NowCard(
                             modifier = Modifier.onGloballyPositioned { cardCenter = it.boundsInRoot().center },
                             ui = ui,
@@ -545,46 +555,95 @@ private fun NowCard(
 }
 
 /**
- * Waitmarks: tabs on the Now card's top edge for items stepped aside for a
- * wait. Dim with a countdown while waiting; lit once ready. Tapping one makes
- * it Now (ending its wait early, if it hadn't ended); the task under way goes
- * back into the day's order. At most two show; the rest wait their turn.
+ * Waitmarks: bookmarks for items stepped aside for a wait, fixed to the screen's
+ * right edge above the Now card, each pointing in with its look's end (see
+ * [BookmarkShape]). Dim with a countdown while waiting; lit once ready. They
+ * slide in from the edge; the soonest sits nearest the card. Tapping one makes
+ * it Now (ending its wait early, if it hadn't); the task under way goes back
+ * into the day's order. Long names are cut short on screen, never for TalkBack.
  */
 @Composable
 private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Unit) {
     if (waits.isEmpty()) return
-    val shape = LocalLook.current.buttonShape
+    val look = LocalLook.current
+    val shape = remember(look.handle) { BookmarkShape(look.handle) }
     val haptics = rememberHaptics()
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.inside, Alignment.End)) {
-        waits.take(MAX_WAITMARKS).forEach { w ->
-            val ready = w.ready(now)
-            val next = w.nextStep
-            val text = when {
-                !ready -> stringResource(R.string.waitmark_waiting, w.title, Formats.countdown(now, w.waitUntil!!))
-                next != null -> stringResource(R.string.waitmark_ready, w.title, next.title)
-                else -> stringResource(R.string.waitmark_ready_plain, w.title)
-            }
-            Box(
-                Modifier
-                    .weight(1f, fill = false)
-                    .heightIn(min = Tap.min)
-                    .clip(shape)
-                    .background(if (ready) Ink.accent else Ink.surface)
-                    .then(if (ready) Modifier else Modifier.border(1.dp, Ink.frame, shape))
-                    .clickable(onClickLabel = stringResource(R.string.waitmark_switch, w.title)) {
-                        haptics.tick()
-                        onTap(w)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val widest = maxWidth * BOOKMARK_SHARE
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+            waits.take(MAX_WAITMARKS).reversed().forEach { w ->
+                key(w.id) {
+                    val ready = w.ready(now)
+                    val next = w.nextStep
+                    val text = when {
+                        !ready -> stringResource(R.string.waitmark_waiting, w.title, Formats.countdown(now, w.waitUntil!!))
+                        next != null -> stringResource(R.string.waitmark_ready, w.title, next.title)
+                        else -> stringResource(R.string.waitmark_ready_plain, w.title)
                     }
-                    .padding(horizontal = Space.m),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text,
-                    style = if (ready) Type.label else Type.caption,
-                    color = if (ready) Ink.onAccent else Ink.dim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                    val ink = if (ready) Ink.onAccent else Ink.dim
+                    val seed = look.palette.jewels.firstOrNull()
+                    val shown = remember { MutableTransitionState(false).apply { targetState = true } }
+                    AnimatedVisibility(shown, enter = slideInHorizontally(tween(BOOKMARK_MS)) { it } + fadeIn(tween(BOOKMARK_MS))) {
+                        Row(
+                            Modifier
+                                // Past the board's side margin, to the screen's edge.
+                                .offset(x = Space.l)
+                                .widthIn(max = widest)
+                                .heightIn(min = Tap.min)
+                                .clip(shape)
+                                .background(if (ready) Ink.accent else Ink.surface)
+                                .then(if (ready) Modifier else Modifier.border(1.dp, Ink.frame, shape))
+                                .clickable(onClickLabel = stringResource(R.string.waitmark_switch, w.title)) {
+                                    haptics.tick()
+                                    onTap(w)
+                                }
+                                .padding(start = Space.xxl, end = Space.xl),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // Glass marks a wait with a pomegranate seed; the other looks, a clock.
+                            Box(
+                                Modifier
+                                    .size(BOOKMARK_ICON)
+                                    .drawBehind {
+                                        val line = BOOKMARK_LINE.toPx()
+                                        if (look.relics && seed != null) {
+                                            val r = size.minDimension / 2
+                                            val c = center
+                                            val p = Path().apply {
+                                                moveTo(c.x, c.y - r)
+                                                cubicTo(c.x - r, c.y, c.x - r * 0.6f, c.y + r, c.x, c.y + r)
+                                                cubicTo(c.x + r * 0.6f, c.y + r, c.x + r, c.y, c.x, c.y - r)
+                                                close()
+                                            }
+                                            if (ready) drawPath(p, seed)
+                                            drawPath(p, ink, style = Stroke(line))
+                                        } else {
+                                            val r = size.minDimension / 2 - line
+                                            drawCircle(ink, radius = r, style = Stroke(line))
+                                            drawLine(ink, center, Offset(center.x, center.y - r * 0.6f), line)
+                                            drawLine(ink, center, Offset(center.x + r * 0.45f, center.y + r * 0.3f), line)
+                                        }
+                                    },
+                            )
+                            Text(
+                                text,
+                                style = if (ready) Type.label else Type.caption,
+                                color = ink,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false).padding(start = Space.s),
+                            )
+                            if (ready) {
+                                Text(
+                                    stringResource(R.string.waitmark_mark),
+                                    style = Type.body,
+                                    color = ink,
+                                    modifier = Modifier.padding(start = Space.xs).clearAndSetSemantics { },
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1045,6 +1104,12 @@ private const val SEED_WIDTH = 1.3f
 
 /** Waitmarks shown at once; the rest wait their turn. */
 private const val MAX_WAITMARKS = 2
+
+// The waitmark bookmarks: how wide at most (a share of the board), their icon and its line, and the slide in.
+private const val BOOKMARK_SHARE = 0.7f
+private val BOOKMARK_ICON = 18.dp
+private val BOOKMARK_LINE = 2.dp
+private const val BOOKMARK_MS = 300
 
 // A running wait on the dial: how far above the arc, and its dots.
 private val WAIT_LIFT = 7.dp

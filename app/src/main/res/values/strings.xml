@@ -9,8 +9,9 @@
     <string name="now_done_mark">✓</string>
     <string name="flash_waits">%1$s waits %2$s</string>
     <string name="waitmark_waiting">%1$s · back in %2$s</string>
-    <string name="waitmark_ready">%1$s: %2$s ›</string>
-    <string name="waitmark_ready_plain">%1$s is ready ›</string>
+    <string name="waitmark_ready">%1$s: %2$s</string>
+    <string name="waitmark_ready_plain">%1$s is ready</string>
+    <string name="waitmark_mark">›</string>
     <string name="waitmark_switch">Switch to %1$s</string>
     <string name="waitmark_next">%1$s is next, ready since %2$s</string>
     <string name="card_ready">%1$s ready: %2$s</string>
