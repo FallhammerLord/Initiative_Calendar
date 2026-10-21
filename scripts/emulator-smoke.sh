@@ -368,7 +368,9 @@ pass "set as home app"
 
 home
 expect_front $PKG "Home opens the board"
-expect_text "Free time"
+# A freshly booted emulator can take a while before the screen can be read.
+wait_for "Free time" contains 20 || fail "expected 'Free time' on screen"
+pass "shows 'Free time'"
 expect_text "Setup:"
 expect_text "Nothing else today"
 shot board-first-run
