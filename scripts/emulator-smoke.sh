@@ -404,17 +404,22 @@ expect_text "High priority"
 expect_text "Next: call landlord"
 shot two-floats
 # Closing the keyboard lets go of the field: it doesn't stay highlighted.
-xy=$(find_node android.widget.EditText class) || fail "no quick-add field"
-adb shell input tap $xy
-for _ in 1 2 3 4; do ime_shown && break; sleep 1; done
-ime_shown || fail "tapping quick-add should open the keyboard"
-adb shell input keyevent KEYCODE_BACK
-# The field lets go once the keyboard's closing animation ends; allow a few seconds.
-released=no
-for _ in 1 2 3 4 5 6 7 8; do
-  sleep 0.5
-  ui > "$OUT/focus.xml"
-  if python3 - "$OUT/focus.xml" <<'PY'
+# Under CI load Android can drop the app's keyboard tracking (ImeTracker
+# "onCancelled"), so the window is never told the keyboard opened and can't see
+# it close. That's the system's miss, not the app's: log it and try once more.
+# A second miss fails.
+quick_add_releases() {
+  local xy
+  xy=$(find_node android.widget.EditText class) || fail "no quick-add field"
+  adb shell input tap $xy
+  for _ in 1 2 3 4; do ime_shown && break; sleep 1; done
+  ime_shown || fail "tapping quick-add should open the keyboard"
+  adb shell input keyevent KEYCODE_BACK
+  # The field lets go once the keyboard's closing animation ends; allow a few seconds.
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 0.5
+    ui > "$OUT/focus.xml"
+    python3 - "$OUT/focus.xml" <<'PY' && return 0
 import sys, xml.etree.ElementTree as ET
 try:
     root = ET.parse(sys.argv[1]).getroot()
@@ -422,9 +427,16 @@ except Exception:
     sys.exit(1)
 sys.exit(1 if any(n.get("class") == "android.widget.EditText" and n.get("focused") == "true" for n in root.iter("node")) else 0)
 PY
-  then released=yes; break; fi
-done
-[ $released = yes ] || fail "quick-add stayed focused after the keyboard closed"
+  done
+  return 1
+}
+if ! quick_add_releases; then
+  log "     quick-add still focused; app log and keyboard tracking:"
+  adb logcat -d | grep -E "Initiative: quick-add|ImeTracker: net.fallhammer" | tail -12 | tee -a "$OUT/steps.log"
+  home
+  sleep 2
+  quick_add_releases || fail "quick-add stayed focused after the keyboard closed"
+fi
 pass "closing the keyboard releases the quick-add field"
 # Swipe up on the Next line opens the day panel; a tap outside it folds it.
 xy=$(find_node "Next: call landlord") || fail "no Next line"
