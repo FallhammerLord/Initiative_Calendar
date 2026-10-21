@@ -98,7 +98,9 @@ for n in nodes:
         continue
     vals = [n.get("class") or ""] if mode == "class" else [n.get("text") or "", n.get("content-desc") or ""]
     for v in vals:
-        if (v == q) if mode in ("exact", "class") else (q in v):
+        # "iexact" ignores case too: the keyboard may capitalize a line's first letter.
+        hit = (v == q) if mode in ("exact", "class") else (v.lower() == q.lower()) if mode == "iexact" else (q in v)
+        if hit:
             x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
             print((x1 + x2) // 2, (y1 + y2) // 2)
             sys.exit(0)
@@ -971,11 +973,12 @@ crash_check
 home
 quick_add "halloween today all day"
 hide_keyboard
-wait_for "halloween, marker" || fail "an all-day line should make a marker bubble"
-tap "halloween, marker"
-wait_for "halloween" exact || fail "a tap should slide the marker's label out"
+# The keyboard may capitalize the first letter, so match from the second.
+wait_for "alloween, marker" || fail "an all-day line should make a marker bubble"
+tap "alloween, marker"
+wait_for "halloween" iexact || fail "a tap should slide the marker's label out"
 shot marker-label
-tap "halloween, marker"
+tap "alloween, marker"
 wait_for "Edit" exact || fail "a second tap should open the marker's note"
 shot marker-note
 tap Close exact
