@@ -7,6 +7,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import kotlin.math.sqrt
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
@@ -226,10 +233,10 @@ fun BoardScreen(vm: BoardViewModel) {
                             compact = keyboardUp,
                         )
                     }
-                    Spacer(Modifier.height(Space.zone))
+                    Spacer(Modifier.height(Space.panel))
                     // Folded, the day panel is just the Next line: swipe it up or tap it to open.
                     DayBar(ui, open = false, onToggle = { expanded = true }, modifier = Modifier.onSwipeUp { expanded = true })
-                    Spacer(Modifier.height(Space.zone))
+                    Spacer(Modifier.height(Space.panel))
                     // The weekly recopy waits while an anchor is Now.
                     if (recopyDue && ui.board?.now?.item?.isAnchor != true) {
                         RecopyPrompt(onStart = vm.recopy::start, onLater = vm.recopy::later)
@@ -245,7 +252,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     // One setup step at a time, until all are done.
                     setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
                     QuickAdd(onSubmit = vm::submit, modifier = Modifier.onGloballyPositioned { fieldArea = it.boundsInRoot() })
-                    Spacer(Modifier.height(Space.inside))
+                    Spacer(Modifier.height(Space.panel))
                     // The way to the app drawer: a swipe up that starts in this bottom band,
                     // which sits above Android's own gesture strip, or the Apps handle.
                     Column(
@@ -254,7 +261,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             .heightIn(min = DRAWER_BAND)
                             .onSwipeUp(DRAWER_SWIPE) { vm.setDrawer(true) },
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Space.inside, Alignment.Bottom),
+                        verticalArrangement = Arrangement.spacedBy(Space.panel, Alignment.Bottom),
                     ) {
                         Dock(dock, icons, onTap = vm::tapSlot, onHold = vm::holdSlot)
                         // The Apps button, as a slim pull tab: the swipe's visible twin.
@@ -262,7 +269,12 @@ fun BoardScreen(vm: BoardViewModel) {
                     }
                 }
                 // Open, the day panel lies over the board, so the Now card keeps its shape.
-                if (expanded) {
+                // It unfolds upward out of the Next strip, and folds back down into it.
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = expandVertically(tween(FOLD_MS), expandFrom = Alignment.Bottom) + fadeIn(tween(FOLD_MS)),
+                    exit = shrinkVertically(tween(FOLD_MS), shrinkTowards = Alignment.Bottom) + fadeOut(tween(FOLD_MS)),
+                ) {
                     DaySheet(ui, onClose = { expanded = false }, onEdit = { item -> expanded = false; vm.edit.open(item) }, onMove = vm::moveTask)
                 }
                 confirming?.let { item ->
@@ -377,8 +389,33 @@ private fun NowCard(
     val item = board?.now?.item
     val haptics = rememberHaptics()
     val scroll = rememberScrollState()
+    val hint = Ink.accent
+    val surface = Ink.surface
     Card(modifier) {
-        Column(Modifier.weight(1f, fill = false).verticalScroll(scroll, enabled = scroll.maxValue > 0)) {
+        Column(
+            Modifier
+                .weight(1f, fill = false)
+                // When the words run past the card: a slim bar in the right margin, and the
+                // last line fading out, so it's clear there's more below.
+                .drawWithContent {
+                    drawContent()
+                    val max = scroll.maxValue
+                    if (max <= 0) return@drawWithContent
+                    val shown = size.height
+                    val thumb = shown * shown / (shown + max)
+                    val top = (shown - thumb) * scroll.value / max
+                    drawRect(hint.copy(alpha = HINT_ALPHA), Offset(size.width + SCROLL_INSET.toPx(), top), Size(SCROLL_WIDTH.toPx(), thumb))
+                    if (scroll.value < max) {
+                        val fade = FADE.toPx()
+                        drawRect(
+                            Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface), startY = shown - fade, endY = shown),
+                            topLeft = Offset(0f, shown - fade),
+                            size = Size(size.width, fade),
+                        )
+                    }
+                }
+                .verticalScroll(scroll, enabled = scroll.maxValue > 0),
+        ) {
             // Tapping the title area opens the edit form; holding it starts focus,
             // with the Focus button as the visible twin. TalkBack reads both actions.
             val editLabel = stringResource(R.string.edit_action)
@@ -510,6 +547,8 @@ private fun DayDial(ui: BoardUi) {
     val length = (ui.window.end.toSecondOfDay() - start).coerceAtLeast(1)
     fun frac(t: LocalDateTime): Float = (t.toLocalTime().toSecondOfDay() - start).toFloat() / length
     val nowAt = frac(ui.now)
+    // Eased between the clock's ticks, so the pointer glides rather than steps.
+    val pointerAt by animateFloatAsState(nowAt.coerceIn(0f, 1f), tween(POINTER_EASE_MS), label = "pointer")
     val nowItem = ui.board?.now?.item
     // Now's span: its forecast slot, or an anchor under way, which the forecast has passed.
     val nowSlot = ui.forecast.slots.firstOrNull { it.item.id == nowItem?.id }
@@ -579,15 +618,28 @@ private fun DayDial(ui: BoardUi) {
             drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
         }
 
-        // The pointer: a small triangle under the arc, pointing up at now.
+        // The pointer: a small triangle under the arc, on the curve's perpendicular at
+        // now, pointing at it, so it leans with the arc as a dimension arrow would.
         val inDay = nowAt in 0f..1f
-        val x = nowAt.coerceIn(0f, 1f) * w
-        val tip = y(nowAt.coerceIn(0f, 1f)) + POINTER_GAP.toPx()
+        val f = pointerAt
+        val px = f * w
+        val slope = -4 * rise * (1 - 2 * f) / w
+        val norm = sqrt(1 + slope * slope)
+        val nx = -slope / norm
+        val ny = 1 / norm
+        val tx = 1 / norm
+        val ty = slope / norm
+        val gap = POINTER_GAP.toPx()
+        val tall = POINTER_HEIGHT.toPx()
         val half = POINTER_WIDTH.toPx() / 2
+        val tipX = px + nx * gap
+        val tipY = y(f) + ny * gap
+        val backX = tipX + nx * tall
+        val backY = tipY + ny * tall
         val pointer = Path().apply {
-            moveTo(x, tip)
-            lineTo(x - half, tip + POINTER_HEIGHT.toPx())
-            lineTo(x + half, tip + POINTER_HEIGHT.toPx())
+            moveTo(tipX, tipY)
+            lineTo(backX - tx * half, backY - ty * half)
+            lineTo(backX + tx * half, backY + ty * half)
             close()
         }
         if (inDay) drawPath(pointer, nowColor) else drawPath(pointer, nowColor, style = Stroke(ARC_WIDTH.toPx()))
@@ -812,6 +864,18 @@ private val POINTER_HEIGHT = 8.dp
 private const val NOW_IN_MS = 260
 private const val NOW_OUT_MS = 120
 private const val NOW_RISE = 6
+
+// The Now card's scroll hint: the bar's width, its place in the margin, strength, and the fade.
+private val SCROLL_WIDTH = 3.dp
+private val SCROLL_INSET = 10.dp
+private const val HINT_ALPHA = 0.7f
+private val FADE = 24.dp
+
+/** The day panel's fold, open and closed. */
+private const val FOLD_MS = 250
+
+/** How long the dial's pointer takes to glide to the clock's new place. */
+private const val POINTER_EASE_MS = 1_000
 
 /** The All done pulse's run across the screen. */
 private const val PULSE_MS = 700

@@ -94,6 +94,13 @@ object Space {
      */
     val zone = xl
     val inside = s
+
+    /**
+     * Between the board's stacked panels: the Now card, the Next strip, task
+     * entry, the dock, and the Apps handle all sit this far apart, so the bottom
+     * group reads as one. Only the space above the Now card stretches.
+     */
+    val panel = m
 }
 
 /** Touch-target heights. */
