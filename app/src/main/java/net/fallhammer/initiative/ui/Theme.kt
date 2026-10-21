@@ -594,7 +594,7 @@ class StepCornerShape(private val step: Dp) : Shape {
  * every look; the contrast test checks them. A pair keeps an index, not a color.
  */
 object PairColors {
-    private val bright = listOf(Color(0xFFF2B84B), Color(0xFFF28AC0), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))
+    private val bright = listOf(Color(0xFFF2B84B), Color(0xFFF596C8), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))
     private val deep = listOf(Color(0xFF7A4600), Color(0xFF8A1C58), Color(0xFF1F5E23), Color(0xFF553C99), Color(0xFF154C7D))
     val count: Int get() = bright.size
 
