@@ -266,6 +266,8 @@
     <string name="log_year">Year</string>
     <string name="log_search">Search everything</string>
     <string name="log_earlier">Earlier</string>
+    <string name="log_earlier_mark">‹</string>
+    <string name="log_later_mark">›</string>
     <string name="log_later">Later</string>
     <string name="log_today">Today · %1$s</string>
     <string name="log_empty_day">Nothing on this day</string>

@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PlacementTest {
     private val day = LocalDate.of(2026, 10, 19)
@@ -93,6 +94,14 @@ class PlacementTest {
         val b = engine.board(items, at(15, 30))
         assertEquals("taxes", b.now.item?.title)
         assertEquals("Only thing on the list, longest gap today", b.now.reason)
+    }
+
+    @Test fun anotherTaskLaterMeansNotTheOnlyThing() {
+        // Water plants is pinned for later, so read mail isn't the only thing on the list.
+        val items = listOf(float(2, "read mail"), float(3, "water plants").copy(pinnedSlot = at(16)))
+        val b = engine.board(items, at(10))
+        assertEquals("read mail", b.now.item?.title)
+        assertTrue(!b.now.reason.startsWith("Only thing"), b.now.reason)
     }
 
     @Test fun emptyBoardIsFreeTime() {

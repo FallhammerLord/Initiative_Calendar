@@ -120,7 +120,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
             val second = tasks.getOrNull(1)?.item
             // A task's window closes at the gap's end, or sooner at a pinned task's start.
             val until = (listOf(current.end) + tasks.filter { it.item.pinnedSlot != null && it.at.isAfter(now) }.map { it.at }).min()
-            return Board(NowPick(upNext.item, reasonFor(upNext.item, second, current, longest, today)), nextAnchor ?: second, until = until)
+            return Board(NowPick(upNext.item, reasonFor(upNext.item, second, current, longest, today, alone = floats.size == 1)), nextAnchor ?: second, until = until)
         }
 
         val ready = eligible(floats, now)
@@ -128,7 +128,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val top = ranked.firstOrNull()
             ?: return Board(NowPick(null, upNextReason(upNext) ?: idleReason(floats, ready, current, now)), nextAnchor ?: upNext?.item)
 
-        val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today)
+        val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today, alone = floats.size == 1)
         return Board(NowPick(top, reason), nextAnchor ?: ranked.getOrNull(1), until = current.end)
     }
 
@@ -401,14 +401,15 @@ class Placement(private val window: DayWindow = DayWindow()) {
         return back?.let { (f, at) -> "Back at ${Formats.clock(at)}: ${f.title}" } ?: "Nothing else is due today"
     }
 
-    private fun reasonFor(top: Item, second: Item?, gap: Gap, longest: Long, today: LocalDate): String {
+    /** [alone]: no other open task at all, not just none that fits or is back yet. */
+    private fun reasonFor(top: Item, second: Item?, gap: Gap, longest: Long, today: LocalDate, alone: Boolean): String {
         val p = top.resolvePriority(today)
         val q = second?.resolvePriority(today)
         val why = when {
             q != null && p.level > q.level -> p.reason ?: "Higher priority"
             q != null && top.deadline != null && top.deadline != second?.deadline -> dueText(top.deadline, today)
             q != null -> p.reason ?: "Oldest on the list"
-            else -> p.reason ?: top.deadline?.let { dueText(it, today) } ?: "Only thing on the list"
+            else -> p.reason ?: top.deadline?.let { dueText(it, today) } ?: if (alone) "Only thing on the list" else "First on the list"
         }
         val fit = when {
             top.durationMinutes > gap.minutes && gap.minutes == longest -> "longest gap today"

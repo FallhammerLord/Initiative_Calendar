@@ -53,10 +53,10 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(ORNAMENTS, true)
         set(value) = prefs.edit().putBoolean(ORNAMENTS, value).apply()
 
-    /** The background pattern's strength, in percent. Half by default. */
-    var texture: Int
-        get() = prefs.getInt(TEXTURE, 50)
-        set(value) = prefs.edit().putInt(TEXTURE, value).apply()
+    /** A look's background pattern strength, in percent; each look keeps its own. Half by default. */
+    fun texture(look: String): Int = prefs.getInt("$TEXTURE.$look", DEFAULT_TEXTURE)
+
+    fun setTexture(look: String, percent: Int) = prefs.edit().putInt("$TEXTURE.$look", percent).apply()
 
     var quiet: QuietSetting
         get() = QuietSetting(
@@ -190,6 +190,7 @@ class Prefs(private val context: Context) {
         const val LOOK = "look"
         const val ORNAMENTS = "ornaments"
         const val TEXTURE = "texture"
+        const val DEFAULT_TEXTURE = 50
         const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val QUIET_ON = "quietOn"
         const val QUIET_START = "quietStart"

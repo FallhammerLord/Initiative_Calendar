@@ -133,7 +133,7 @@ fun LogScreen(
         Card(Modifier.weight(1f), inner = Space.m) {
             if (results == null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    QuietButton(stringResource(R.string.log_earlier), { model.page(-1) }, color = Ink.accent)
+                    ArrowButton(stringResource(R.string.log_earlier_mark), stringResource(R.string.log_earlier), { model.page(-1) })
                     Text(
                         periodTitle(view),
                         style = Type.bodySmall.copy(fontWeight = FontWeight.Bold),
@@ -141,7 +141,7 @@ fun LogScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f).semantics { heading() },
                     )
-                    QuietButton(stringResource(R.string.log_later), { model.page(1) }, color = Ink.accent)
+                    ArrowButton(stringResource(R.string.log_later_mark), stringResource(R.string.log_later), { model.page(1) })
                 }
             }
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xs)) {

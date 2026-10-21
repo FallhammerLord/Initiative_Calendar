@@ -184,9 +184,10 @@ fun Strip(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Uni
 }
 
 /**
- * The Apps button along the bottom edge: the word, with a chevron, on a tab
- * fixed to a rail that runs the board's width. Each look has its own fixture
- * (see [HandleStyle]); the whole width is the touch target.
+ * The Apps button along the bottom edge: an emblem pointing up, on a tab fixed
+ * to a rail that runs the board's width. Each look has its own fixture and
+ * emblem (see [HandleStyle]); the whole width is the touch target, and
+ * TalkBack hears [label].
  */
 @Composable
 fun AppsHandle(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -204,28 +205,69 @@ fun AppsHandle(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = Tap.min)
             .drawBehind { rail(style, accent, frame) }
-            .clickable(onClickLabel = label, onClick = onClick),
+            .clickable(onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.BottomCenter,
     ) {
-        Row(
+        Box(
             Modifier
-                .drawBehind { tab(style, surface, edge, accent, bg, jewels) }
+                .drawBehind { tab(style, surface, edge) }
                 .padding(start = Space.xl, end = Space.xl, top = Space.l, bottom = Space.xs),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(CHEVRON)
-                    .drawBehind {
-                        val c = Path().apply {
-                            moveTo(0f, size.height * 0.75f)
-                            lineTo(size.width / 2, size.height * 0.25f)
-                            lineTo(size.width, size.height * 0.75f)
-                        }
-                        drawPath(c, accent, style = Stroke(CHEVRON_LINE.toPx()))
-                    },
-            )
-            Text(label, style = Type.label, color = Ink.text, modifier = Modifier.padding(start = Space.s))
+            Box(Modifier.size(EMBLEM_W, EMBLEM_H).drawBehind { emblem(style, accent, bg, jewels) })
+        }
+    }
+}
+
+/**
+ * The Apps tab's emblem, each pointing up: twin chevrons (Sci-fi), one chevron
+ * (Classic), a sun rising over the horizon (Deco), a rose window (glass, whose
+ * tab is itself a pointed arch).
+ */
+private fun DrawScope.emblem(style: HandleStyle, accent: Color, lead: Color, jewels: List<Color>) {
+    val w = size.width
+    val h = size.height
+    val line = CHEVRON_LINE.toPx()
+    fun chevron(top: Float, bottom: Float, half: Float) {
+        val c = Path().apply {
+            moveTo(w / 2 - half, bottom)
+            lineTo(w / 2, top)
+            lineTo(w / 2 + half, bottom)
+        }
+        drawPath(c, accent, style = Stroke(line))
+    }
+    when (style) {
+        HandleStyle.PILL -> chevron(h * 0.2f, h * 0.8f, h * 0.9f)
+        HandleStyle.CLAMP -> {
+            chevron(h * 0.1f, h * 0.5f, h * 0.7f)
+            chevron(h * 0.5f, h * 0.9f, h * 0.7f)
+        }
+        HandleStyle.ZIGGURAT -> {
+            val horizon = h * 0.92f
+            val r = h * 0.42f
+            drawLine(accent, Offset(w * 0.1f, horizon), Offset(w * 0.9f, horizon), line)
+            drawArc(accent, 180f, 180f, useCenter = true, topLeft = Offset(w / 2 - r, horizon - r), size = Size(2 * r, 2 * r))
+            for (k in 0..6) {
+                val a = Math.toRadians(180.0 + 15.0 + 25.0 * k).toFloat()
+                val from = Offset(w / 2 + cos(a) * r * SUN_GAP, horizon + sin(a) * r * SUN_GAP)
+                val to = Offset(w / 2 + cos(a) * h * 1.05f, horizon + sin(a) * h * 1.05f)
+                drawLine(accent, from, to, line / 2)
+            }
+        }
+        HandleStyle.LANCET -> if (jewels.size >= 4) {
+            val r = h / 2
+            val c = Offset(w / 2, h / 2)
+            val box = Size(2 * r, 2 * r)
+            val corner = Offset(c.x - r, c.y - r)
+            for (k in 0 until ROSE_PANES / 2) {
+                val start = 360f * k / (ROSE_PANES / 2) - 90f
+                val sweep = 360f / (ROSE_PANES / 2)
+                drawArc(jewels[k % jewels.size], start, sweep, useCenter = true, topLeft = corner, size = box)
+                drawArc(lead, start, sweep, useCenter = true, topLeft = corner, size = box, style = Stroke(Hairline.toPx()))
+            }
+            drawCircle(lead, radius = r * ROSE_HEART, center = c)
+            drawCircle(accent, radius = r * ROSE_HEART, center = c, style = Stroke(Hairline.toPx()))
+            drawCircle(accent, radius = r, center = c, style = Stroke(RAIL_LINE.toPx()))
         }
     }
 }
@@ -269,8 +311,8 @@ private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color) {
     }
 }
 
-/** The Apps tab itself, drawn around its word and chevron. */
-private fun DrawScope.tab(style: HandleStyle, fill: Color, edge: Color, accent: Color, lead: Color, jewels: List<Color>) {
+/** The Apps tab itself, drawn around its emblem. */
+private fun DrawScope.tab(style: HandleStyle, fill: Color, edge: Color) {
     val w = size.width
     val h = size.height
     val line = RAIL_LINE.toPx()
@@ -315,32 +357,13 @@ private fun DrawScope.tab(style: HandleStyle, fill: Color, edge: Color, accent: 
     }
     drawPath(shape, fill)
     drawPath(shape, edge, style = Stroke(line))
-    when (style) {
-        // A small sun rising over the word.
-        HandleStyle.ZIGGURAT -> {
-            val c = Offset(w / 2, TAB_TOP.toPx() + SUN.toPx())
-            for (k in 0..4) {
-                val a = Math.toRadians(180.0 + 30.0 + 30.0 * k).toFloat()
-                drawLine(accent, c, Offset(c.x + cos(a) * SUN.toPx(), c.y + sin(a) * SUN.toPx()), Hairline.toPx())
-            }
-        }
-        // A small rose of four panes in the arch's head.
-        HandleStyle.LANCET -> if (jewels.size >= 4) {
-            val r = ROSE.toPx()
-            val c = Offset(w / 2, r + Space.xs.toPx())
-            for (k in 0..3) {
-                drawArc(jewels[k], 90f * k - 90f, 90f, useCenter = true, topLeft = Offset(c.x - r, c.y - r), size = Size(2 * r, 2 * r))
-                drawArc(lead, 90f * k - 90f, 90f, useCenter = true, topLeft = Offset(c.x - r, c.y - r), size = Size(2 * r, 2 * r), style = Stroke(Hairline.toPx()))
-            }
-            drawCircle(accent, radius = r, center = c, style = Stroke(Hairline.toPx()))
-        }
-        else -> Unit
-    }
 }
 
-// The Apps handle: its chevron, rail, and tab.
-private val CHEVRON = 16.dp
+// The Apps handle: its emblem, rail, and tab.
+private val EMBLEM_W = 56.dp
+private val EMBLEM_H = 24.dp
 private val CHEVRON_LINE = 3.dp
+private const val SUN_GAP = 1.25f
 private val RAIL_LINE = 2.dp
 private val RAIL_INSET = 3.dp
 private val RAIL_STEP = 18.dp
@@ -350,8 +373,6 @@ private const val FLUTES = 3
 private val FLUTE_GAP = 4.dp
 private val TAB_TOP = 4.dp
 private val TAB_LEAN = 12.dp
-private val SUN = 7.dp
-private val ROSE = 6.dp
 private const val LANCET_SIDE = 0.45f
 private const val ARCH_PULL_TAB = 0.3f
 
@@ -675,6 +696,20 @@ fun QuietButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
         colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
     ) {
         Text(label, style = Type.caption, color = color)
+    }
+}
+
+/** A small arrow button, such as Earlier and Later: the [mark] shown, the [label] spoken. */
+@Composable
+fun ArrowButton(mark: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = Tap.min).semantics { contentDescription = label },
+        shape = LocalLook.current.buttonShape,
+        border = BorderStroke(Hairline, Ink.frame),
+        colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
+    ) {
+        Text(mark, style = Type.title, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
     }
 }
 
