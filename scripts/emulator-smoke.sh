@@ -147,6 +147,17 @@ wait_for() {
   done
 }
 
+# scroll_to: swipe up a screen at a time, up to 6 times, until $1 shows.
+scroll_to() {
+  local i
+  for i in 1 2 3 4 5 6; do
+    see "$1" "${2:-contains}" && return 0
+    adb shell input swipe 540 1700 540 900 300
+    sleep 1
+  done
+  see "$1" "${2:-contains}"
+}
+
 # wait_gone: up to $3 seconds (default 6) for text to go away.
 wait_gone() {
   local end=$((SECONDS + ${3:-6}))
@@ -720,8 +731,7 @@ pass "Christmas look"
 # Holiday looks: off until turned on. On, today (Oct 29) wears Halloween over Sci-fi.
 open_settings
 tap Sci-fi exact
-adb shell input swipe 540 1700 540 900 300
-sleep 1
+scroll_to "Change with the holidays" exact || fail "Settings should have Holiday looks"
 tap "Change with the holidays" exact
 wait_for "Oct 1 to Nov 1" exact || fail "the holidays should list once holiday looks are on"
 shot holiday-settings
@@ -729,8 +739,7 @@ tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 shot holiday-board
 open_settings
-adb shell input swipe 540 1700 540 900 300
-sleep 1
+scroll_to "Change with the holidays" exact || fail "Settings should have Holiday looks"
 tap "Change with the holidays" exact
 wait_gone "Oct 1 to Nov 1" exact || fail "the holidays should hide once holiday looks are off"
 pass "holiday looks switch on and off"
@@ -738,10 +747,7 @@ tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 # About: the build and the Update button, which only opens the browser.
 open_settings
-adb shell input swipe 540 1800 540 300 300
-adb shell input swipe 540 1800 540 300 300
-sleep 1
-wait_for "Update Initiative" exact || fail "Settings should end with the Update button"
+scroll_to "Update Initiative" exact || fail "Settings should end with the Update button"
 shot settings-about
 pass "About and Update"
 home
@@ -749,12 +755,10 @@ wait_gone "Update Initiative" exact || fail "Home should close settings"
 open_settings
 tap Sci-fi exact
 # The sections are panels now; scroll the alarms into view.
-adb shell input swipe 540 1800 540 800 300
-sleep 1
+scroll_to "Quiet hours" exact || fail "Settings should have Quiet hours"
 tap "Quiet hours" exact
 # The times open below the switch; bring them into view.
-adb shell input swipe 540 1600 540 1000 300
-sleep 1
+scroll_to "From 10:00 PM" || fail "the quiet-hour times should show"
 expect_text "From 10:00 PM"
 shot quiet-hours
 tap "Quiet hours" exact
