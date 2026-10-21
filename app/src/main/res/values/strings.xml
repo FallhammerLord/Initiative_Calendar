@@ -20,6 +20,7 @@
     <string name="nothing_next">Nothing else today</string>
     <string name="ledger_description">Today\'s line. %1$s %2$s</string>
     <string name="ledger_walls">Walls: %1$s.</string>
+    <string name="ledger_now">Now: %1$s until %2$s.</string>
     <string name="ledger_no_walls">No walls left today.</string>
     <string name="ledger_wall">%1$s at %2$s, %3$s</string>
     <plurals name="ledger_done">

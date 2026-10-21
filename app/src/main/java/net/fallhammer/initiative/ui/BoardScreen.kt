@@ -60,7 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -84,6 +84,7 @@ import kotlinx.coroutines.launch
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkKind
+import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.SetupStep
 import java.time.LocalDateTime
@@ -496,28 +497,42 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
     }
 }
 
-/** The dial itself; TalkBack hears it as today's line, walls and all. */
+/**
+ * The dial itself: the day's order as spans along the arc, each from its start
+ * to its end. Anchors are solid (Hard ones thicker); tasks, being a forecast,
+ * are outlined; Now is lit in the accent color. Done items are ticks at the
+ * time they were done. It shows time only, never progress. TalkBack hears Now
+ * with its end, then the day's line, walls and all.
+ */
 @Composable
 private fun DayDial(ui: BoardUi) {
     val start = ui.window.start.toSecondOfDay()
     val length = (ui.window.end.toSecondOfDay() - start).coerceAtLeast(1)
     fun frac(t: LocalDateTime): Float = (t.toLocalTime().toSecondOfDay() - start).toFloat() / length
     val nowAt = frac(ui.now)
+    val nowItem = ui.board?.now?.item
+    // Now's span: its forecast slot, or an anchor under way, which the forecast has passed.
+    val nowSlot = ui.forecast.slots.firstOrNull { it.item.id == nowItem?.id }
+    val nowEnd = nowSlot?.end ?: nowItem?.takeIf { it.isAnchor }?.anchorEnd
+    val nowSpan = nowItem?.let { i -> (nowSlot?.at ?: i.start)?.let { s -> nowEnd?.let { e -> s to e } } }
 
     val walls = ui.ledger.filter { it.kind != MarkKind.DONE }.map {
         stringResource(R.string.ledger_wall, it.item.title, Formats.clock(it.at), Formats.wall(it.item.wall))
     }
     val doneCount = ui.ledger.count { it.kind == MarkKind.DONE }
+    val nowLine = if (nowItem != null && nowEnd != null) stringResource(R.string.ledger_now, nowItem.title, Formats.clock(nowEnd)) + " " else ""
     val description = stringResource(
         R.string.ledger_description,
-        pluralStringResource(R.plurals.ledger_done, doneCount, doneCount),
+        nowLine + pluralStringResource(R.plurals.ledger_done, doneCount, doneCount),
         if (walls.isEmpty()) stringResource(R.string.ledger_no_walls) else stringResource(R.string.ledger_walls, walls.joinToString("; ")),
     )
 
     val lineColor = Ink.line
     val doneColor = Ink.dim
-    val wallColor = Ink.text
-    val pointerColor = Ink.accent
+    val anchorColor = Ink.text
+    val taskColor = Ink.frame
+    val hollowColor = Ink.surface
+    val nowColor = Ink.accent
     Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT).semantics { contentDescription = description }) {
         val base = size.height - POINTER_ROOM.toPx()
         val rise = DIAL_RISE.toPx()
@@ -529,20 +544,41 @@ private fun DayDial(ui: BoardUi) {
             quadraticBezierTo(w / 2, base - 2 * rise, w, base)
         }
         drawPath(arc, lineColor, style = Stroke(ARC_WIDTH.toPx()))
-        ui.ledger.forEach { mark ->
-            val f = frac(mark.at).coerceIn(0f, 1f)
-            val c = Offset(f * w, y(f))
-            when (mark.kind) {
-                MarkKind.DONE -> drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
-                MarkKind.SOFT -> drawCircle(wallColor, radius = PIP.toPx(), center = c, style = Stroke(ARC_WIDTH.toPx()))
-                MarkKind.FIRM -> drawCircle(wallColor, radius = PIP.toPx(), center = c)
-                MarkKind.HARD -> drawRect(
-                    wallColor,
-                    topLeft = Offset(c.x - HARD_WIDTH.toPx() / 2, c.y - HARD_HEIGHT.toPx() / 2),
-                    size = Size(HARD_WIDTH.toPx(), HARD_HEIGHT.toPx()),
-                )
+
+        // A span along the curve, a hairline short of each end so neighbours don't merge,
+        // and never thinner than a short mark.
+        fun band(from: LocalDateTime, to: LocalDateTime, color: Color, width: Dp) {
+            val gap = BAND_GAP.toPx()
+            val x0 = frac(from).coerceIn(0f, 1f) * w + gap
+            val x1 = maxOf(frac(to).coerceIn(0f, 1f) * w - gap, x0 + BAND_MIN.toPx())
+            val steps = maxOf(2, ((x1 - x0) / BAND_STEP.toPx()).toInt())
+            val path = Path()
+            for (i in 0..steps) {
+                val x = x0 + (x1 - x0) * i / steps
+                val py = y(x / w)
+                if (i == 0) path.moveTo(x, py) else path.lineTo(x, py)
+            }
+            drawPath(path, color, style = Stroke(width.toPx()))
+        }
+
+        ui.forecast.slots.forEach { slot ->
+            val item = slot.item
+            when {
+                item.id == nowItem?.id -> Unit
+                item.isAnchor -> band(slot.at, slot.end, anchorColor, if (item.wall == WallStrength.HARD) BAND_HARD else BAND_ANCHOR)
+                else -> {
+                    band(slot.at, slot.end, taskColor, BAND_TASK)
+                    band(slot.at, slot.end, hollowColor, BAND_HOLLOW)
+                }
             }
         }
+        nowSpan?.let { (from, to) -> band(from, to, nowColor, BAND_TASK) }
+        ui.ledger.filter { it.kind == MarkKind.DONE }.forEach { mark ->
+            val f = frac(mark.at).coerceIn(0f, 1f)
+            val c = Offset(f * w, y(f))
+            drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
+        }
+
         // The pointer: a small triangle under the arc, pointing up at now.
         val inDay = nowAt in 0f..1f
         val x = nowAt.coerceIn(0f, 1f) * w
@@ -554,7 +590,7 @@ private fun DayDial(ui: BoardUi) {
             lineTo(x + half, tip + POINTER_HEIGHT.toPx())
             close()
         }
-        if (inDay) drawPath(pointer, pointerColor) else drawPath(pointer, pointerColor, style = Stroke(ARC_WIDTH.toPx()))
+        if (inDay) drawPath(pointer, nowColor) else drawPath(pointer, nowColor, style = Stroke(ARC_WIDTH.toPx()))
     }
 }
 
@@ -759,10 +795,14 @@ private val DRAWER_SWIPE = 64.dp
 private val DIAL_HEIGHT = 32.dp
 private val DIAL_RISE = 8.dp
 private val ARC_WIDTH = 2.dp
-private val PIP = 5.dp
-private val TICK = 5.dp
-private val HARD_WIDTH = 6.dp
-private val HARD_HEIGHT = 16.dp
+private val TICK = 6.dp
+private val BAND_HARD = 8.dp
+private val BAND_ANCHOR = 5.dp
+private val BAND_TASK = 6.dp
+private val BAND_HOLLOW = 3.dp
+private val BAND_MIN = 4.dp
+private val BAND_GAP = 1.5.dp
+private val BAND_STEP = 4.dp
 private val POINTER_ROOM = 12.dp
 private val POINTER_GAP = 3.dp
 private val POINTER_WIDTH = 12.dp
