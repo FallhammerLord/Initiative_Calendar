@@ -796,7 +796,9 @@ adb shell input tap $xy
 # Add to the end: the field capitalizes a sentence's first letter, so retyping
 # from empty would give "Dentist call".
 adb shell input keyevent KEYCODE_MOVE_END
-adb shell input text "%scall"
+# The space as its own key: a space leading typed text was sometimes dropped (run 78).
+adb shell input keyevent KEYCODE_SPACE
+adb shell input text "call"
 wait_for "dentist call" field || fail "couldn't rename in the title field"
 hide_keyboard
 tap "Every day" exact
