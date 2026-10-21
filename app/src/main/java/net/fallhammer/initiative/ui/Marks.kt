@@ -157,18 +157,24 @@ fun MarkHud(marks: List<Marks.Shown>, onEdit: (Item) -> Unit, onMore: () -> Unit
 /**
  * A marker's bubble in the look's own shape: a hexagon (Sci-fi), a circle
  * (Classic), a medallion with a stepped rim (Deco), a jewel roundel (Stained
- * glass). [dim] for a heads-up: faded, with a dashed rim.
+ * glass), a sweet (Pastel), a cut gem (Starlight). [dim] for a heads-up: faded, with a dashed rim.
  */
 @Composable
 fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
     val look = LocalLook.current
-    val style = look.handle
+    val style = look.bubble
     val accent = Ink.accent
     val frame = Ink.frame
     val fill = Ink.surface
     val lead = Ink.bg
     val jewel = look.palette.jewels.getOrNull(icon.ordinal % look.palette.jewels.size.coerceAtLeast(1))
-    val glyph = if (style == HandleStyle.LANCET) Ink.text else accent
+    val ornament = Ink.ornament
+    // On a jewel's fill the icon is drawn dark: glass's jewels are deep, the cute looks' are light.
+    val glyph = when (style) {
+        Bubble.ROUNDEL, Bubble.CANDY -> Ink.text
+        Bubble.GEM -> Ink.onAccent
+        else -> accent
+    }
     Box(
         modifier
             .size(BUBBLE)
@@ -178,7 +184,7 @@ fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
                 val c = center
                 val rim = Stroke(RIM.toPx(), pathEffect = if (dim) PathEffect.dashPathEffect(floatArrayOf(DASH.toPx(), DASH.toPx())) else null)
                 when (style) {
-                    HandleStyle.CLAMP -> {
+                    Bubble.HEX -> {
                         val hex = Path().apply {
                             for (k in 0..5) {
                                 val a = Math.toRadians(60.0 * k).toFloat()
@@ -189,19 +195,34 @@ fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
                         drawPath(hex, fill)
                         drawPath(hex, accent, style = rim)
                     }
-                    HandleStyle.PILL -> {
+                    Bubble.CIRCLE -> {
                         drawCircle(fill, r, c)
                         drawCircle(frame, r, c, style = rim)
                     }
-                    HandleStyle.ZIGGURAT -> {
+                    Bubble.MEDALLION -> {
                         drawCircle(fill, r, c)
                         drawCircle(accent, r, c, style = rim)
                         drawCircle(frame, r - RIM_STEP.toPx(), c, style = Stroke(1.dp.toPx()))
                     }
-                    HandleStyle.LANCET -> {
+                    Bubble.ROUNDEL -> {
                         drawCircle(jewel ?: fill, r, c)
                         drawCircle(lead, r, c, style = Stroke(RIM.toPx() * 1.5f))
                         drawCircle(accent, r, c, style = rim)
+                    }
+                    Bubble.CANDY -> {
+                        drawCircle(jewel ?: fill, r, c)
+                        drawCircle(frame, r, c, style = rim)
+                    }
+                    Bubble.GEM -> {
+                        val gem = Path().apply {
+                            for (k in 0..7) {
+                                val a = Math.toRadians(45.0 * k + 22.5).toFloat()
+                                if (k == 0) moveTo(c.x + r * cos(a), c.y + r * sin(a)) else lineTo(c.x + r * cos(a), c.y + r * sin(a))
+                            }
+                            close()
+                        }
+                        drawPath(gem, jewel ?: fill)
+                        drawPath(gem, ornament, style = rim)
                     }
                 }
                 val g = size.minDimension * GLYPH_SHARE

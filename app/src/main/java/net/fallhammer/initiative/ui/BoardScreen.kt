@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import kotlin.math.atan2
 import kotlin.math.sqrt
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -83,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
@@ -644,7 +646,7 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
                                     .size(BOOKMARK_ICON)
                                     .drawBehind {
                                         val line = BOOKMARK_LINE.toPx()
-                                        if (look.relics && seed != null) {
+                                        if (look.pointer == Pointer.SEED && seed != null) {
                                             val r = size.minDimension / 2
                                             val c = center
                                             val p = Path().apply {
@@ -758,9 +760,11 @@ private fun DayDial(ui: BoardUi) {
     val taskColor = Ink.frame
     val hollowColor = Ink.surface
     val nowColor = Ink.accent
-    // Glass keeps time with relics: a pomegranate seed for now, coins for things done.
-    val relics = LocalLook.current.relics
+    // Each look's own marks: a pomegranate seed or a heart or star for now; coins, hearts, or sparkles for things done.
+    val pointerKind = LocalLook.current.pointer
+    val doneKind = LocalLook.current.doneMark
     val seedColor = LocalLook.current.palette.jewels.firstOrNull() ?: nowColor
+    val ornament = Ink.ornament
     val coinColor = Ink.accent
     val coinHole = Ink.surface
     Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT).semantics { contentDescription = description }) {
@@ -814,12 +818,16 @@ private fun DayDial(ui: BoardUi) {
         ui.ledger.filter { it.kind == MarkKind.DONE }.forEach { mark ->
             val f = frac(mark.at).coerceIn(0f, 1f)
             val c = Offset(f * w, y(f))
-            if (relics) {
+            when (doneKind) {
                 // An obol, the ferryman's coin.
-                drawCircle(coinColor, radius = COIN.toPx(), center = c)
-                drawCircle(coinHole, radius = COIN.toPx() * COIN_RING, center = c, style = Stroke(ARC_WIDTH.toPx() / 2))
-            } else {
-                drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
+                DoneMark.COIN -> {
+                    drawCircle(coinColor, radius = COIN.toPx(), center = c)
+                    drawCircle(coinHole, radius = COIN.toPx() * COIN_RING, center = c, style = Stroke(ARC_WIDTH.toPx() / 2))
+                }
+                DoneMark.HEART -> drawMark(heartPath(c, COIN.toPx()), coinColor)
+                DoneMark.SPARKLE -> drawMark(sparklePath(c, COIN.toPx() * SPARKLE_REACH), ornament)
+                DoneMark.TICK ->
+                    drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
             }
         }
 
@@ -847,7 +855,18 @@ private fun DayDial(ui: BoardUi) {
             lineTo(backX + tx * half, backY + ty * half)
             close()
         }
-        if (relics) {
+        // A heart or star, turned so its point faces now; their shapes point down and up.
+        val mid = Offset((tipX + backX) / 2, (tipY + backY) / 2)
+        val facing = Math.toDegrees(atan2(-ny, -nx).toDouble()).toFloat()
+        fun charm(path: Path, color: Color, pointsAt: Float) = rotate(facing - pointsAt, mid) {
+            if (inDay) drawPath(path, color)
+            drawPath(path, nowColor, style = Stroke(ARC_WIDTH.toPx() / 2))
+        }
+        if (pointerKind == Pointer.HEART) {
+            charm(heartPath(mid, tall * CHARM_SIZE), nowColor, DOWN)
+        } else if (pointerKind == Pointer.STAR) {
+            charm(starPath(mid, tall * CHARM_SIZE * 1.2f), ornament, UP)
+        } else if (pointerKind == Pointer.SEED) {
             // A pomegranate seed: round at the back, coming to a point at now.
             val seed = Path().apply {
                 moveTo(tipX, tipY)
@@ -1151,11 +1170,18 @@ private val FADE = 24.dp
 /** The app's log tag, as the emulator test reads it. */
 private const val LOG_TAG = "Initiative"
 
-// Glass's relics on the dial: a coin's size and its inner ring; the seed's shoulders and width.
+// The dial's marks: a coin's size (also the hearts' and sparkles') and its inner ring; the seed's shoulders and width.
 private val COIN = 4.dp
 private const val COIN_RING = 0.55f
 private const val SEED_SHOULDER = 0.35f
 private const val SEED_WIDTH = 1.3f
+
+// The cute looks' dial marks: a done sparkle's reach (in coins), a pointer charm's size (a share of
+// the pointer's height), and which way each shape points as drawn, in degrees.
+private const val SPARKLE_REACH = 1.6f
+private const val CHARM_SIZE = 0.55f
+private const val DOWN = 90f
+private const val UP = -90f
 
 /** Waitmarks shown at once; the rest wait their turn. */
 private const val MAX_WAITMARKS = 2

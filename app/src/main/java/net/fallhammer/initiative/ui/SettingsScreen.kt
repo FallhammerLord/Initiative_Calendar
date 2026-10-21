@@ -1,6 +1,9 @@
 package net.fallhammer.initiative.ui
 
 import android.app.TimePickerDialog
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -158,9 +162,30 @@ fun SettingsScreen(
                     }
                 }
             }
+            Section(stringResource(R.string.section_about)) {
+                val build = remember { context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode }
+                Body(stringResource(R.string.about_build, build), color = Ink.text)
+                Body(stringResource(R.string.update_hint), style = Type.bodySmall)
+                Spacer(Modifier.height(Space.s))
+                SecondaryButton(stringResource(R.string.update_open), { openReleases(context) }, Modifier.fillMaxWidth(), height = Tap.min)
+            }
         }
     }
 }
+
+/**
+ * Opens the newest build's page in the browser. The app itself has no internet
+ * permission; the browser does the download, and Android installs it over this one.
+ */
+private fun openReleases(context: Context) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES)))
+    } catch (e: ActivityNotFoundException) {
+        // No browser to open it in; nothing else to do.
+    }
+}
+
+private const val RELEASES = "https://github.com/FallhammerLord/Initiative_Calendar/releases/latest"
 
 /** A labelled group of settings. */
 @Composable

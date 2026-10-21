@@ -48,7 +48,7 @@ class Prefs(private val context: Context) {
         get() = prefs.getString(LOOK, null)
         set(value) = prefs.edit().putString(LOOK, value).apply()
 
-    /** The look's ornaments: pattern, corner brackets, and the All done flourish. On by default. */
+    /** The look's ornaments: pattern, corner details, the Now card's crown, and the All done flourish. On by default. */
     var ornaments: Boolean
         get() = prefs.getBoolean(ORNAMENTS, true)
         set(value) = prefs.edit().putBoolean(ORNAMENTS, value).apply()

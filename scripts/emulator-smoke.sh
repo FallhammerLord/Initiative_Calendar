@@ -681,6 +681,34 @@ tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 shot glass-board
 pass "Stained glass look"
+# Pastel: the light look, with dots and hearts, a bow on Now, and dark status bar icons.
+open_settings
+tap Pastel exact
+wait_for "Texture strength" exact || fail "the texture slider should show for Pastel"
+shot pastel-settings
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot pastel-board
+pass "Pastel look"
+# Starlight: night sky, sparkles, a winged brooch on Now, gems for markers.
+open_settings
+tap Starlight exact
+wait_for "Texture strength" exact || fail "the texture slider should show for Starlight"
+shot starlight-settings
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot starlight-board
+pass "Starlight look"
+# About: the build and the Update button, which only opens the browser.
+open_settings
+adb shell input swipe 540 1800 540 300 300
+adb shell input swipe 540 1800 540 300 300
+sleep 1
+wait_for "Update Initiative" exact || fail "Settings should end with the Update button"
+shot settings-about
+pass "About and Update"
+home
+wait_gone "Update Initiative" exact || fail "Home should close settings"
 open_settings
 tap Sci-fi exact
 # The sections are panels now; scroll the alarms into view.

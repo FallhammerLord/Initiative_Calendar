@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -48,23 +49,78 @@ data class Palette(
     val frame: Color,
     /** Faint background pattern; drawn only when the Look asks for it. */
     val pattern: Color,
-    /** Colored glass for a leaded ground and its ornaments; never under text. */
+    /** Colors for a many-colored pattern and its ornaments (glass, dots, sparkles); never under text. */
     val jewels: List<Color> = emptyList(),
+    /** Ornament color, such as a gold sparkle; the accent unless a look sets its own. Never text. */
+    val ornament: Color = accent,
+    /** A light look: dark text on light panels, so the system bars draw dark icons. */
+    val light: Boolean = false,
 )
 
-/** The Apps handle's fixture, one per look. */
+/*
+ * The look kit. A look is its palette and shapes plus one choice from each of
+ * these slots, so a new look is mostly a list of choices; each slot has a plain
+ * choice for when a look has nothing special. The contrast test checks every
+ * palette, so no look can ship hard to read.
+ */
+
+/** The pattern behind every screen. */
+enum class Pattern {
+    NONE,
+
+    /** A flat-topped hexagon grid lined up with the dock (Sci-fi). */
+    HEX,
+
+    /** Seigaiha fans (Deco). */
+    FANS,
+
+    /** Leaded glass in the palette's jewels (Stained glass). */
+    LEADED,
+
+    /** Scattered dots and small hearts in the palette's jewels (Pastel). */
+    DOTS,
+
+    /** Scattered four-point sparkles and specks in the palette's jewels (Starlight). */
+    SPARKLES,
+}
+
+/** What crowns the Now card at its top. */
+enum class Crown { NONE, ROSE, BOW, BROOCH }
+
+/** Small ornaments in each card's top corners. */
+enum class Corners { NONE, BRACKETS, SPARKLES }
+
+/** The dial's mark for now, under the arc. */
+enum class Pointer { TRIANGLE, SEED, HEART, STAR }
+
+/** The dial's mark for each thing done. */
+enum class DoneMark { TICK, COIN, HEART, SPARKLE }
+
+/** The All done flourish: the pattern's own (a ring, a sunburst, a rose window), or its own burst. */
+enum class Flourish { NONE, PATTERN, HEARTS, SPARKLES }
+
+/** A marker bubble's shape. */
+enum class Bubble { HEX, CIRCLE, MEDALLION, ROUNDEL, CANDY, GEM }
+
+/** The Apps handle's fixture and emblem, and the waitmark bookmark's end. */
 enum class HandleStyle {
-    /** A hexagon-cut tab rising from a ticked rail. */
+    /** Twin chevrons in a hexagon on a ticked rail; a chevron cut. */
     CLAMP,
 
-    /** A plain pill. */
+    /** A chevron in a circle, no rail; a round end. */
     PILL,
 
-    /** A stepped tower with a small rising sun, on fluted rails. */
+    /** A sun rising over a fluted horizon; steps. */
     ZIGGURAT,
 
-    /** A pointed window with a small rose, on a leaded rail. */
+    /** A rose window on a leaded rail; half a pointed arch. */
     LANCET,
+
+    /** A cloud on a dotted rail; a round end. */
+    CLOUD,
+
+    /** A star compact on a ribbon rail; a ribbon's notched end. */
+    COMPACT,
 }
 
 data class Look(
@@ -75,38 +131,33 @@ data class Look(
     val buttonShape: Shape,
     /** Thin outline around cards. */
     val framed: Boolean,
-    /** The hexagon grid behind every screen. */
-    val hexGrid: Boolean,
     /** Small labels like "Now" drawn in the accent color instead of dim. */
     val accentLabels: Boolean,
     /** Dock tiles as nested hexagon trios; otherwise a plain row of [buttonShape] squares. */
-    val dockTrio: Boolean,
-    /** Seigaiha fans behind every screen, in the pattern color; the Art Deco look's ground. */
-    val fans: Boolean = false,
-    /** Stepped gold brackets inside each card's top corners, as in the quest log's Dark theme. */
-    val brackets: Boolean = false,
+    val dockTrio: Boolean = false,
+    val pattern: Pattern = Pattern.NONE,
+    val corners: Corners = Corners.NONE,
+    val crown: Crown = Crown.NONE,
+    val pointer: Pointer = Pointer.TRIANGLE,
+    val doneMark: DoneMark = DoneMark.TICK,
+    val flourish: Flourish = Flourish.PATTERN,
+    val bubble: Bubble = Bubble.CIRCLE,
     /** How strongly the background pattern shows, 0 to 1; set in Settings. */
     val texture: Float = DEFAULT_TEXTURE,
     /** The Apps handle's fixture. */
     val handle: HandleStyle = HandleStyle.PILL,
-    /** Leaded glass behind every screen, in the [Palette.jewels]. */
-    val leaded: Boolean = false,
-    /** A small rose window at the top of the Now card. */
-    val keystone: Boolean = false,
     /** The Now card's own shape, such as a window's arch; null: [cardShape]. */
     val nowShape: Shape? = null,
-    /** How far the Now card's top rises above its sides, so its words clear the arch. */
+    /** Room at the Now card's top for an arch or a crown, so its words clear them. */
     val nowRise: Dp = 0.dp,
-    /** The dial's marks as relics: a pomegranate seed for now, coins for things done. */
-    val relics: Boolean = false,
     /** Outline width for cards and panels: a hairline, or heavier came for glass. */
     val came: Dp = 1.dp,
 ) {
     /** Whether a pattern shows behind the screens, so its strength can be set. */
-    val patterned: Boolean get() = hexGrid || fans || leaded
+    val patterned: Boolean get() = pattern != Pattern.NONE
 
-    /** The same look with its ornaments off: no pattern, no brackets, no flourish. */
-    fun plain(): Look = copy(hexGrid = false, fans = false, brackets = false, leaded = false, keystone = false)
+    /** The same look with its ornaments off: no pattern, corner details, crown, or flourish. */
+    fun plain(): Look = copy(pattern = Pattern.NONE, corners = Corners.NONE, crown = Crown.NONE, flourish = Flourish.NONE)
 }
 
 /**
@@ -132,7 +183,8 @@ class ArchShape(private val rise: Dp) : Shape {
 /**
  * A waitmark's bookmark: square on the right, where it meets the screen's edge,
  * and pointing in on the left with its look's end: a chevron cut (Sci-fi), a
- * round end (Classic), steps (Deco), or half a pointed arch (Stained glass).
+ * round end (Classic, Pastel), steps (Deco), half a pointed arch (Stained
+ * glass), or a ribbon's notched end (Starlight).
  */
 class BookmarkShape(private val style: HandleStyle) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
@@ -146,7 +198,7 @@ class BookmarkShape(private val style: HandleStyle) : Shape {
                     lineTo(0f, h / 2)
                     lineTo(h * BOOKMARK_CUT, h)
                 }
-                HandleStyle.PILL -> {
+                HandleStyle.PILL, HandleStyle.CLOUD -> {
                     lineTo(h / 2, 0f)
                     arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, h, h), 270f, -180f, false)
                 }
@@ -162,6 +214,12 @@ class BookmarkShape(private val style: HandleStyle) : Shape {
                     lineTo(2 * s, h - s)
                     lineTo(3 * s, h - s)
                     lineTo(3 * s, h)
+                }
+                // A ribbon's end, notched in.
+                HandleStyle.COMPACT -> {
+                    lineTo(0f, 0f)
+                    lineTo(h * BOOKMARK_NOTCH, h / 2)
+                    lineTo(0f, h)
                 }
                 HandleStyle.LANCET -> {
                     val r = h * BOOKMARK_ARCH
@@ -181,6 +239,7 @@ class BookmarkShape(private val style: HandleStyle) : Shape {
 private const val BOOKMARK_CUT = 0.4f
 private const val BOOKMARK_STEP = 0.18f
 private const val BOOKMARK_ARCH = 0.9f
+private const val BOOKMARK_NOTCH = 0.35f
 private const val ARCH_PULL_SIDE = 0.45f
 
 // The arch's curve: how far down each side its pull starts, and where its shoulders sit.
@@ -218,9 +277,10 @@ object Looks {
         cardShape = CutCornerShape(topStart = 14.dp, bottomEnd = 14.dp),
         buttonShape = CutCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
         framed = true,
-        hexGrid = true,
         accentLabels = true,
         dockTrio = true,
+        pattern = Pattern.HEX,
+        bubble = Bubble.HEX,
         handle = HandleStyle.CLAMP,
     )
 
@@ -241,9 +301,7 @@ object Looks {
         cardShape = RoundedCornerShape(20.dp),
         buttonShape = RoundedCornerShape(50),
         framed = false,
-        hexGrid = false,
         accentLabels = false,
-        dockTrio = false,
     )
 
     /**
@@ -267,11 +325,10 @@ object Looks {
         cardShape = StepCornerShape(14.dp),
         buttonShape = StepCornerShape(6.dp),
         framed = true,
-        hexGrid = false,
         accentLabels = true,
-        dockTrio = false,
-        fans = true,
-        brackets = true,
+        pattern = Pattern.FANS,
+        corners = Corners.BRACKETS,
+        bubble = Bubble.MEDALLION,
         handle = HandleStyle.ZIGGURAT,
     )
 
@@ -305,19 +362,95 @@ object Looks {
         cardShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 4.dp, bottomStart = 4.dp),
         buttonShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomEnd = 3.dp, bottomStart = 3.dp),
         framed = true,
-        hexGrid = false,
         accentLabels = true,
-        dockTrio = false,
+        pattern = Pattern.LEADED,
+        crown = Crown.ROSE,
+        pointer = Pointer.SEED,
+        doneMark = DoneMark.COIN,
+        bubble = Bubble.ROUNDEL,
         handle = HandleStyle.LANCET,
-        leaded = true,
-        keystone = true,
         nowShape = ArchShape(36.dp),
         nowRise = 28.dp,
-        relics = true,
         came = 2.dp,
     )
 
-    val all = listOf(SciFi, Classic, Deco, Glass)
+    /**
+     * Soft and sweet: a light look. Blush cream, white panels with round corners
+     * and pill buttons, deep plum text and a raspberry accent, and a scatter of
+     * pastel dots and small hearts. A bow crowns the Now card; the dial keeps
+     * time with a heart, things done are little hearts, and All done floats
+     * hearts up. The Apps button is a cloud.
+     */
+    val Pastel = Look(
+        id = "pastel",
+        label = R.string.look_pastel,
+        palette = Palette(
+            bg = Color(0xFFFFF4F8),
+            surface = Color(0xFFFFFFFF),
+            text = Color(0xFF3B2340),
+            dim = Color(0xFF634868),
+            accent = Color(0xFF96205A),
+            onAccent = Color(0xFFFFFFFF),
+            frame = Color(0xFFC9628C),
+            pattern = Color(0xFFF7C6D9),
+            jewels = listOf(Color(0xFFF7C6D9), Color(0xFFBDE7DA), Color(0xFFD9CBF2), Color(0xFFFBE7A6)),
+            ornament = Color(0xFFF49AC1),
+            light = true,
+        ),
+        cardShape = RoundedCornerShape(26.dp),
+        buttonShape = RoundedCornerShape(50),
+        framed = true,
+        accentLabels = true,
+        pattern = Pattern.DOTS,
+        crown = Crown.BOW,
+        pointer = Pointer.HEART,
+        doneMark = DoneMark.HEART,
+        flourish = Flourish.HEARTS,
+        bubble = Bubble.CANDY,
+        handle = HandleStyle.CLOUD,
+        nowRise = 16.dp,
+        came = 2.dp,
+    )
+
+    /**
+     * Magical girl at dusk: midnight violet with gold, pink, and lavender
+     * sparkles, a bubblegum accent, and sparkles in each card's top corners. A
+     * winged heart brooch crowns the Now card; the dial keeps time with a gold
+     * star, things done are sparkles, and All done is a sparkle burst. The Apps
+     * button is a star compact on a ribbon.
+     */
+    val Starlight = Look(
+        id = "starlight",
+        label = R.string.look_starlight,
+        palette = Palette(
+            bg = Color(0xFF1B1030),
+            surface = Color(0xFF271945),
+            text = Color(0xFFFFF4FB),
+            dim = Color(0xFFE2C8EE),
+            accent = Color(0xFFFF9FD0),
+            onAccent = Color(0xFF2A0F2E),
+            frame = Color(0xFFA27AD6),
+            pattern = Color(0xFFFFD86B),
+            jewels = listOf(Color(0xFFFFD86B), Color(0xFFFF9FD0), Color(0xFFC9A8F2), Color(0xFFFFFFFF)),
+            ornament = Color(0xFFFFD86B),
+        ),
+        cardShape = RoundedCornerShape(20.dp),
+        buttonShape = RoundedCornerShape(16.dp),
+        framed = true,
+        accentLabels = true,
+        pattern = Pattern.SPARKLES,
+        corners = Corners.SPARKLES,
+        crown = Crown.BROOCH,
+        pointer = Pointer.STAR,
+        doneMark = DoneMark.SPARKLE,
+        flourish = Flourish.SPARKLES,
+        bubble = Bubble.GEM,
+        handle = HandleStyle.COMPACT,
+        nowRise = 16.dp,
+        came = 2.dp,
+    )
+
+    val all = listOf(SciFi, Classic, Deco, Glass, Pastel, Starlight)
 
     fun byId(id: String?): Look = all.firstOrNull { it.id == id } ?: SciFi
 }
@@ -373,6 +506,8 @@ object Ink {
     val frame: Color @Composable @ReadOnlyComposable get() = p.frame
     /** The pattern's color at the strength chosen in Settings. */
     val pattern: Color @Composable @ReadOnlyComposable get() = p.pattern.copy(alpha = p.pattern.alpha * LocalLook.current.texture)
+    /** Ornaments such as a gold sparkle or a bow; never text. */
+    val ornament: Color @Composable @ReadOnlyComposable get() = p.ornament
     /** Thin lines that aren't controls, such as the ledger's baseline. */
     val line: Color @Composable @ReadOnlyComposable get() = p.frame
     val label: Color @Composable @ReadOnlyComposable get() = if (LocalLook.current.accentLabels) p.accent else p.dim
@@ -401,18 +536,34 @@ fun InitiativeTheme(look: Look = Looks.SciFi, content: @Composable () -> Unit) {
     val p = look.palette
     CompositionLocalProvider(LocalLook provides look) {
         MaterialTheme(
-            colorScheme = darkColorScheme(
-                primary = p.accent,
-                onPrimary = p.onAccent,
-                secondary = p.text,
-                onSecondary = p.bg,
-                background = p.bg,
-                onBackground = p.text,
-                surface = p.surface,
-                onSurface = p.text,
-                onSurfaceVariant = p.dim,
-                outline = p.frame,
-            ),
+            // A light look takes Material's light scheme, so ripples and fields suit it.
+            colorScheme = if (p.light) {
+                lightColorScheme(
+                    primary = p.accent,
+                    onPrimary = p.onAccent,
+                    secondary = p.text,
+                    onSecondary = p.bg,
+                    background = p.bg,
+                    onBackground = p.text,
+                    surface = p.surface,
+                    onSurface = p.text,
+                    onSurfaceVariant = p.dim,
+                    outline = p.frame,
+                )
+            } else {
+                darkColorScheme(
+                    primary = p.accent,
+                    onPrimary = p.onAccent,
+                    secondary = p.text,
+                    onSecondary = p.bg,
+                    background = p.bg,
+                    onBackground = p.text,
+                    surface = p.surface,
+                    onSurface = p.text,
+                    onSurfaceVariant = p.dim,
+                    outline = p.frame,
+                )
+            },
             typography = Typography().withFont(Atkinson),
             content = content,
         )

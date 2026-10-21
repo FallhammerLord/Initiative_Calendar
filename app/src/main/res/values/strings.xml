@@ -112,6 +112,8 @@
     <string name="look_classic">Classic</string>
     <string name="look_deco">Deco</string>
     <string name="look_glass">Stained glass</string>
+    <string name="look_pastel">Pastel</string>
+    <string name="look_starlight">Starlight</string>
     <string name="setting_ornaments">Ornaments</string>
     <string name="setting_ornaments_hint">The background pattern, corner details, and the All done flourish.</string>
     <string name="setting_texture">Texture strength</string>
@@ -154,6 +156,10 @@
 
     <!-- Backup -->
     <string name="section_backup">Backup</string>
+    <string name="section_about">About</string>
+    <string name="about_build">Initiative, build %1$d</string>
+    <string name="update_hint">Opens the newest build in your browser. Install it over this one; your list, settings, and dock stay as they are. The app itself still never goes online.</string>
+    <string name="update_open">Update Initiative</string>
     <string name="backup_hint">Each night after %1$s, everything is saved as one file in this folder.</string>
     <string name="backup_folder">Folder: %1$s</string>
     <string name="backup_no_folder">No folder chosen</string>

@@ -52,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -142,15 +143,27 @@ object Type {
  */
 @Composable
 fun Screen(modifier: Modifier = Modifier, pulse: () -> Pulse? = { null }, content: @Composable ColumnScope.() -> Unit) {
+    val look = LocalLook.current
+    // The pattern carries the pulse itself, unless the look has a flourish of its own.
+    val ring: () -> Pulse? = if (look.flourish == Flourish.PATTERN) pulse else { { null } }
+    val jewels = look.palette.jewels
     Column(
         modifier
             .fillMaxSize()
             .background(Ink.bg)
             .then(
-                when {
-                    LocalLook.current.hexGrid -> Modifier.hexGrid(Ink.pattern, Ink.accent, LocalHexLattice.current.value, pulse)
-                    LocalLook.current.fans -> Modifier.fans(Ink.pattern, Ink.bg, Ink.accent, pulse)
-                    LocalLook.current.leaded -> Modifier.leadedGlass(LocalLook.current.palette.jewels, LocalLook.current.texture, Ink.bg, Ink.accent, pulse)
+                when (look.pattern) {
+                    Pattern.HEX -> Modifier.hexGrid(Ink.pattern, Ink.accent, LocalHexLattice.current.value, ring)
+                    Pattern.FANS -> Modifier.fans(Ink.pattern, Ink.bg, Ink.accent, ring)
+                    Pattern.LEADED -> Modifier.leadedGlass(jewels, look.texture, Ink.bg, Ink.accent, ring)
+                    Pattern.DOTS -> Modifier.scatter(jewels, look.texture, hearts = true)
+                    Pattern.SPARKLES -> Modifier.scatter(jewels, look.texture, hearts = false)
+                    Pattern.NONE -> Modifier
+                },
+            )
+            .then(
+                when (look.flourish) {
+                    Flourish.HEARTS, Flourish.SPARKLES -> Modifier.burst(look.flourish, jewels, Ink.ornament, pulse)
                     else -> Modifier
                 },
             )
@@ -250,6 +263,30 @@ private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color) {
                 x += step
             }
         }
+        // Pastel: a dotted line, like stitching.
+        HandleStyle.CLOUD -> {
+            val step = RAIL_STEP.toPx() / 2
+            var x = step / 2
+            while (x < size.width) {
+                drawCircle(frame, radius = line, center = Offset(x, y))
+                x += step
+            }
+        }
+        // Starlight: a ribbon, gently waving.
+        HandleStyle.COMPACT -> {
+            val wave = Path().apply {
+                moveTo(0f, y)
+                val step = RAIL_STEP.toPx() * 2
+                var x = 0f
+                var up = true
+                while (x < size.width) {
+                    quadraticBezierTo(x + step / 2, y + (if (up) -1 else 1) * RAIL_TICK.toPx(), x + step, y)
+                    x += step
+                    up = !up
+                }
+            }
+            drawPath(wave, frame, style = Stroke(line))
+        }
     }
 }
 
@@ -321,6 +358,32 @@ private fun DrawScope.emblem(style: HandleStyle, accent: Color, frame: Color, fi
             drawCircle(accent, radius = r * ROSE_EYE * 2, center = c)
             drawCircle(accent, radius = r, center = c, style = Stroke(RAIL_LINE.toPx()))
         }
+        HandleStyle.CLOUD -> {
+            // Five puffs and a flat base make a cloud; the chevron sits on it.
+            val cloud = Path().apply {
+                listOf(
+                    Offset(-0.55f, 0.15f) to 0.38f,
+                    Offset(-0.2f, -0.2f) to 0.45f,
+                    Offset(0.25f, -0.15f) to 0.48f,
+                    Offset(0.6f, 0.15f) to 0.35f,
+                    Offset(0f, 0.25f) to 0.42f,
+                ).forEach { (o, k) ->
+                    addOval(Rect(Offset(c.x + o.x * r, c.y + o.y * r), k * r))
+                }
+            }
+            // Stroked twice as wide, then filled over, so only the outer edge shows.
+            drawPath(cloud, frame, style = Stroke(RAIL_LINE.toPx() * 2))
+            drawPath(cloud, fill)
+            chevron(c.y - r * 0.3f, c.y + r * 0.15f, r * 0.4f)
+        }
+        HandleStyle.COMPACT -> {
+            // A compact mirror: a round case with a star in the middle and a sparkle beside it.
+            drawCircle(fill, radius = r * 0.8f, center = c)
+            drawCircle(frame, radius = r * 0.8f, center = c, style = Stroke(RAIL_LINE.toPx()))
+            drawCircle(accent, radius = r * 0.68f, center = c, style = Stroke(Hairline.toPx()))
+            drawPath(starPath(c, r * 0.42f), accent)
+            if (jewels.isNotEmpty()) drawPath(sparklePath(Offset(c.x + r * 0.62f, c.y - r * 0.62f), r * 0.22f), jewels[0])
+        }
     }
 }
 
@@ -355,13 +418,34 @@ fun Card(
     val accent = Ink.accent
     val lead = Ink.bg
     val jewels = look.palette.jewels
+    val ornament = Ink.ornament
+    val wing = Ink.text.copy(alpha = WING_ALPHA)
     Column(
         modifier
             .fillMaxWidth()
             .clip(shape)
             .background(Ink.surface)
-            .then(if (look.brackets) Modifier.drawBehind { brackets(gold) } else Modifier)
-            .then(if (now && look.keystone) Modifier.drawBehind { keystone(accent, lead, jewels) } else Modifier)
+            .then(
+                when (look.corners) {
+                    Corners.BRACKETS -> Modifier.drawBehind { brackets(gold) }
+                    Corners.SPARKLES -> Modifier.drawBehind { cornerSparkles(ornament) }
+                    Corners.NONE -> Modifier
+                },
+            )
+            .then(
+                if (!now) {
+                    Modifier
+                } else {
+                    when (look.crown) {
+                        Crown.ROSE -> Modifier.drawBehind { keystone(accent, lead, jewels) }
+                        Crown.BOW -> Modifier.drawBehind { bow(Offset(size.width / 2, CROWN_DROP.toPx()), CROWN.toPx(), ornament, accent) }
+                        Crown.BROOCH -> Modifier.drawBehind {
+                            brooch(Offset(size.width / 2, CROWN_DROP.toPx()), CROWN.toPx(), ornament, accent, wing)
+                        }
+                        Crown.NONE -> Modifier
+                    }
+                },
+            )
             .then(if (look.framed) Modifier.border(look.came, Ink.frame, shape) else Modifier)
             .padding(start = inner, end = inner, bottom = inner, top = inner + if (now) look.nowRise else 0.dp),
         verticalArrangement = arrangement,
@@ -386,6 +470,23 @@ private fun DrawScope.keystone(gold: Color, lead: Color, jewels: List<Color>) {
 
 private val KEYSTONE = 13.dp
 private val KEYSTONE_DROP = 18.dp
+
+/** Starlight's corners: a large and a small sparkle inside each top corner. */
+private fun DrawScope.cornerSparkles(color: Color) {
+    val i = BRACKET_OUTER.toPx()
+    val big = CORNER_SPARKLE.toPx()
+    listOf(i + big, size.width - i - big).forEach { x ->
+        drawPath(sparklePath(Offset(x, i + big), big), color)
+        val side = if (x < size.width / 2) 1 else -1
+        drawPath(sparklePath(Offset(x + side * big * 1.6f, i + big * 2.2f), big * 0.45f), color.copy(alpha = BRACKET_ALPHA))
+    }
+}
+
+// The cute crowns: their size and how far below the card's top they sit.
+private val CROWN = 9.dp
+private val CROWN_DROP = 14.dp
+private const val WING_ALPHA = 0.85f
+private val CORNER_SPARKLE = 6.dp
 
 private val Hairline = 1.dp
 
