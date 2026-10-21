@@ -156,6 +156,10 @@ fun BoardScreen(vm: BoardViewModel) {
     val shareable by vm.shareable.collectAsStateWithLifecycle()
     val pairsShown by vm.pairs.shown.collectAsStateWithLifecycle()
     val pairFront by vm.pairFront.collectAsStateWithLifecycle()
+    val pairing by vm.pairs.pairing.collectAsStateWithLifecycle()
+    // Pair and Ping ask for Nearby devices, and for Bluetooth on, first.
+    val ping = rememberBluetoothGate { vm.pairs.ping() }
+    val pair = rememberBluetoothGate { vm.pairs.startPairing() }
     val pairViews = peers.map { PairView(it, peeks[it.id]) }
     // Today's shared times for each person shown with a line, at most three.
     val palette = LocalLook.current.palette
@@ -308,7 +312,7 @@ fun BoardScreen(vm: BoardViewModel) {
                               now = ui.now,
                               shown = pairsShown,
                               onFront = vm::setPairFront,
-                              onPing = vm.pairs::ping,
+                              onPing = ping,
                               onShown = vm.pairs::setShown,
                               modifier = Modifier.align(Alignment.TopStart).padding(top = Space.inside),
                           )
@@ -432,7 +436,17 @@ fun BoardScreen(vm: BoardViewModel) {
         ) {
             // A paired person's page opens over settings; Back returns to them.
             val openPeer = peers.firstOrNull { it.id == pairOpen }
-            if (openPeer != null) {
+            val pairingNow = pairing
+            if (pairingNow != null) {
+                PairingScreen(
+                    pairingNow,
+                    onYes = { vm.pairs.answer(true) },
+                    onNo = { vm.pairs.answer(false) },
+                    onName = vm.pairs::finishPairing,
+                    onAgain = pair,
+                    onClose = vm.pairs::cancelPairing,
+                )
+            } else if (openPeer != null) {
                 PairScreen(openPeer, peeks[openPeer.id], ui.now, shareable, ticks[openPeer.id].orEmpty(), vm.pairs, onClose = vm::closePair)
             } else SettingsScreen(
                 unlock = unlock,
@@ -451,6 +465,7 @@ fun BoardScreen(vm: BoardViewModel) {
                 peeks = peeks,
                 now = ui.now,
                 onOpenPair = vm::openPair,
+                onPair = pair,
                 ornaments = ornaments,
                 onOrnaments = vm.settings::setOrnaments,
                 texture = texture,

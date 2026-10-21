@@ -1,11 +1,18 @@
 package net.fallhammer.initiative.ui
 
+import android.bluetooth.BluetoothSocket
+import androidx.annotation.StringRes
 import initiative.core.Kind
+import initiative.core.PairWire
 import initiative.core.Peek
 import initiative.core.PeekFormat
 import initiative.core.ShareLevel
+import initiative.core.Shareable
 import initiative.core.Shared
+import initiative.core.Sharing
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,20 +20,51 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.PeekRow
 import net.fallhammer.initiative.data.PeerRow
 import net.fallhammer.initiative.data.Prefs
 import net.fallhammer.initiative.data.ShareRow
+import net.fallhammer.initiative.pairs.Nearby
 import java.time.LocalDateTime
 
+/** Where pairing has got to, for the pairing screen. */
+sealed interface Pairing {
+    /** Findable and searching, for up to two minutes. */
+    data object Searching : Pairing
+
+    /** Both screens show this code; does it match? */
+    data class Code(val code: String) : Pairing
+
+    /** This phone said yes; waiting for the other's answer. */
+    data object Waiting : Pairing
+
+    /** Paired: give them a nickname. */
+    data class Naming(val peer: Long) : Pairing
+
+    /** It didn't work, and why. */
+    data class Failed(@StringRes val reason: Int) : Pairing
+}
+
 /**
- * The people paired with this phone: how each is shown, what's shared with
- * each, and their last peeks. Pairing itself, over Bluetooth, comes later; until
- * then the only way to add someone is the emulator's pretend partner.
+ * The people paired with this phone: pairing them, in person over Bluetooth,
+ * how each is shown, what's shared with each, and Ping for their peeks.
  */
-class PairsModel(private val parts: BoardParts) : PairEdits {
+class PairsModel(private val parts: BoardParts, private val shareable: () -> List<Shareable>) : PairEdits {
     private val dao get() = parts.graph.dao
+    private val nearby get() = parts.graph.nearby
+    private val keys get() = parts.graph.pairKeys
+
+    private val _pairing = MutableStateFlow<Pairing?>(null)
+    /** Pairing under way; null when not pairing. A Bluetooth meeting can't outlast the app, so it isn't saved. */
+    val pairing: StateFlow<Pairing?> = _pairing.asStateFlow()
+    private var pairJob: Job? = null
+    private var pairSocket: BluetoothSocket? = null
+    private var decision = CompletableDeferred<Boolean>()
+
+    private var pinging = false
 
     val peers: StateFlow<List<PeerRow>> = dao.observePeers().stateIn(parts.scope, SharingStarted.Eagerly, emptyList())
 
@@ -54,9 +92,136 @@ class PairsModel(private val parts: BoardParts) : PairEdits {
         parts.scope.launch(Dispatchers.IO) { parts.graph.prefs.pairsShown = on }
     }
 
-    /** Ping: Bluetooth comes in the next push; for now it says so. */
+    /**
+     * Pair with the phone close by that's also pairing: find it, agree a code,
+     * and once both people say it matches, keep the pair's keys and add them.
+     */
+    fun startPairing() {
+        pairJob?.cancel()
+        decision = CompletableDeferred()
+        _pairing.value = Pairing.Searching
+        pairJob = parts.scope.launch {
+            val (met, problem) = nearby.meet(Nearby.PAIR, PAIR_MS)
+            if (met == null) {
+                _pairing.value = Pairing.Failed(reasonFor(problem))
+                return@launch
+            }
+            pairSocket = met.socket
+            try {
+                withContext(Dispatchers.IO) { pairOver(met) }
+            } catch (e: Exception) {
+                if (_pairing.value != null) _pairing.value = Pairing.Failed(R.string.pairing_broke)
+            } finally {
+                runCatching { met.socket.close() }
+                pairSocket = null
+            }
+        }
+    }
+
+    private suspend fun pairOver(met: Nearby.Met) {
+        val input = met.socket.inputStream
+        val out = met.socket.outputStream
+        val agreed = PairWire.agree(input, out, parts.graph.prefs.instanceId, met.initiator)
+        if (dao.peers().any { it.peerId == agreed.theirId }) {
+            PairWire.confirm(input, out, false)
+            _pairing.value = Pairing.Failed(R.string.pairing_already)
+            return
+        }
+        if (dao.peers().size >= MAX_PAIRS) {
+            PairWire.confirm(input, out, false)
+            _pairing.value = Pairing.Failed(R.string.pairing_full)
+            return
+        }
+        _pairing.value = Pairing.Code(agreed.code)
+        val yes = withTimeoutOrNull(ANSWER_MS) { decision.await() } ?: false
+        if (yes) _pairing.value = Pairing.Waiting
+        if (!PairWire.confirm(input, out, yes)) {
+            _pairing.value = Pairing.Failed(R.string.pairing_declined)
+            return
+        }
+        keys.save(agreed.theirId, agreed.macKey, agreed.sealKey)
+        val used = dao.peers().map { it.color }.toSet()
+        val color = (0 until PairColors.count).firstOrNull { it !in used } ?: 0
+        val name = parts.text(R.string.pairing_default_name)
+        val id = dao.insertPeer(PeerRow(peerId = agreed.theirId, nickname = name, initial = initialOf(name, "?"), color = color))
+        _pairing.value = Pairing.Naming(id)
+    }
+
+    /** The person's answer to "does the code match?". */
+    fun answer(yes: Boolean) {
+        decision.complete(yes)
+        if (!yes) _pairing.value = Pairing.Failed(R.string.pairing_declined)
+    }
+
+    /** Names the newly paired person, and closes pairing. */
+    fun finishPairing(peer: Long, nickname: String) {
+        val name = nickname.trim()
+        if (name.isNotEmpty()) {
+            parts.scope.launch(Dispatchers.IO) {
+                dao.peers().firstOrNull { it.id == peer }?.let { dao.updatePeer(it.copy(nickname = name, initial = initialOf(name, it.initial))) }
+            }
+        }
+        _pairing.value = null
+    }
+
+    fun cancelPairing() {
+        decision.complete(false)
+        runCatching { pairSocket?.close() }
+        pairJob?.cancel()
+        _pairing.value = null
+    }
+
+    /**
+     * Ping: findable and searching for a minute. When the other phone pings
+     * too, each proves which pair it is and sends what it shares with the
+     * other; their peek is kept, and the light comes on.
+     */
     fun ping() {
-        parts.show(Flash(parts.text(R.string.pair_ping_soon)))
+        if (pinging) return
+        pinging = true
+        parts.show(Flash(parts.text(R.string.pair_pinging)))
+        parts.scope.launch {
+            try {
+                val (met, problem) = nearby.meet(Nearby.PING, PING_MS)
+                if (met == null) {
+                    parts.show(Flash(parts.text(reasonFor(problem))))
+                    return@launch
+                }
+                val name = withContext(Dispatchers.IO) { met.socket.use { pingOver(met) } }
+                parts.show(Flash(name?.let { parts.app.getString(R.string.pair_pinged, it) } ?: parts.text(R.string.pair_stranger)))
+            } catch (e: Exception) {
+                parts.show(Flash(parts.text(R.string.pairing_broke)))
+            } finally {
+                pinging = false
+            }
+        }
+    }
+
+    /** The exchange itself; returns the person's nickname, or null for a phone not paired with this one. */
+    private suspend fun pingOver(met: Nearby.Met): String? {
+        val peers = dao.peers()
+        val ticked = ticks.value
+        val mine = peers.mapNotNull { keys.load(it.peerId, it.id) }
+        if (mine.isEmpty()) return null
+        val now = LocalDateTime.now()
+        val got = PairWire.ping(met.socket.inputStream, met.socket.outputStream, mine, met.initiator) { id ->
+            val peer = peers.first { it.id == id }
+            PeekFormat.encode(Peek(now, Sharing.outgoing(shareable(), levelOf(peer), ticked[id].orEmpty())))
+        } ?: return null
+        val peer = peers.firstOrNull { it.id == got.peer } ?: return null
+        // Kept only if it reads; one this build can't read waits for an update.
+        PeekFormat.decode(got.text) ?: return null
+        dao.putPeek(PeekRow(peer.id, got.text))
+        dao.updatePeer(peer.copy(seenAt = now.toString()))
+        return peer.nickname
+    }
+
+    @StringRes
+    private fun reasonFor(problem: Nearby.Problem?): Int = when (problem) {
+        Nearby.Problem.NO_BLUETOOTH -> R.string.nearby_none
+        Nearby.Problem.OFF -> R.string.nearby_off
+        Nearby.Problem.NOT_ALLOWED -> R.string.nearby_not_allowed
+        else -> R.string.nearby_not_found
     }
 
     private fun save(peer: PeerRow) {
@@ -81,9 +246,10 @@ class PairsModel(private val parts: BoardParts) : PairEdits {
         parts.scope.launch(Dispatchers.IO) { if (on) dao.share(ShareRow(peer, item)) else dao.unshare(peer, item) }
     }
 
-    /** Unpairs at once on this phone: the person, their ticks, and their last peek go. */
+    /** Unpairs at once on this phone: the person, their keys, their ticks, and their last peek go. */
     override fun unpair(peer: Long) {
         parts.scope.launch(Dispatchers.IO) {
+            dao.peers().firstOrNull { it.id == peer }?.let { keys.delete(it.peerId) }
             dao.deleteSharesOf(peer)
             dao.deletePeekOf(peer)
             dao.deletePeer(peer)
@@ -112,6 +278,10 @@ class PairsModel(private val parts: BoardParts) : PairEdits {
 
     companion object {
         const val PRETEND = "pretend-partner"
+        const val MAX_PAIRS = 3
+        private const val PAIR_MS = 120_000L
+        private const val PING_MS = 60_000L
+        private const val ANSWER_MS = 90_000L
 
         /** A nickname's initial: its first letter or digit, or [fallback] for none. */
         fun initialOf(nickname: String, fallback: String): String =

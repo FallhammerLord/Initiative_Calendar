@@ -767,16 +767,24 @@ home
 wait_for "Partner, " || fail "the pretend partner's pairmark should show on the board"
 expect_text "groceries"
 shot pairmark-board
+# Ping really searches now. The emulator has no second phone, so after a minute
+# it finds no one (or says it has no Bluetooth). Permission and Bluetooth first,
+# so no system dialog stops the test.
+for perm in BLUETOOTH_SCAN BLUETOOTH_ADVERTISE BLUETOOTH_CONNECT; do adb shell pm grant $PKG android.permission.$perm 2>/dev/null; done
+adb shell cmd bluetooth_manager enable 2>/dev/null
+sleep 2
 tap "Ping" exact
-wait_for "Ping arrives" || fail "Ping should say Bluetooth comes next"
+wait_for "No one found" contains 80 || see "Bluetooth" || fail "Ping should search, then say no one was found"
 tap "Hide pairs" exact
 wait_gone "groceries" || fail "Hide pairs should clear the pairmark and the line"
 shot pairs-hidden
 tap "Show pairs" exact
 wait_for "groceries" || fail "Show pairs should bring them back"
 pass "a pairmark and dial line on the board, Ping, and pairs on and off"
+# Settings offers Pair with someone; pairing itself needs two phones, tested by hand.
 open_settings
 scroll_to "Partner, " || fail "a pretend partner should show under Pairs"
+expect_text "Pair with someone"
 shot pairs-settings
 tap "Partner, "
 wait_for "What you share with Partner" || fail "a paired person's page should open"

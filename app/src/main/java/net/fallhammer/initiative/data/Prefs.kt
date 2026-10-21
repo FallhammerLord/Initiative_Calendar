@@ -65,6 +65,12 @@ class Prefs(private val context: Context) {
             ?: Holiday.entries.toSet()
         set(value) = prefs.edit().putStringSet(HOLIDAYS, value.map { it.name }.toSet()).apply()
 
+    /** This Initiative's own random ID, made once; how paired phones know it. */
+    val instanceId: String
+        get() = prefs.getString(INSTANCE_ID, null) ?: java.util.UUID.randomUUID().toString().also {
+            prefs.edit().putString(INSTANCE_ID, it).apply()
+        }
+
     /** Whether paired people show on the board; on by default once anyone is paired. */
     var pairsShown: Boolean
         get() = prefs.getBoolean(PAIRS_SHOWN, true)
@@ -210,6 +216,7 @@ class Prefs(private val context: Context) {
         const val HOLIDAY_LOOKS = "holiday_looks"
         const val HOLIDAYS = "holidays"
         const val PAIRS_SHOWN = "pairs_shown"
+        const val INSTANCE_ID = "instance_id"
         const val DEFAULT_TEXTURE = 50
         const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val QUIET_ON = "quietOn"

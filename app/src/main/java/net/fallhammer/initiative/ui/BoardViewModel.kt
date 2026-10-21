@@ -98,7 +98,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val edit = EditModel(parts, saved) { items }
     val backup = BackupModel(parts)
     val settings = SettingsModel(parts)
-    val pairs = PairsModel(parts)
+    // What could be shared is read when a ping happens, from the board as it stands then.
+    val pairs = PairsModel(parts) { shareable.value }
     val launcher = LauncherModel(parts)
     val log = LogModel(parts, saved, repo.items, clock)
 
@@ -477,6 +478,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         log.close()
         notYet()
         closePair()
+        if (pairs.pairing.value != null) pairs.cancelPairing()
         saved[OVERLAY] = Overlay.NONE
     }
 
@@ -506,6 +508,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             notYet()
         } else if (log.isOpen) {
             log.close()
+        } else if (pairs.pairing.value != null) {
+            pairs.cancelPairing()
         } else if (pairOpen.value >= 0) {
             closePair()
         } else {

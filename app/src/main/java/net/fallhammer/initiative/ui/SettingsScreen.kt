@@ -52,6 +52,7 @@ fun SettingsScreen(
     peeks: Map<Long, Peek>,
     now: LocalDateTime,
     onOpenPair: (Long) -> Unit,
+    onPair: () -> Unit,
     ornaments: Boolean,
     onOrnaments: (Boolean) -> Unit,
     texture: Int,
@@ -134,15 +135,17 @@ fun SettingsScreen(
                     }
                 }
             }
-            // Shown once someone is paired; pairing itself comes with Bluetooth.
-            if (peers.isNotEmpty()) {
-                Section(stringResource(R.string.section_pairs)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
-                        peers.forEach { p -> PairRow(p, peeks[p.id], now) { onOpenPair(p.id) } }
-                    }
-                    Spacer(Modifier.height(Space.s))
-                    Body(stringResource(R.string.pairs_hint), style = Type.bodySmall)
+            Section(stringResource(R.string.section_pairs)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
+                    peers.forEach { p -> PairRow(p, peeks[p.id], now) { onOpenPair(p.id) } }
                 }
+                // Up to three; pairing is in person, both phones side by side.
+                if (peers.size < PairsModel.MAX_PAIRS) {
+                    if (peers.isNotEmpty()) Spacer(Modifier.height(Space.s))
+                    SecondaryButton(stringResource(R.string.pair_with), onPair, Modifier.fillMaxWidth(), height = Tap.min)
+                }
+                Spacer(Modifier.height(Space.s))
+                Body(stringResource(R.string.pairs_hint), style = Type.bodySmall)
             }
             Section(stringResource(R.string.section_alarms)) {
                 SettingSwitch(stringResource(R.string.setting_quiet), quiet.on) { onQuiet(quiet.copy(on = it)) }

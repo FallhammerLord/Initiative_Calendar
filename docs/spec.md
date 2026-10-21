@@ -422,6 +422,21 @@ Up to three other people's Initiative (a partner, and each daughter once she has
 - The data: a Bluetooth stream channel (Android 10 and later) first; a small Bluetooth service, sending in chunks, as the fallback. A week of shared plan is a few KB.
 - Background: Initiative is the home app, so its process is usually alive; a peek runs as a short foreground task. Waking on nearness (Android's companion device tools) is for later.
 
+**How it talks** (core PairWire, tested over pipes). Pairing: a fresh elliptic-curve key agreement (P-256), the connecting phone committing to its key before seeing the other's, so a phone in the middle can't search for keys that give both screens the same code; the 6-digit code comes from the whole exchange; both must say yes. Out come two keys (one to prove which pair, one to seal what's shared), kept in Android's key store. Ping: each side proves which pair it is without naming itself, then each sends what it shares, sealed (AES-GCM). A phone that isn't paired learns nothing. Finding each other: Bluetooth Low Energy advertising and one filtered scan per meeting, then a Bluetooth channel (L2CAP); the lower random number connects. Needs Android 12 or later.
+
+**Hand test, two phones** (the emulator can't pair two phones):
+
+1. Settings, Pairs, **Pair with someone** on both, phones side by side. Allow Nearby devices; turn Bluetooth on if asked.
+2. Both show the same 6 digits. Tap **Yes, it matches** on both. Name each other. Each appears in the other's Pairs list.
+3. Pair again with the same phone: "This phone is already paired."
+4. Pair, and tap **No** on one: "Not paired" on both, and no one added.
+5. On one phone, tick an item for the other. Tap **Ping** on both, close together. Each flashes "Peeked at …"; the pairmark lights, with what they're doing; their line shows under the dial.
+6. Wait 15 minutes: the light dims and "probably" appears. Next day: "seen yesterday".
+7. Share level **Nothing**, Ping again: the other sees "Nothing shared for now".
+8. Ping with only one phone: after a minute, "No one found".
+9. **Unpair** on one; Ping from the other: "That phone isn't paired with this one."
+10. A day of normal use: battery is unchanged (the phone is findable only during Pair or Ping).
+
 **Testing.** The engine holds the rules (pairing, keys, what is shared, the snapshot format, the estimate) and unit-tests them behind a stand-in transport. The Bluetooth layer stays thin and is tested by hand on two phones; the emulator can't pair two phones.
 
 **Phases**, as pushes: A, the data, settings, and a pretend partner for the emulator; B, the board pieces; C, real Bluetooth, tested by hand.

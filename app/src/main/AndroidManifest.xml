@@ -15,6 +15,18 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Pairs: Bluetooth, only while someone taps Pair or Ping, to meet a phone
+         close by. Scanning is never used for location. No internet permission:
+         Bluetooth needs none, so Initiative stays offline. Android 12 and later. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <!-- Lets the app drawer list every installed app (Android 11+). -->
     <queries>
         <intent>
