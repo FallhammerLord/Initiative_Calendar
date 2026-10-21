@@ -471,14 +471,16 @@ private fun DrawScope.keystone(gold: Color, lead: Color, jewels: List<Color>) {
 private val KEYSTONE = 13.dp
 private val KEYSTONE_DROP = 18.dp
 
-/** Starlight's corners: a large and a small sparkle inside each top corner. */
+/**
+ * Starlight's corners: a sparkle tucked into each top corner, a small one below
+ * it, both in the margin outside the card's text.
+ */
 private fun DrawScope.cornerSparkles(color: Color) {
-    val i = BRACKET_OUTER.toPx()
+    val i = CORNER_INSET.toPx()
     val big = CORNER_SPARKLE.toPx()
     listOf(i + big, size.width - i - big).forEach { x ->
         drawPath(sparklePath(Offset(x, i + big), big), color)
-        val side = if (x < size.width / 2) 1 else -1
-        drawPath(sparklePath(Offset(x + side * big * 1.6f, i + big * 2.2f), big * 0.45f), color.copy(alpha = BRACKET_ALPHA))
+        drawPath(sparklePath(Offset(x, i + big * 3.2f), big * 0.45f), color.copy(alpha = BRACKET_ALPHA))
     }
 }
 
@@ -486,7 +488,8 @@ private fun DrawScope.cornerSparkles(color: Color) {
 private val CROWN = 9.dp
 private val CROWN_DROP = 14.dp
 private const val WING_ALPHA = 0.85f
-private val CORNER_SPARKLE = 6.dp
+private val CORNER_SPARKLE = 5.dp
+private val CORNER_INSET = 6.dp
 
 private val Hairline = 1.dp
 
