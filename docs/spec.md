@@ -499,3 +499,4 @@ After two weeks on v0.1, we review what got ignored, what annoyed you, and what 
 - [ ] **Escalation timing.** Are the rung times and Soft's ceiling at rung 2 right?
 - [ ] **Sync conflicts.** When phone and desktop both edit one item between syncs, does the phone always win, or the latest edit?
 - [ ] **Name.** Initiative is a working title.
+- [ ] **Next phone (back burner).** Only the Pixel 9 Pro on Android 16 is tested. Before a new phone: check that alarms ring with the screen off, and that brand battery lists (Samsung sleeping apps, Xiaomi auto-start) let it run. Later, if wanted: a small-screen Android 10 emulator run in CI, and a width cap for tablets and foldables.

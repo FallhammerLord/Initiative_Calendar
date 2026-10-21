@@ -809,12 +809,16 @@ pass "Save renames the item, makes it repeat, and returns to the board"
 
 tap "dentist call" exact
 expect_text "Remove"
+# It repeats now, so Remove asks which: this time, or this and later.
 tap Remove exact
-expect_text "Removed"
+wait_for "Remove which?" exact || fail "Remove on a repeating item should ask which"
+shot remove-which
+tap "This and later" exact
+expect_text "Removed, and later times"
 expect_text "Free time"
 tap Undo exact
 expect_text "dentist call"
-pass "Remove takes it off the board, and Undo puts it back"
+pass "Remove on a series takes this and later times, and Undo puts it all back"
 
 tap "dentist call" exact
 wait_for Type exact || fail "edit form didn't open"
