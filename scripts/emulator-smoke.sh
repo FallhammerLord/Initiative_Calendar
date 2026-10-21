@@ -752,6 +752,9 @@ tap Sci-fi exact
 adb shell input swipe 540 1800 540 800 300
 sleep 1
 tap "Quiet hours" exact
+# The times open below the switch; bring them into view.
+adb shell input swipe 540 1600 540 1000 300
+sleep 1
 expect_text "From 10:00 PM"
 shot quiet-hours
 tap "Quiet hours" exact
