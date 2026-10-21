@@ -113,7 +113,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val upNext = tasks.firstOrNull()
 
         val gaps = gaps(today, live, now)
-        val current = gaps.firstOrNull { now in it } ?: return Board(NowPick(null, upNextReason(upNext) ?: "Nothing fits right now"), nextAnchor)
+        val current = gaps.firstOrNull { now in it } ?: return Board(NowPick(null, upNextReason(upNext, nextAnchor) ?: "Nothing fits right now"), nextAnchor)
         val longest = gaps.maxOf { it.minutes }
 
         if (upNext != null && !upNext.at.isAfter(now)) {
@@ -126,7 +126,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val ready = eligible(floats, now)
         val ranked = rank(ready.filter { fits(it, current, longest) }, today, order)
         val top = ranked.firstOrNull()
-            ?: return Board(NowPick(null, upNextReason(upNext) ?: idleReason(floats, ready, current, now)), nextAnchor ?: upNext?.item)
+            ?: return Board(NowPick(null, upNextReason(upNext, nextAnchor) ?: idleReason(floats, ready, current, now)), nextAnchor ?: upNext?.item)
 
         val reason = reasonFor(top, ranked.getOrNull(1), current, longest, today, alone = floats.size == 1)
         return Board(NowPick(top, reason), nextAnchor ?: ranked.getOrNull(1), until = current.end)
@@ -382,8 +382,14 @@ class Placement(private val window: DayWindow = DayWindow()) {
         )
     }
 
-    /** A task coming later today: "Up next at 7:30 PM: clean upstairs". */
-    private fun upNextReason(next: Slot?): String? = next?.let { "Up next at ${Formats.clock(it.at)}: ${it.item.title}" }
+    /**
+     * A task coming later today: "Up next at 7:30 PM: clean upstairs". When a wall
+     * comes first, the Next line already names it, so say why it's free instead:
+     * "Nothing fits before pickup".
+     */
+    private fun upNextReason(next: Slot?, wall: Item?): String? = next?.let {
+        if (wall?.start?.isBefore(it.at) == true) "Nothing fits before ${wall.title}" else "Up next at ${Formats.clock(it.at)}: ${it.item.title}"
+    }
 
     /**
      * Why Now is Free time. "Nothing fits" only when a task could be shown but
