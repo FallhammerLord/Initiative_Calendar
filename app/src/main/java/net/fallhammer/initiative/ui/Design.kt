@@ -51,12 +51,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
@@ -158,12 +160,15 @@ fun Screen(modifier: Modifier = Modifier, pulse: () -> Pulse? = { null }, conten
                     Pattern.LEADED -> Modifier.leadedGlass(jewels, look.texture, Ink.bg, Ink.accent, ring)
                     Pattern.DOTS -> Modifier.scatter(jewels, look.texture, hearts = true)
                     Pattern.SPARKLES -> Modifier.scatter(jewels, look.texture, hearts = false)
+                    Pattern.WEB -> Modifier.web(Ink.pattern.copy(alpha = 1f), Ink.text, Ink.bg, jewels.take(2), look.texture, ring)
+                    Pattern.KNIT -> Modifier.knit(jewels, look.texture)
                     Pattern.NONE -> Modifier
                 },
             )
             .then(
                 when (look.flourish) {
-                    Flourish.HEARTS, Flourish.SPARKLES -> Modifier.burst(look.flourish, jewels, Ink.ornament, pulse)
+                    Flourish.HEARTS, Flourish.SPARKLES, Flourish.BATS -> Modifier.burst(look.flourish, jewels, Ink.ornament, pulse)
+                    Flourish.SNOW -> Modifier.burst(look.flourish, jewels, Ink.text, pulse)
                     else -> Modifier
                 },
             )
@@ -213,7 +218,7 @@ fun AppsHandle(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
     Box(
         modifier
             .fillMaxWidth()
-            .drawBehind { rail(style, accent, frame) },
+            .drawBehind { rail(style, accent, frame, jewels) },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -227,7 +232,7 @@ fun AppsHandle(label: String, onClick: () -> Unit, modifier: Modifier = Modifier
 }
 
 /** The rail the Apps emblem sits on, through its middle; Classic has none. */
-private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color) {
+private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color, jewels: List<Color>) {
     val y = size.height / 2
     val line = RAIL_LINE.toPx()
     when (style) {
@@ -272,6 +277,10 @@ private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color) {
                 x += step
             }
         }
+        // Halloween: a string of pennants, swagging between pins.
+        HandleStyle.HAT -> pennants(jewels, frame, y)
+        // Christmas: a string of lights.
+        HandleStyle.GIFT -> lights(jewels, frame, y)
         // Starlight: a ribbon, gently waving.
         HandleStyle.COMPACT -> {
             val wave = Path().apply {
@@ -376,6 +385,35 @@ private fun DrawScope.emblem(style: HandleStyle, accent: Color, frame: Color, fi
             drawPath(cloud, fill)
             chevron(c.y - r * 0.3f, c.y + r * 0.15f, r * 0.4f)
         }
+        HandleStyle.HAT -> {
+            // A witch's hat: a crooked cone on a wide brim, with a band and the chevron on it.
+            val cone = Path().apply {
+                moveTo(c.x, c.y - r)
+                cubicTo(c.x - r * 0.1f, c.y - r * 0.5f, c.x - r * 0.3f, c.y, c.x - r * 0.6f, c.y + r * 0.55f)
+                lineTo(c.x + r * 0.6f, c.y + r * 0.55f)
+                cubicTo(c.x + r * 0.3f, c.y, c.x + r * 0.15f, c.y - r * 0.5f, c.x, c.y - r)
+                close()
+            }
+            val brim = Size(2 * r * 1.05f, r * 0.42f)
+            val brimAt = Offset(c.x - r * 1.05f, c.y + r * 0.5f)
+            drawPath(cone, fill)
+            drawPath(cone, frame, style = Stroke(RAIL_LINE.toPx()))
+            drawOval(fill, brimAt, brim)
+            drawOval(frame, brimAt, brim, style = Stroke(RAIL_LINE.toPx()))
+            drawRect(accent, Offset(c.x - r * 0.55f, c.y + r * 0.38f), Size(r * 1.1f, r * 0.16f))
+            chevron(c.y - r * 0.25f, c.y + r * 0.1f, r * 0.28f)
+        }
+        HandleStyle.GIFT -> {
+            // A gift: a box and lid, a ribbon down the middle, a bow on top, and the chevron on the box.
+            val ribbon = jewels.firstOrNull() ?: accent
+            drawRoundRect(fill, Offset(c.x - r * 0.75f, c.y - r * 0.35f), Size(r * 1.5f, r * 1.15f), CornerRadius(r * 0.1f))
+            drawRoundRect(frame, Offset(c.x - r * 0.75f, c.y - r * 0.35f), Size(r * 1.5f, r * 1.15f), CornerRadius(r * 0.1f), style = Stroke(RAIL_LINE.toPx()))
+            drawRoundRect(fill, Offset(c.x - r * 0.88f, c.y - r * 0.6f), Size(r * 1.76f, r * 0.32f), CornerRadius(r * 0.08f))
+            drawRoundRect(frame, Offset(c.x - r * 0.88f, c.y - r * 0.6f), Size(r * 1.76f, r * 0.32f), CornerRadius(r * 0.08f), style = Stroke(RAIL_LINE.toPx()))
+            drawRect(ribbon, Offset(c.x - r * 0.12f, c.y - r * 0.6f), Size(r * 0.24f, r * 1.4f))
+            bow(Offset(c.x, c.y - r * 0.72f), r * 0.24f, ribbon, ribbon)
+            chevron(c.y + r * 0.05f, c.y + r * 0.45f, r * 0.3f)
+        }
         HandleStyle.COMPACT -> {
             // A compact mirror: a round case with a star in the middle and a sparkle beside it.
             drawCircle(fill, radius = r * 0.8f, center = c)
@@ -386,6 +424,74 @@ private fun DrawScope.emblem(style: HandleStyle, accent: Color, frame: Color, fi
         }
     }
 }
+
+/** Halloween's rail: pennants in the jewels, hung from a swagging string. */
+private fun DrawScope.pennants(jewels: List<Color>, string: Color, y: Float) {
+    val swag = SWAG.toPx()
+    val step = PENNANT_STEP.toPx()
+    val dip = SWAG_DIP.toPx()
+    fun sagAt(x: Float): Float { val t = (x % swag) / swag; return y + 4 * dip * t * (1 - t) }
+    val line = Path().apply {
+        moveTo(0f, y)
+        var x = 0f
+        while (x < size.width) { quadraticBezierTo(x + swag / 2, y + 2 * dip, x + swag, y); x += swag }
+    }
+    drawPath(line, string, style = Stroke(Hairline.toPx() * 1.5f))
+    if (jewels.isEmpty()) return
+    val half = PENNANT.toPx() / 2
+    var x = step / 2
+    var i = 0
+    while (x < size.width) {
+        // Leave the emblem's middle clear.
+        if (kotlin.math.abs(x - size.width / 2) > EMBLEM.toPx() * 0.7f) {
+            val top = sagAt(x)
+            val flag = Path().apply {
+                moveTo(x - half, top)
+                lineTo(x + half, top)
+                lineTo(x, top + PENNANT.toPx() * 0.9f)
+                close()
+            }
+            drawPath(flag, jewels[i % minOf(3, jewels.size)])
+            i++
+        }
+        x += step
+    }
+}
+
+/** Christmas's rail: a string of colored lights. */
+private fun DrawScope.lights(jewels: List<Color>, wire: Color, y: Float) {
+    val swag = SWAG.toPx()
+    val dip = SWAG_DIP.toPx()
+    val line = Path().apply {
+        moveTo(0f, y)
+        var x = 0f
+        while (x < size.width) { quadraticBezierTo(x + swag / 2, y + 2 * dip, x + swag, y); x += swag }
+    }
+    val leaf = jewels.lastOrNull() ?: wire
+    drawPath(line, leaf, style = Stroke(Hairline.toPx() * 1.2f))
+    if (jewels.isEmpty()) return
+    val step = BULB_STEP.toPx()
+    val bulb = Size(BULB.toPx() * 0.7f, BULB.toPx())
+    var x = step / 2
+    var i = 0
+    while (x < size.width) {
+        if (kotlin.math.abs(x - size.width / 2) > EMBLEM.toPx() * 0.7f) {
+            val t = (x % swag) / swag
+            val top = y + 4 * dip * t * (1 - t)
+            drawRect(wire, Offset(x - bulb.width * 0.3f, top), Size(bulb.width * 0.6f, bulb.height * 0.3f))
+            drawOval(jewels[i % jewels.size], Offset(x - bulb.width / 2, top + bulb.height * 0.25f), bulb)
+            i++
+        }
+        x += step
+    }
+}
+
+private val SWAG = 70.dp
+private val SWAG_DIP = 4.dp
+private val PENNANT = 12.dp
+private val PENNANT_STEP = 22.dp
+private val BULB = 9.dp
+private val BULB_STEP = 18.dp
 
 // The Apps handle: its emblem, rail, and lines.
 private val EMBLEM = 64.dp
@@ -420,6 +526,12 @@ fun Card(
     val jewels = look.palette.jewels
     val ornament = Ink.ornament
     val wing = Ink.text.copy(alpha = WING_ALPHA)
+    val frame = Ink.frame.copy(alpha = BRACKET_ALPHA)
+    val snow = Ink.text
+    // A pumpkin's ribs and stem: the ornament darkened, and the third jewel. Holly's leaves: the last jewel.
+    val rib = lerp(Ink.ornament, Ink.bg, RIB_SHADE)
+    val stem = look.palette.jewels.getOrNull(2) ?: Ink.frame
+    val leafy = look.palette.jewels.lastOrNull() ?: Ink.frame
     Column(
         modifier
             .fillMaxWidth()
@@ -429,6 +541,8 @@ fun Card(
                 when (look.corners) {
                     Corners.BRACKETS -> Modifier.drawBehind { brackets(gold) }
                     Corners.SPARKLES -> Modifier.drawBehind { cornerSparkles(ornament) }
+                    Corners.COBWEB -> Modifier.drawBehind { cobwebs(frame) }
+                    Corners.SNOW -> Modifier.drawBehind { snowcap(snow) }
                     Corners.NONE -> Modifier
                 },
             )
@@ -442,6 +556,10 @@ fun Card(
                         Crown.BROOCH -> Modifier.drawBehind {
                             brooch(Offset(size.width / 2, CROWN_DROP.toPx()), CROWN.toPx(), ornament, accent, wing)
                         }
+                        Crown.PUMPKIN -> Modifier.drawBehind {
+                            jack(Offset(size.width / 2, CROWN_DROP.toPx() + CROWN.toPx() * 0.3f), CROWN.toPx() * 1.5f, ornament, rib, stem, lead)
+                        }
+                        Crown.HOLLY -> Modifier.drawBehind { holly(Offset(size.width / 2, CROWN_DROP.toPx()), CROWN.toPx(), leafy, ornament) }
                         Crown.NONE -> Modifier
                     }
                 },
@@ -483,6 +601,59 @@ private fun DrawScope.cornerSparkles(color: Color) {
         drawPath(sparklePath(Offset(x, i + big * 3.2f), big * 0.45f), color.copy(alpha = BRACKET_ALPHA))
     }
 }
+
+/** Halloween's corners: a small cobweb spun into each top corner. */
+private fun DrawScope.cobwebs(color: Color) {
+    val reach = COBWEB.toPx()
+    val inset = CORNER_INSET.toPx()
+    val line = Hairline.toPx()
+    listOf(false, true).forEach { right ->
+        val o = Offset(if (right) size.width - inset else inset, inset)
+        val sx = if (right) -1f else 1f
+        val angles = (0..4).map { Math.toRadians(it * 22.5) }
+        angles.forEach { a -> drawLine(color, o, Offset(o.x + sx * reach * cos(a).toFloat(), o.y + reach * sin(a).toFloat()), line) }
+        listOf(0.35f, 0.65f, 0.95f).forEach { share ->
+            val r = reach * share
+            val p = Path()
+            angles.forEachIndexed { i, a ->
+                val x = o.x + sx * r * cos(a).toFloat()
+                val y = o.y + r * sin(a).toFloat()
+                if (i == 0) p.moveTo(x, y) else {
+                    val m = a - Math.toRadians(11.25)
+                    p.quadraticBezierTo(o.x + sx * r * WEB_SAG_CARD * cos(m).toFloat(), o.y + r * WEB_SAG_CARD * sin(m).toFloat(), x, y)
+                }
+            }
+            drawPath(p, color, style = Stroke(line))
+        }
+    }
+}
+
+/** Christmas's corners: a drift of snow along the card's top edge. */
+private fun DrawScope.snowcap(color: Color) {
+    val h = SNOWCAP.toPx()
+    val bump = SNOW_BUMP.toPx()
+    val p = Path().apply {
+        moveTo(0f, 0f)
+        lineTo(size.width, 0f)
+        lineTo(size.width, h * 0.6f)
+        var x = size.width
+        var k = 0
+        while (x > 0f) {
+            val next = maxOf(0f, x - bump)
+            quadraticBezierTo((x + next) / 2, h * (if (k % 2 == 0) 1.15f else 0.95f), next, h * 0.6f)
+            x = next
+            k++
+        }
+        close()
+    }
+    drawPath(p, color)
+}
+
+private val COBWEB = 30.dp
+private const val WEB_SAG_CARD = 0.88f
+private val SNOWCAP = 9.dp
+private val SNOW_BUMP = 18.dp
+private const val RIB_SHADE = 0.35f
 
 // The cute crowns: their size and how far below the card's top they sit.
 private val CROWN = 9.dp
@@ -959,6 +1130,29 @@ fun StepRow(text: String, done: Boolean, onChange: (Boolean) -> Unit) {
             colors = CheckboxDefaults.colors(checkedColor = Ink.accent, uncheckedColor = Ink.accent, checkmarkColor = Ink.onAccent),
         )
         Text(text, style = Type.bodySmall, color = color, modifier = Modifier.weight(1f).padding(start = Space.s))
+    }
+}
+
+/** A setting ticked on or off, with a second line under its name. The whole row is one checkbox. */
+@Composable
+fun CheckRow(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val haptics = rememberHaptics()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.min)
+            .toggleable(value = checked, role = Role.Checkbox) { haptics.toggle(it); onChange(it) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = null,
+            colors = CheckboxDefaults.colors(checkedColor = Ink.accent, uncheckedColor = Ink.accent, checkmarkColor = Ink.onAccent),
+        )
+        Column(Modifier.weight(1f).padding(start = Space.s)) {
+            Text(label, style = Type.bodySmall, color = Ink.text)
+            Text(detail, style = Type.caption, color = Ink.dim)
+        }
     }
 }
 

@@ -23,6 +23,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -169,10 +171,12 @@ fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
     val lead = Ink.bg
     val jewel = look.palette.jewels.getOrNull(icon.ordinal % look.palette.jewels.size.coerceAtLeast(1))
     val ornament = Ink.ornament
+    val stem = look.palette.jewels.getOrNull(2) ?: frame
     // On a jewel's fill the icon is drawn dark: glass's jewels are deep, the cute looks' are light.
     val glyph = when (style) {
         Bubble.ROUNDEL, Bubble.CANDY -> Ink.text
-        Bubble.GEM -> Ink.onAccent
+        Bubble.GEM, Bubble.PUMPKIN -> Ink.onAccent
+        Bubble.BAUBLE -> Ink.text
         else -> accent
     }
     Box(
@@ -212,6 +216,13 @@ fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
                     Bubble.CANDY -> {
                         drawCircle(jewel ?: fill, r, c)
                         drawCircle(frame, r, c, style = rim)
+                    }
+                    Bubble.PUMPKIN -> pumpkin(Offset(c.x, c.y + RIM.toPx()), r * PUMPKIN_SHARE, ornament, lerp(ornament, lead, RIB_SHADE), stem)
+                    Bubble.BAUBLE -> {
+                        // A bauble: a gold cap above a red ball with a gold rim.
+                        drawRect(accent, Offset(c.x - r * 0.2f, c.y - r - RIM.toPx()), Size(r * 0.4f, r * 0.3f))
+                        drawCircle(ornament, r * BAUBLE_SHARE, Offset(c.x, c.y + r * (1 - BAUBLE_SHARE)))
+                        drawCircle(accent, r * BAUBLE_SHARE, Offset(c.x, c.y + r * (1 - BAUBLE_SHARE)), style = rim)
                     }
                     Bubble.GEM -> {
                         val gem = Path().apply {
@@ -289,3 +300,8 @@ private const val GLYPH_SHARE = 0.5f
 
 /** A heads-up's strength: still readable, clearly not yet. */
 private const val DIM = 0.6f
+
+// The holiday bubbles: a pumpkin's and a bauble's size, as shares of the bubble, and how dark a pumpkin's ribs are.
+private const val PUMPKIN_SHARE = 0.85f
+private const val BAUBLE_SHARE = 0.9f
+private const val RIB_SHADE = 0.35f

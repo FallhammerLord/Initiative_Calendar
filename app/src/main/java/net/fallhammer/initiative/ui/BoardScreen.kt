@@ -145,6 +145,9 @@ fun BoardScreen(vm: BoardViewModel) {
     val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
     val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
     val texture by vm.settings.texture.collectAsStateWithLifecycle()
+    val chosenLook by vm.settings.look.collectAsStateWithLifecycle()
+    val holidayLooks by vm.settings.holidayLooks.collectAsStateWithLifecycle()
+    val holidays by vm.settings.holidays.collectAsStateWithLifecycle()
     val recap by vm.recap.state.collectAsStateWithLifecycle()
     val recopyDue by vm.recopy.due.collectAsStateWithLifecycle()
     val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
@@ -398,8 +401,14 @@ fun BoardScreen(vm: BoardViewModel) {
                 onBoardOnUnlock = vm.settings::setBoardOnUnlock,
                 lockCard = lockCard,
                 onLockCard = vm.settings::setLockCard,
-                lookId = look.id,
+                // The chosen look; the one shown may be a holiday's.
+                lookId = Looks.byId(chosenLook).id,
+                shownId = look.id,
                 onLook = vm.settings::setLook,
+                holidayLooks = holidayLooks,
+                onHolidayLooks = vm.settings::setHolidayLooks,
+                holidays = holidays,
+                onHoliday = vm.settings::setHoliday,
                 ornaments = ornaments,
                 onOrnaments = vm.settings::setOrnaments,
                 texture = texture,
@@ -765,6 +774,11 @@ private fun DayDial(ui: BoardUi) {
     val doneKind = LocalLook.current.doneMark
     val seedColor = LocalLook.current.palette.jewels.firstOrNull() ?: nowColor
     val ornament = Ink.ornament
+    val jewels = LocalLook.current.palette.jewels
+    val ghostColor = jewels.getOrNull(3) ?: Ink.text
+    val jewelLast = jewels.lastOrNull() ?: nowColor
+    // Candy corn's yellow base: Halloween's fifth jewel.
+    val cornBase = jewels.getOrNull(4) ?: nowColor
     val coinColor = Ink.accent
     val coinHole = Ink.surface
     Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT).semantics { contentDescription = description }) {
@@ -826,6 +840,8 @@ private fun DayDial(ui: BoardUi) {
                 }
                 DoneMark.HEART -> drawMark(heartPath(c, COIN.toPx()), coinColor)
                 DoneMark.SPARKLE -> drawMark(sparklePath(c, COIN.toPx() * SPARKLE_REACH), ornament)
+                DoneMark.GHOST -> ghost(Offset(c.x, c.y - COIN.toPx() * 0.3f), COIN.toPx() * GHOST_SIZE, ghostColor, hollowColor)
+                DoneMark.SNOWFLAKE -> snowflake(c, COIN.toPx() * SPARKLE_REACH * 0.8f, anchorColor, ARC_WIDTH.toPx() * 0.6f)
                 DoneMark.TICK ->
                     drawLine(doneColor, Offset(c.x, c.y - TICK.toPx()), Offset(c.x, c.y + TICK.toPx()), strokeWidth = ARC_WIDTH.toPx())
             }
@@ -866,6 +882,22 @@ private fun DayDial(ui: BoardUi) {
             charm(heartPath(mid, tall * CHARM_SIZE), nowColor, DOWN)
         } else if (pointerKind == Pointer.STAR) {
             charm(starPath(mid, tall * CHARM_SIZE * 1.2f), ornament, UP)
+        } else if (pointerKind == Pointer.TREE) {
+            charm(treePath(Offset(mid.x, mid.y - tall * 0.5f), tall), jewelLast, UP)
+        } else if (pointerKind == Pointer.CANDY_CORN) {
+            // A candy corn: the pointer's own triangle in three bands, white at the tip.
+            val corn = listOf(1f to cornBase, 0.66f to ornament, 0.33f to anchorColor)
+            corn.forEach { (share, color) ->
+                val bx = tipX + nx * tall * share
+                val by = tipY + ny * tall * share
+                val band = Path().apply {
+                    moveTo(tipX, tipY)
+                    lineTo(bx - tx * half * share, by - ty * half * share)
+                    lineTo(bx + tx * half * share, by + ty * half * share)
+                    close()
+                }
+                if (inDay) drawPath(band, color) else if (share == 1f) drawPath(band, nowColor, style = Stroke(ARC_WIDTH.toPx() / 2))
+            }
         } else if (pointerKind == Pointer.SEED) {
             // A pomegranate seed: round at the back, coming to a point at now.
             val seed = Path().apply {
@@ -1181,6 +1213,7 @@ private const val SEED_WIDTH = 1.3f
 private const val SPARKLE_REACH = 1.6f
 private const val CHARM_SIZE = 0.55f
 private const val DOWN = 90f
+private const val GHOST_SIZE = 3f
 private const val UP = -90f
 
 /** Waitmarks shown at once; the rest wait their turn. */

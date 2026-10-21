@@ -114,6 +114,13 @@
     <string name="look_glass">Stained glass</string>
     <string name="look_pastel">Pastel</string>
     <string name="look_starlight">Starlight</string>
+    <string name="look_halloween">Halloween</string>
+    <string name="look_christmas">Christmas</string>
+    <string name="section_holidays">Holiday looks</string>
+    <string name="setting_holiday_looks">Change with the holidays</string>
+    <string name="holiday_looks_hint">Off unless you turn it on. When on, the board wears each holiday you tick for its days, then goes back to %1$s.</string>
+    <string name="holiday_halloween_days">Oct 1 to Nov 1</string>
+    <string name="holiday_christmas_days">Dec 1 to 26</string>
     <string name="setting_ornaments">Ornaments</string>
     <string name="setting_ornaments_hint">The background pattern, corner details, and the All done flourish.</string>
     <string name="setting_texture">Texture strength</string>

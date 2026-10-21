@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import initiative.core.Holiday
 import initiative.core.Lapse
 import initiative.core.QuietHours
 import initiative.core.Recopy
@@ -52,6 +53,17 @@ class Prefs(private val context: Context) {
     var ornaments: Boolean
         get() = prefs.getBoolean(ORNAMENTS, true)
         set(value) = prefs.edit().putBoolean(ORNAMENTS, value).apply()
+
+    /** Holiday looks: off unless turned on, so the board never changes unasked. */
+    var holidayLooks: Boolean
+        get() = prefs.getBoolean(HOLIDAY_LOOKS, false)
+        set(value) = prefs.edit().putBoolean(HOLIDAY_LOOKS, value).apply()
+
+    /** Which holidays wear their look while holiday looks are on; all of them until some are unticked. */
+    var holidays: Set<Holiday>
+        get() = prefs.getStringSet(HOLIDAYS, null)?.mapNotNull { n -> Holiday.entries.firstOrNull { it.name == n } }?.toSet()
+            ?: Holiday.entries.toSet()
+        set(value) = prefs.edit().putStringSet(HOLIDAYS, value.map { it.name }.toSet()).apply()
 
     /** A look's background pattern strength, in percent; each look keeps its own. Half by default. */
     fun texture(look: String): Int = prefs.getInt("$TEXTURE.$look", DEFAULT_TEXTURE)
@@ -190,6 +202,8 @@ class Prefs(private val context: Context) {
         const val LOOK = "look"
         const val ORNAMENTS = "ornaments"
         const val TEXTURE = "texture"
+        const val HOLIDAY_LOOKS = "holiday_looks"
+        const val HOLIDAYS = "holidays"
         const val DEFAULT_TEXTURE = 50
         const val ASKED_NOTIFICATIONS = "askedNotifications"
         const val QUIET_ON = "quietOn"

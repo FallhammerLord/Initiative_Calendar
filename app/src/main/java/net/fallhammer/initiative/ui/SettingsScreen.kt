@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import initiative.core.Formats
+import initiative.core.Holiday
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.QuietSetting
@@ -38,7 +39,12 @@ fun SettingsScreen(
     lockCard: Boolean,
     onLockCard: (Boolean) -> Unit,
     lookId: String,
+    shownId: String,
     onLook: (String) -> Unit,
+    holidayLooks: Boolean,
+    onHolidayLooks: (Boolean) -> Unit,
+    holidays: Set<Holiday>,
+    onHoliday: (Holiday, Boolean) -> Unit,
     ornaments: Boolean,
     onOrnaments: (Boolean) -> Unit,
     texture: Int,
@@ -97,8 +103,8 @@ fun SettingsScreen(
                 ) { onLook(Looks.all[it].id) }
                 SettingSwitch(stringResource(R.string.setting_ornaments), ornaments, onOrnaments)
                 Body(stringResource(R.string.setting_ornaments_hint), style = Type.bodySmall)
-                // The pattern's strength, for looks that have one: lighter when text over it feels busy.
-                if (ornaments && Looks.byId(lookId).patterned) {
+                // The pattern's strength, for the look on screen, if it has one: lighter when text over it feels busy.
+                if (ornaments && Looks.byId(shownId).patterned) {
                     SettingSlider(
                         stringResource(R.string.setting_texture),
                         stringResource(R.string.percent, texture),
@@ -106,6 +112,16 @@ fun SettingsScreen(
                         0..100 step TEXTURE_STEP,
                         onTexture,
                     )
+                }
+            }
+            // Off unless turned on: the board never changes its look unasked.
+            Section(stringResource(R.string.section_holidays)) {
+                SettingSwitch(stringResource(R.string.setting_holiday_looks), holidayLooks, onHolidayLooks)
+                Body(stringResource(R.string.holiday_looks_hint, stringResource(Looks.byId(lookId).label)), style = Type.bodySmall)
+                if (holidayLooks) {
+                    Holiday.entries.forEach { h ->
+                        CheckRow(stringResource(holidayName(h)), stringResource(holidayDays(h)), h in holidays) { onHoliday(h, it) }
+                    }
                 }
             }
             Section(stringResource(R.string.section_alarms)) {
@@ -186,6 +202,16 @@ private fun openReleases(context: Context) {
 }
 
 private const val RELEASES = "https://github.com/FallhammerLord/Initiative_Calendar/releases/latest"
+
+private fun holidayName(h: Holiday): Int = when (h) {
+    Holiday.HALLOWEEN -> R.string.look_halloween
+    Holiday.CHRISTMAS -> R.string.look_christmas
+}
+
+private fun holidayDays(h: Holiday): Int = when (h) {
+    Holiday.HALLOWEEN -> R.string.holiday_halloween_days
+    Holiday.CHRISTMAS -> R.string.holiday_christmas_days
+}
 
 /** A labelled group of settings. */
 @Composable

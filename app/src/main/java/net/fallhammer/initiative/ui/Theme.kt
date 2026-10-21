@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import initiative.core.Holiday
 import initiative.core.Trio
 import net.fallhammer.initiative.R
 
@@ -82,25 +83,31 @@ enum class Pattern {
 
     /** Scattered four-point sparkles and specks in the palette's jewels (Starlight). */
     SPARKLES,
+
+    /** One big spiderweb from the top corner, a faint moon, and a few bats (Halloween). */
+    WEB,
+
+    /** A knit sweater's bands: zigzags, diamonds, snowflakes, and dots (Christmas). */
+    KNIT,
 }
 
 /** What crowns the Now card at its top. */
-enum class Crown { NONE, ROSE, BOW, BROOCH }
+enum class Crown { NONE, ROSE, BOW, BROOCH, PUMPKIN, HOLLY }
 
 /** Small ornaments in each card's top corners. */
-enum class Corners { NONE, BRACKETS, SPARKLES }
+enum class Corners { NONE, BRACKETS, SPARKLES, COBWEB, SNOW }
 
 /** The dial's mark for now, under the arc. */
-enum class Pointer { TRIANGLE, SEED, HEART, STAR }
+enum class Pointer { TRIANGLE, SEED, HEART, STAR, CANDY_CORN, TREE }
 
 /** The dial's mark for each thing done. */
-enum class DoneMark { TICK, COIN, HEART, SPARKLE }
+enum class DoneMark { TICK, COIN, HEART, SPARKLE, GHOST, SNOWFLAKE }
 
 /** The All done flourish: the pattern's own (a ring, a sunburst, a rose window), or its own burst. */
-enum class Flourish { NONE, PATTERN, HEARTS, SPARKLES }
+enum class Flourish { NONE, PATTERN, HEARTS, SPARKLES, BATS, SNOW }
 
 /** A marker bubble's shape. */
-enum class Bubble { HEX, CIRCLE, MEDALLION, ROUNDEL, CANDY, GEM }
+enum class Bubble { HEX, CIRCLE, MEDALLION, ROUNDEL, CANDY, GEM, PUMPKIN, BAUBLE }
 
 /** The Apps handle's fixture and emblem, and the waitmark bookmark's end. */
 enum class HandleStyle {
@@ -121,6 +128,12 @@ enum class HandleStyle {
 
     /** A star compact on a ribbon rail; a ribbon's notched end. */
     COMPACT,
+
+    /** A witch's hat on a string of pennants; a pennant's point. */
+    HAT,
+
+    /** A gift box on a string of lights; a ribbon's notched end. */
+    GIFT,
 }
 
 data class Look(
@@ -193,7 +206,7 @@ class BookmarkShape(private val style: HandleStyle) : Shape {
         val path = Path().apply {
             moveTo(w, 0f)
             when (style) {
-                HandleStyle.CLAMP -> {
+                HandleStyle.CLAMP, HandleStyle.HAT -> {
                     lineTo(h * BOOKMARK_CUT, 0f)
                     lineTo(0f, h / 2)
                     lineTo(h * BOOKMARK_CUT, h)
@@ -216,7 +229,7 @@ class BookmarkShape(private val style: HandleStyle) : Shape {
                     lineTo(3 * s, h)
                 }
                 // A ribbon's end, notched in.
-                HandleStyle.COMPACT -> {
+                HandleStyle.COMPACT, HandleStyle.GIFT -> {
                     lineTo(0f, 0f)
                     lineTo(h * BOOKMARK_NOTCH, h / 2)
                     lineTo(0f, h)
@@ -450,7 +463,90 @@ object Looks {
         came = 2.dp,
     )
 
-    val all = listOf(SciFi, Classic, Deco, Glass, Pastel, Starlight)
+    /**
+     * Cute Halloween: a deep purple night, pumpkin orange, and lilac. A big web
+     * behind every screen with a faint moon and a few bats; cobwebs in each
+     * card's top corners. A jack-o'-lantern crowns the Now card, the dial keeps
+     * time with a candy corn, and things done are little ghosts. Markers are
+     * pumpkins; the Apps button is a witch's hat on a string of pennants; All
+     * done sends bats fluttering up.
+     */
+    val Halloween = Look(
+        id = "halloween",
+        label = R.string.look_halloween,
+        palette = Palette(
+            bg = Color(0xFF1A1226),
+            surface = Color(0xFF2A1D3A),
+            text = Color(0xFFFFF3E6),
+            dim = Color(0xFFE9D3C0),
+            accent = Color(0xFFFFA94D),
+            onAccent = Color(0xFF2A1205),
+            frame = Color(0xFF9B6BCB),
+            pattern = Color(0xFF9B6BCB),
+            jewels = listOf(Color(0xFFFFA94D), Color(0xFFB98CE8), Color(0xFF9EE37D), Color(0xFFFFF3E6), Color(0xFFFBE07A)),
+            ornament = Color(0xFFFFA94D),
+        ),
+        cardShape = RoundedCornerShape(18.dp),
+        buttonShape = RoundedCornerShape(14.dp),
+        framed = true,
+        accentLabels = true,
+        pattern = Pattern.WEB,
+        corners = Corners.COBWEB,
+        crown = Crown.PUMPKIN,
+        pointer = Pointer.CANDY_CORN,
+        doneMark = DoneMark.GHOST,
+        flourish = Flourish.BATS,
+        bubble = Bubble.PUMPKIN,
+        handle = HandleStyle.HAT,
+        nowRise = 16.dp,
+        came = 2.dp,
+    )
+
+    /**
+     * Cozy Christmas: pine green with candy red and gold. A knit sweater's bands
+     * behind every screen, and snow along each card's top. Holly crowns the Now
+     * card, the dial keeps time with a little tree, and things done are
+     * snowflakes. Markers are baubles; the Apps button is a gift on a string of
+     * lights; All done is a short snowfall.
+     */
+    val Christmas = Look(
+        id = "christmas",
+        label = R.string.look_christmas,
+        palette = Palette(
+            bg = Color(0xFF0F261A),
+            surface = Color(0xFF183726),
+            text = Color(0xFFFFF8EE),
+            dim = Color(0xFFE8DBC6),
+            accent = Color(0xFFF6CB62),
+            onAccent = Color(0xFF2A1A05),
+            frame = Color(0xFFD2554D),
+            pattern = Color(0xFFE0463F),
+            jewels = listOf(Color(0xFFE0463F), Color(0xFFF6CB62), Color(0xFFFFF8EE), Color(0xFF9FD8B5)),
+            ornament = Color(0xFFE0463F),
+        ),
+        cardShape = RoundedCornerShape(20.dp),
+        buttonShape = RoundedCornerShape(14.dp),
+        framed = true,
+        accentLabels = true,
+        pattern = Pattern.KNIT,
+        corners = Corners.SNOW,
+        crown = Crown.HOLLY,
+        pointer = Pointer.TREE,
+        doneMark = DoneMark.SNOWFLAKE,
+        flourish = Flourish.SNOW,
+        bubble = Bubble.BAUBLE,
+        handle = HandleStyle.GIFT,
+        nowRise = 16.dp,
+        came = 2.dp,
+    )
+
+    val all = listOf(SciFi, Classic, Deco, Glass, Pastel, Starlight, Halloween, Christmas)
+
+    /** The look a holiday wears. */
+    fun of(holiday: Holiday): Look = when (holiday) {
+        Holiday.HALLOWEEN -> Halloween
+        Holiday.CHRISTMAS -> Christmas
+    }
 
     fun byId(id: String?): Look = all.firstOrNull { it.id == id } ?: SciFi
 }

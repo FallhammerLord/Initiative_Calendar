@@ -2,9 +2,12 @@ package net.fallhammer.initiative.ui
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -149,7 +152,232 @@ fun Modifier.burst(kind: Flourish, colors: List<Color>, center: Color, pulse: ()
                 }
                 drawPath(starPath(p.center, STAR_HEART.toPx() * (0.5f + p.progress)), center.copy(alpha = fade))
             }
+            Flourish.BATS -> repeat(BURST_COUNT) { k ->
+                val drift = (k - BURST_COUNT / 2f) * BURST_SPREAD.toPx() * 2
+                val rise = far * BURST_RISE * p.progress * (0.6f + 0.4f * ((k * 7) % 5) / 4f)
+                val c = Offset(p.center.x + drift * p.progress, p.center.y - rise)
+                drawPath(batPath(c, (14f + (k % 3) * 5f) * unit), colors[k % colors.size].copy(alpha = fade))
+            }
+            // Snow drifts down over the Now card and settles.
+            Flourish.SNOW -> repeat(BURST_COUNT * 2) { k ->
+                val x = p.center.x + (k - BURST_COUNT) * BURST_SPREAD.toPx() * 2.5f
+                val fall = far * BURST_RISE * (0.3f + 0.7f * p.progress) * (0.5f + 0.5f * ((k * 7) % 5) / 4f)
+                val c = Offset(x + 6 * unit * sin(k + p.progress * 6), p.center.y - far * BURST_RISE + fall)
+                snowflake(c, (4f + (k % 3) * 2f) * unit, center.copy(alpha = fade), 1.4f * unit)
+            }
             else -> Unit
+        }
+    }
+}
+
+/** A small bat, wings out, [w] wide. */
+fun batPath(c: Offset, w: Float): Path {
+    val k = w / 24f
+    fun x(v: Float) = c.x + v * k
+    fun y(v: Float) = c.y + v * k
+    return Path().apply {
+        moveTo(x(-12f), y(-2f))
+        cubicTo(x(-8f), y(-8f), x(-4f), y(-6f), x(-2f), y(-3f))
+        lineTo(x(-1f), y(-6f))
+        lineTo(x(0f), y(-4f))
+        lineTo(x(1f), y(-6f))
+        lineTo(x(2f), y(-3f))
+        cubicTo(x(4f), y(-6f), x(8f), y(-8f), x(12f), y(-2f))
+        cubicTo(x(9f), y(-2f), x(8f), y(1f), x(6f), y(2f))
+        cubicTo(x(5f), y(0f), x(3f), y(0f), x(2f), y(2f))
+        cubicTo(x(1f), y(4f), x(-1f), y(4f), x(-2f), y(2f))
+        cubicTo(x(-3f), y(0f), x(-5f), y(0f), x(-6f), y(2f))
+        cubicTo(x(-8f), y(1f), x(-9f), y(-2f), x(-12f), y(-2f))
+        close()
+    }
+}
+
+/** A little ghost [h] tall, with two eyes. */
+fun DrawScope.ghost(c: Offset, h: Float, body: Color, eye: Color) {
+    val k = h / 16f
+    val p = Path().apply {
+        moveTo(c.x - 6 * k, c.y + 8 * k)
+        lineTo(c.x - 6 * k, c.y - k)
+        cubicTo(c.x - 6 * k, c.y - 5 * k, c.x - 3 * k, c.y - 8 * k, c.x, c.y - 8 * k)
+        cubicTo(c.x + 3 * k, c.y - 8 * k, c.x + 6 * k, c.y - 5 * k, c.x + 6 * k, c.y - k)
+        lineTo(c.x + 6 * k, c.y + 8 * k)
+        for (i in 0 until 5) lineTo(c.x + (4 - 2 * i) * k, c.y + (if (i % 2 == 0) 6 else 8) * k)
+        close()
+    }
+    drawPath(p, body)
+    drawCircle(eye, 1.1f * k, Offset(c.x - 2 * k, c.y - 2 * k))
+    drawCircle(eye, 1.1f * k, Offset(c.x + 2 * k, c.y - 2 * k))
+}
+
+/** A pumpkin [r] tall from its middle: three lobes and a stem. */
+fun DrawScope.pumpkin(c: Offset, r: Float, fill: Color, rib: Color, stem: Color) {
+    drawRoundRect(stem, Offset(c.x - r * 0.12f, c.y - r * 1.15f), Size(r * 0.24f, r * 0.4f), CornerRadius(r * 0.08f))
+    val line = Stroke(maxOf(1f, r * 0.06f))
+    listOf(-0.42f to 0.62f, 0.42f to 0.62f, 0f to 0.55f).forEach { (dx, rx) ->
+        val ry = if (dx == 0f) 0.9f else 0.86f
+        val tl = Offset(c.x + dx * r - rx * r, c.y - ry * r)
+        val sz = Size(2 * rx * r, 2 * ry * r)
+        drawOval(fill, tl, sz)
+        drawOval(rib, tl, sz, style = line)
+    }
+}
+
+/** A jack-o'-lantern: a pumpkin with a friendly face cut in it. */
+fun DrawScope.jack(c: Offset, r: Float, fill: Color, rib: Color, stem: Color, face: Color) {
+    pumpkin(c, r, fill, rib, stem)
+    listOf(-1f, 1f).forEach { side ->
+        val eye = Path().apply {
+            moveTo(c.x + side * r * 0.48f, c.y - r * 0.05f)
+            lineTo(c.x + side * r * 0.3f, c.y - r * 0.42f)
+            lineTo(c.x + side * r * 0.12f, c.y - r * 0.05f)
+            close()
+        }
+        drawPath(eye, face)
+    }
+    val smile = Path().apply {
+        moveTo(c.x - r * 0.55f, c.y + r * 0.2f)
+        quadraticBezierTo(c.x, c.y + r * 0.75f, c.x + r * 0.55f, c.y + r * 0.2f)
+        quadraticBezierTo(c.x, c.y + r * 0.48f, c.x - r * 0.55f, c.y + r * 0.2f)
+        close()
+    }
+    drawPath(smile, face)
+}
+
+/** A six-armed snowflake reaching [r]. */
+fun DrawScope.snowflake(c: Offset, r: Float, color: Color, width: Float) {
+    for (k in 0 until 6) {
+        val a = Math.toRadians(60.0 * k - 90.0)
+        val end = Offset(c.x + r * cos(a).toFloat(), c.y + r * sin(a).toFloat())
+        drawLine(color, c, end, width, StrokeCap.Round)
+        val m = Offset(c.x + r * 0.6f * cos(a).toFloat(), c.y + r * 0.6f * sin(a).toFloat())
+        listOf(-1, 1).forEach { d ->
+            val b = a + d * Math.toRadians(40.0)
+            drawLine(color, m, Offset(m.x + r * 0.32f * cos(b).toFloat(), m.y + r * 0.32f * sin(b).toFloat()), width, StrokeCap.Round)
+        }
+    }
+}
+
+/** A little tree, point up at [tip], [h] tall with its trunk. */
+fun treePath(tip: Offset, h: Float): Path = Path().apply {
+    val w = h * 0.62f
+    moveTo(tip.x, tip.y)
+    lineTo(tip.x - w * 0.32f, tip.y + h * 0.38f)
+    lineTo(tip.x - w * 0.16f, tip.y + h * 0.38f)
+    lineTo(tip.x - w * 0.5f, tip.y + h * 0.8f)
+    lineTo(tip.x + w * 0.5f, tip.y + h * 0.8f)
+    lineTo(tip.x + w * 0.16f, tip.y + h * 0.38f)
+    lineTo(tip.x + w * 0.32f, tip.y + h * 0.38f)
+    close()
+    addRect(androidx.compose.ui.geometry.Rect(tip.x - h * 0.07f, tip.y + h * 0.8f, tip.x + h * 0.07f, tip.y + h))
+}
+
+/** Holly: two leaves and three berries. */
+fun DrawScope.holly(c: Offset, s: Float, leaf: Color, berry: Color) {
+    listOf(200.0, -20.0).forEach { deg ->
+        val a = Math.toRadians(deg)
+        val end = Offset(c.x + cos(a).toFloat() * s * 1.8f, c.y + sin(a).toFloat() * s * 1.8f)
+        val n = Offset(-sin(a).toFloat() * s * 0.55f, cos(a).toFloat() * s * 0.55f)
+        val mid = Offset((c.x + end.x) / 2, (c.y + end.y) / 2)
+        val p = Path().apply {
+            moveTo(c.x, c.y)
+            quadraticBezierTo(mid.x + n.x, mid.y + n.y, end.x, end.y)
+            quadraticBezierTo(mid.x - n.x, mid.y - n.y, c.x, c.y)
+            close()
+        }
+        drawPath(p, leaf)
+    }
+    drawCircle(berry, s * 0.38f, Offset(c.x - s * 0.3f, c.y - s * 0.35f))
+    drawCircle(berry, s * 0.38f, Offset(c.x + s * 0.35f, c.y - s * 0.3f))
+    drawCircle(berry, s * 0.38f, Offset(c.x, c.y + s * 0.2f))
+}
+
+/**
+ * Halloween's ground: one big web spun from the top left corner over the whole
+ * screen, a faint moon at the top right, and a few bats. Fixed, so it never
+ * shifts between screens.
+ */
+fun Modifier.web(color: Color, moon: Color, ground: Color, bats: List<Color>, strength: Float, pulse: () -> Pulse?): Modifier = drawWithCache {
+    val reach = hypot(size.width, size.height)
+    val rays = (0..8).map { Math.toRadians(it * 11.25) }
+    val path = Path()
+    rays.forEach { a -> path.moveTo(0f, 0f); path.lineTo(reach * cos(a).toFloat(), reach * sin(a).toFloat()) }
+    var ring = WEB_FIRST.toPx()
+    while (ring < reach) {
+        rays.forEachIndexed { i, a ->
+            val x = ring * cos(a).toFloat()
+            val y = ring * sin(a).toFloat()
+            if (i == 0) {
+                path.moveTo(x, y)
+            } else {
+                // Each thread sags a little toward the corner.
+                val m = a - Math.toRadians(5.6)
+                path.quadraticBezierTo(ring * WEB_SAG * cos(m).toFloat(), ring * WEB_SAG * sin(m).toFloat(), x, y)
+            }
+        }
+        ring *= WEB_GROWTH
+    }
+    val unit = 1.dp.toPx()
+    onDrawBehind {
+        if (strength <= 0f) return@onDrawBehind
+        val moonAt = Offset(size.width - WEB_MOON.toPx() * 1.6f, WEB_MOON.toPx() * 3f)
+        drawCircle(moon.copy(alpha = strength * MOON_ALPHA), WEB_MOON.toPx(), moonAt)
+        drawCircle(ground.copy(alpha = strength * MOON_ALPHA), WEB_MOON.toPx(), Offset(moonAt.x + WEB_MOON.toPx() * 0.35f, moonAt.y - WEB_MOON.toPx() * 0.25f))
+        drawPath(path, color.copy(alpha = strength), style = Stroke(1.2f * unit))
+        if (bats.isNotEmpty()) {
+            WEB_BATS.forEachIndexed { i, (fx, fy) ->
+                drawPath(batPath(Offset(fx * size.width, fy * size.height), (16 + i % 3 * 4) * unit), bats[i % bats.size].copy(alpha = strength))
+            }
+        }
+        // All done: one ring of light runs out along the web.
+        val p = pulse() ?: return@onDrawBehind
+        if (p.progress <= 0f || p.progress >= 1f) return@onDrawBehind
+        drawCircle(moon.copy(alpha = (1 - p.progress) * MOON_ALPHA), reach * p.progress / 2, p.center, style = Stroke(2 * unit))
+    }
+}
+
+/**
+ * Christmas's ground: a knit sweater's bands, row after row: zigzags, a row
+ * of diamonds, a row of snowflakes, and a row of dots, in the palette's jewels.
+ */
+fun Modifier.knit(colors: List<Color>, strength: Float): Modifier = drawWithCache {
+    val tile = KNIT_W.toPx()
+    val tall = KNIT_H.toPx()
+    val u = tall / 120f
+    onDrawBehind {
+        if (colors.size < 4 || strength <= 0f) return@onDrawBehind
+        val red = colors[0].copy(alpha = strength)
+        val white = colors[2].copy(alpha = strength)
+        val mint = colors[3].copy(alpha = strength)
+        var ty = 0f
+        while (ty < size.height) {
+            var tx = 0f
+            while (tx < size.width) {
+                for (dx in 0 until 4) {
+                    val x = tx + dx * 15 * u
+                    listOf(20f, 28f).forEach { y ->
+                        val z = Path().apply {
+                            moveTo(x, ty + y * u)
+                            lineTo(x + 7.5f * u, ty + (y - 8) * u)
+                            lineTo(x + 15 * u, ty + y * u)
+                        }
+                        drawPath(z, red, style = Stroke(3 * u))
+                    }
+                    drawCircle(mint, 2.4f * u, Offset(x + 7.5f * u, ty + 104 * u))
+                }
+                listOf(0f, 30f).forEach { dx ->
+                    val d = Path().apply {
+                        moveTo(tx + (dx + 15) * u, ty + 44 * u)
+                        lineTo(tx + (dx + 21) * u, ty + 52 * u)
+                        lineTo(tx + (dx + 15) * u, ty + 60 * u)
+                        lineTo(tx + (dx + 9) * u, ty + 52 * u)
+                        close()
+                    }
+                    drawPath(d, white)
+                    snowflake(Offset(tx + (dx + 15) * u, ty + 82 * u), 6 * u, white, 1.6f * u)
+                }
+                tx += tile
+            }
+            ty += tall
         }
     }
 }
@@ -174,3 +402,17 @@ private const val BURST_RISE = 0.3f
 private const val BURST_REACH = 0.25f
 private val BURST_SPREAD = 8.dp
 private val STAR_HEART = 18.dp
+
+// Halloween's web: the first ring's radius, how much each ring grows, how far
+// threads sag, the moon's size and how faint, and where the bats sit (shares
+// of the screen).
+private val WEB_FIRST = 70.dp
+private const val WEB_GROWTH = 1.45f
+private const val WEB_SAG = 0.9f
+private val WEB_MOON = 40.dp
+private const val MOON_ALPHA = 0.3f
+private val WEB_BATS = listOf(0.78f to 0.25f, 0.18f to 0.62f, 0.85f to 0.72f)
+
+// Christmas's knit: one repeat of the bands.
+private val KNIT_W = 60.dp
+private val KNIT_H = 120.dp

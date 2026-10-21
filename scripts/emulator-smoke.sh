@@ -701,6 +701,41 @@ tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 shot starlight-board
 pass "Starlight look"
+# Halloween: a big web, cobwebs, a jack-o'-lantern on Now, candy corn on the dial.
+open_settings
+tap Halloween exact
+wait_for "Texture strength" exact || fail "the texture slider should show for Halloween"
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot halloween-board
+pass "Halloween look"
+# Christmas: knit bands, snow on each card, holly on Now, a little tree on the dial.
+open_settings
+tap Christmas exact
+wait_for "Texture strength" exact || fail "the texture slider should show for Christmas"
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot christmas-board
+pass "Christmas look"
+# Holiday looks: off until turned on. On, today (Oct 29) wears Halloween over Sci-fi.
+open_settings
+tap Sci-fi exact
+adb shell input swipe 540 1700 540 900 300
+sleep 1
+tap "Change with the holidays" exact
+wait_for "Oct 1 to Nov 1" exact || fail "the holidays should list once holiday looks are on"
+shot holiday-settings
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot holiday-board
+open_settings
+adb shell input swipe 540 1700 540 900 300
+sleep 1
+tap "Change with the holidays" exact
+wait_gone "Oct 1 to Nov 1" exact || fail "the holidays should hide once holiday looks are off"
+pass "holiday looks switch on and off"
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
 # About: the build and the Update button, which only opens the browser.
 open_settings
 adb shell input swipe 540 1800 540 300 300

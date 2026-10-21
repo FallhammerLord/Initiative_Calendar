@@ -246,7 +246,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                     graph.dao.shortenQuickDefaults(Item.DEFAULT_DURATION, Item.QUICK_DURATION)
                     prefs.quickDefaultsShortened = true
                 }
-                settings.load(prefs)
+                settings.load(prefs, now.toLocalDate())
                 order.value = prefs.taskOrder
                 backup.load(prefs)
                 recopy.load(prefs, now)

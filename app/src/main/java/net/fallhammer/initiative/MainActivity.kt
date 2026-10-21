@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         bars(light = false)
         setContent {
-            val look by vm.settings.look.collectAsStateWithLifecycle()
+            val look by vm.settings.shown.collectAsStateWithLifecycle()
             val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
             val texture by vm.settings.texture.collectAsStateWithLifecycle()
             // A light look gets dark status bar icons, so the clock and battery stay readable.
