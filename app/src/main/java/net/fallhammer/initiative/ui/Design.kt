@@ -408,14 +408,21 @@ private fun ButtonText(label: String, color: Color = Color.Unspecified, weight: 
 }
 
 /**
- * A row of actions. At large system font sizes the buttons stack full-width,
- * so no label is ever cut mid-word.
+ * A row of actions. At large system font sizes the first (the primary) takes a
+ * full row and the rest share the row under it, so no label is cut mid-word
+ * and three buttons take two rows, not three.
  */
 @Composable
 fun ActionRow(vararg actions: Action) {
     if (LocalDensity.current.fontScale > LARGE_FONT) {
         Column(verticalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
-            actions.forEach { it.content(Modifier.fillMaxWidth()) }
+            actions.firstOrNull()?.content?.invoke(Modifier.fillMaxWidth())
+            val rest = actions.drop(1)
+            if (rest.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
+                    rest.forEach { it.content(Modifier.weight(it.weight)) }
+                }
+            }
         }
     } else {
         Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {

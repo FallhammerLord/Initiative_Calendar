@@ -85,6 +85,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -531,9 +532,12 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit) {
     Strip(Modifier.clickable(onClickLabel = label, onClick = onOpen)) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // At large font sizes the clock steps aside (the status bar has it), so Now has room.
                 Column(Modifier.weight(1f)) {
-                    Text(Formats.clock(now), style = if (large) Type.heading else Type.title, color = Ink.text)
-                    if (!large) Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
+                    if (!large) {
+                        Text(Formats.clock(now), style = Type.title, color = Ink.text)
+                        Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
+                    }
                 }
                 Text(label, style = Type.bodySmall, color = Ink.accent)
                 Text(
@@ -747,8 +751,10 @@ private fun DayBar(ui: BoardUi, open: Boolean, onToggle: () -> Unit, modifier: M
         else -> stringResource(R.string.next_float, next.title)
     }
     val tap = modifier.clickable(onClickLabel = stringResource(if (open) R.string.day_close else R.string.day_open), onClick = onToggle)
+    // One line at large font sizes, so the Now card above keeps room for its title.
+    val lines = if (LocalDensity.current.fontScale > LARGE_FONT) 1 else 2
     val content: @Composable RowScope.() -> Unit = {
-        Body(text, Modifier.weight(1f), color = Ink.text)
+        Text(text, style = Type.body, color = Ink.text, maxLines = lines, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Text(
             stringResource(if (open) R.string.day_close_mark else R.string.day_open_mark),
             style = Type.body,

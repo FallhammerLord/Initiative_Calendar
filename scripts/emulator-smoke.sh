@@ -910,6 +910,10 @@ adb shell settings put system font_scale 2.0
 home
 sleep 2
 shot large-font-board
+# Now's title must stay in view at 200% font, not squeezed out by the buttons.
+read -r _ ty1 _ ty2 < <(node_bounds "dentist call") || fail "Now's title missing at 200% font"
+[ $(( ty2 - ty1 )) -gt 40 ] || fail "Now's title squeezed out at 200% font"
+pass "Now's title shows at 200% font"
 tap "Plan ahead"
 wait_for "Back to board" exact || fail "the Log should open at 200% font"
 shot log-large-day
