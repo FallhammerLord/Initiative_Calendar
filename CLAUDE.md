@@ -85,6 +85,11 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
   in screens, `SavedStateHandle` in the view model).
 - Times are wall-clock with no zone; turn them into real moments only through
   `WallClock` in `core/`.
+- `emulator-smoke.sh` doesn't stop at a failure: `fail` records it (line, last
+  passing check, a screenshot `zz-failure-N.png`) and the run goes on, listing
+  every failure at the end; it stops after 10. Fix the first one first: later
+  ones may follow from it. A step that can't go on without what failed still
+  needs its own `|| return`, or a variable set before it's used.
 - In `emulator-smoke.sh`, check with `expect_text`, `wait_for`, and `wait_gone`,
   which wait for the screen to settle, rather than a single `see`.
 

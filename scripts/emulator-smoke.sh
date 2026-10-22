@@ -9,6 +9,13 @@ OUT=$2
 PKG=net.fallhammer.initiative
 mkdir -p "$OUT"
 STEP=0
+# Failures are collected, not fatal: the run goes on and lists them all at the end.
+# One failure can leave the phone in a state later steps don't expect, so the first
+# is the one to trust; past MAX_FAILS the rest is likely knock-on, and the run stops.
+FAILS=()
+FAILED_STEP=0
+MAX_FAILS=10
+LAST_PASS="the start"
 
 log() { echo "$*" | tee -a "$OUT/steps.log"; }
 
@@ -51,18 +58,57 @@ PY
 }
 
 fail() {
-  log "FAIL: $*"
+  local n=$(( ${#FAILS[@]} + 1 )) line=${BASH_LINENO[0]}
+  FAILS+=("line $line, after '$LAST_PASS': $*")
+  FAILED_STEP=1
+  log "FAIL $n (line $line): $*"
   log "--- app log ---"
   adb logcat -d -s Initiative:V | tail -20 | tee -a "$OUT/steps.log"
-  adb shell dumpsys notification --noredact > "$OUT/notifications.txt"
-  adb exec-out screencap -p > "$OUT/zz-failure.png"
-  ui > "$OUT/zz-failure-ui.xml" || true
-  adb shell dumpsys input_method > "$OUT/ime-at-failure.txt" || true
+  adb shell dumpsys notification --noredact > "$OUT/notifications-$n.txt"
+  adb exec-out screencap -p > "$OUT/zz-failure-$n.png"
+  ui > "$OUT/zz-failure-$n-ui.xml" || true
+  adb shell dumpsys input_method > "$OUT/ime-at-failure-$n.txt" || true
   adb logcat -d > "$OUT/logcat.txt"
+  [ "$n" -ge "$MAX_FAILS" ] && finish
+  return 1
+}
+
+# A check whose steps failed says so, rather than "ok".
+pass() {
+  if [ "$FAILED_STEP" = 1 ]; then
+    log "--   not passed: $*"
+    FAILED_STEP=0
+  else
+    log "ok   $*"
+    LAST_PASS=$*
+  fi
+}
+
+# Lists every failure, and exits 1 if there were any.
+finish() {
+  DONE=1
+  adb logcat -d > "$OUT/logcat.txt"
+  if [ ${#FAILS[@]} -eq 0 ]; then
+    log "all checks passed"
+    exit 0
+  fi
+  log ""
+  log "=== ${#FAILS[@]} failed (the first is the one to trust; later ones may follow from it) ==="
+  [ ${#FAILS[@]} -ge "$MAX_FAILS" ] && log "    stopped after $MAX_FAILS: the rest is likely knock-on"
+  local i
+  for i in "${!FAILS[@]}"; do log "  $((i + 1)). ${FAILS[$i]}"; done
   exit 1
 }
 
-pass() { log "ok   $*"; }
+# If the script itself stops early (an unset variable, say), the list still prints.
+DONE=0
+on_exit() {
+  local rc=$?
+  [ "$DONE" = 1 ] && return
+  FAILS+=("the script stopped early, after '$LAST_PASS' (exit $rc)")
+  finish
+}
+trap on_exit EXIT
 
 ui() {
   adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
@@ -325,8 +371,11 @@ pick_theme() {
 
 crash_check() {
   if adb logcat -d -b crash | grep -q "$PKG"; then
-    adb logcat -d -b crash > "$OUT/crash.txt"
-    fail "app crashed (see crash.txt)"
+    local n=$(( ${#FAILS[@]} + 1 ))
+    adb logcat -d -b crash > "$OUT/crash-$n.txt"
+    # Cleared once kept, so the next check only sees a new crash.
+    adb logcat -b crash -c
+    fail "app crashed (see crash-$n.txt)"
   fi
   pass "no crashes so far"
   strict_check
@@ -342,7 +391,8 @@ strict_check() {
   adb logcat -d --pid="$pid" -s StrictMode:D > "$OUT/strictmode.txt"
   # A violation counts when its stack passes through app or library code. Ones
   # raised entirely inside Android (such as its own window-surface cleanup) don't.
-  python3 - "$OUT/strictmode.txt" <<'PY' | tee -a "$OUT/steps.log" || fail "StrictMode: main-thread write, network, or leaked handle in app code (see strictmode.txt)"
+  # Each violation is reported once: ones already in strictmode-seen.txt are skipped.
+  python3 - "$OUT/strictmode.txt" "$OUT/strictmode-seen.txt" <<'PY' | tee -a "$OUT/steps.log" || fail "StrictMode: main-thread write, network, or leaked handle in app code (see strictmode.txt)"
 import re, sys
 SERIOUS = ("DiskWriteViolation", "NetworkViolation", "LeakedClosableViolation", "SqliteObjectLeakedViolation")
 PLATFORM = ("android.", "java.", "javax.", "libcore.", "com.android.", "dalvik.", "sun.", "jdk.internal.")
@@ -356,8 +406,17 @@ for line in open(sys.argv[1], errors="replace"):
         if m:
             cur["frames"].append(m.group(1))
 ours = [b for b in blocks if b["kind"] and any(not f.startswith(PLATFORM) for f in b["frames"])]
+import os
+seen_path = sys.argv[2]
+seen = set(open(seen_path).read().split("\n")) if os.path.exists(seen_path) else set()
+def sig(b):
+    return b["kind"] + " via " + next(f for f in b["frames"] if not f.startswith(PLATFORM))
+ours = [b for b in ours if sig(b) not in seen]
+with open(seen_path, "a") as out:
+    for b in ours:
+        out.write(sig(b) + "\n")
 for b in ours:
-    print("    ", b["kind"], "via", next(f for f in b["frames"] if not f.startswith(PLATFORM)))
+    print("    ", sig(b))
 reads = sum(b["read"] for b in blocks)
 print(f"     StrictMode: {len(ours)} serious in app code, {reads} main-thread reads noted, "
       f"{sum(1 for b in blocks if b['kind']) - len(ours)} inside Android only")
@@ -1234,5 +1293,4 @@ adb shell settings put system font_scale 1.0
 home
 crash_check
 
-adb logcat -d > "$OUT/logcat.txt"
-log "all checks passed"
+finish
