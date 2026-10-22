@@ -32,6 +32,7 @@ class SettingsScreenTest {
 
     private var look = ""
     private var holidayLooks: Boolean? = null
+    private var paired = false
 
     private fun show(holidaysOn: Boolean = false) {
         compose.setContent {
@@ -41,7 +42,7 @@ class SettingsScreenTest {
                     lookId = "scifi", shownId = "scifi", onLook = { look = it },
                     holidayLooks = holidaysOn, onHolidayLooks = { holidayLooks = it },
                     holidays = Holiday.entries.toSet(), onHoliday = { _, _ -> },
-                    peers = emptyList(), peeks = emptyMap(), now = LocalDateTime.of(2026, 10, 29, 12, 0), onOpenPair = {},
+                    peers = emptyList(), peeks = emptyMap(), now = LocalDateTime.of(2026, 10, 29, 12, 0), onOpenPair = {}, onPair = { paired = true },
                     ornaments = true, onOrnaments = {}, texture = 50, onTexture = {},
                     quiet = QuietSetting(), onQuiet = {}, lapseHours = 24, onLapseHours = {}, recopyDays = 7, onRecopyDays = {},
                     backup = BackupState(), onBackupFolder = {}, onBackUpNow = {}, onRestoreFile = {},
@@ -69,6 +70,12 @@ class SettingsScreenTest {
         show(holidaysOn = true)
         compose.onNodeWithText("Oct 1 to Nov 1").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Dec 1 to 26").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun pairWithSomeoneStartsPairing() {
+        show()
+        compose.onNodeWithText("Pair with someone").performScrollTo().tap()
+        assertEquals(true, paired)
     }
 
     @Test fun endsWithUpdate() {
