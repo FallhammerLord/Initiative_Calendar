@@ -1180,22 +1180,13 @@ wait_for "Day report ·" || fail "Back from the share menu should return to the 
 tap Close exact
 wait_for "Earlier" exact || fail "Close should return to the Log"
 pass "the day's report opens, shares, and closes"
-# Repeats lists every running series, in place of the days.
+# Zooms, paging, Repeats, + Add, and search are checked in LogScreenTest; here,
+# each view once for the screenshots and the TalkBack sweep.
 tap Repeats exact
 wait_for "Days" exact || fail "Repeats should show the series list"
 shot repeats
 tap Days exact
 wait_for "Earlier" exact || fail "Days should bring the days back"
-pass "the Repeats list opens and closes"
-# + Add swaps search for quick-add aimed at the day in view; Search swaps back.
-tap "+ Add" exact
-wait_for "Add to today" || fail "+ Add should open quick-add for today"
-quick_add "pack lunch"
-expect_text "pack lunch"
-hide_keyboard
-tap Search exact
-wait_for "Search everything" || fail "Search should bring the search box back"
-pass "+ Add takes a new task for the day in view, and Search returns"
 tap Week exact
 expect_text "dentist call"
 shot log-week
@@ -1205,21 +1196,9 @@ shot log-month
 tap Year exact
 year=$(adb shell date +%Y | tr -d '\r')
 wait_for "$year" exact || fail "the Year view should show $year"
-tap Later exact
-wait_for "$((year + 1))" exact || fail "Later should flip the Year view to next year"
-pass "the Log zooms out and flips to next year"
-shot log-next-year
-# Search filters as you type, so no Enter: type, then close the keyboard with
-# Back while it's surely open (Back with the keyboard down would close the Log).
-xy=$(find_node android.widget.EditText class) || fail "no search box in the Log"
-adb shell input tap $xy
-for _ in 1 2 3 4 5 6; do ime_shown && break; sleep 0.5; done
-adb shell input text landlord
-wait_for "landlord" field || fail "couldn't type into the Log's search"
-expect_text "call landlord · done"
-ime_shown && adb shell input keyevent KEYCODE_BACK
-sleep 1
-shot log-search
+shot log-year
+tap Day exact
+wait_for "Day report" exact || fail "Day should bring the day back"
 adb shell input keyevent KEYCODE_BACK
 wait_gone "Back to board" exact || fail "Back should close the Log"
 expect_text "Plan ahead"
