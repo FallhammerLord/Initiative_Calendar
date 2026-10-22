@@ -4,7 +4,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import initiative.core.Holiday
 import net.fallhammer.initiative.data.QuietSetting
@@ -18,12 +20,15 @@ import java.time.LocalDateTime
 
 /**
  * Settings, checked as a screen: found by what things say, scrolled to before
- * they're touched, so a longer screen never breaks the test.
+ * they're touched, so a longer screen never breaks the test. Taps use each
+ * thing's own click action, as TalkBack does; real touch is the emulator's part.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class SettingsScreenTest {
     @get:Rule val compose = createComposeRule()
+
+    private fun SemanticsNodeInteraction.tap() = performSemanticsAction(SemanticsActions.OnClick)
 
     private var look = ""
     private var holidayLooks: Boolean? = null
@@ -48,14 +53,14 @@ class SettingsScreenTest {
 
     @Test fun themeDropdownPicksALook() {
         show()
-        compose.onNodeWithContentDescription("Theme, Sci-fi").performScrollTo().performClick()
-        compose.onNodeWithText("Halloween").performClick()
+        compose.onNodeWithContentDescription("Theme, Sci-fi").performScrollTo().tap()
+        compose.onNodeWithText("Halloween").tap()
         assertEquals("halloween", look)
     }
 
     @Test fun holidayLooksStartOffAndListTheirDays() {
         show()
-        compose.onNodeWithText("Change with the holidays").performScrollTo().performClick()
+        compose.onNodeWithText("Change with the holidays").performScrollTo().tap()
         assertEquals(true, holidayLooks)
         compose.onNodeWithText("Oct 1 to Nov 1").assertDoesNotExist()
     }
