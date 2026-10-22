@@ -78,7 +78,7 @@
     <string name="drawer_close">Close</string>
     <string name="names_pick">use this name</string>
     <string name="names_forget">forget this name</string>
-    <string name="names_forgot">Forgot "%1$s"</string>
+    <string name="names_forgot">Forgot \"%1$s\"</string>
     <plurals name="names_count">
         <item quantity="one">%1$d name used before</item>
         <item quantity="other">%1$d names used before</item>
