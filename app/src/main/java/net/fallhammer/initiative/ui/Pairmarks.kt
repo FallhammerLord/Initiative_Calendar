@@ -120,6 +120,7 @@ private fun Tab(p: PairView, now: LocalDateTime, onTap: () -> Unit) {
     val shape = remember(look.handle) { BookmarkShape(look.handle, fromLeft = true) }
     val color = PairColors.of(p.peer.color, look.palette)
     val front = stringResource(R.string.pair_to_front)
+    val seen = seenText(p.peek, now)
     Row(
         Modifier
             .heightIn(min = Tap.min)
@@ -127,7 +128,7 @@ private fun Tab(p: PairView, now: LocalDateTime, onTap: () -> Unit) {
             .background(Ink.surface)
             .border(PAIRMARK_EDGE, color, shape)
             .clickable(onClickLabel = front, onClick = onTap)
-            .semantics { contentDescription = "${p.peer.nickname}, ${seenText(p.peek, now)}" }
+            .semantics { contentDescription = "${p.peer.nickname}, $seen" }
             .padding(start = Space.s, end = Space.xl),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.xs),
