@@ -19,7 +19,8 @@ sideloaded, no Google services, no internet. The plan and every rule live in
   Read colors through `Ink` inside composables; capture them into locals
   before drawing on a `Canvas`.
 - `app/schemas/`: saved database layouts, one per version, committed.
-- `scripts/design-guard.sh`: fails on code that bypasses the design system.
+- `scripts/design-guard.sh`: fails on code that bypasses the design system, and
+  (through `scripts/emulator-labels.py`) on an emulator step whose label the app no longer has.
 - `scripts/emulator-smoke.sh`: the emulator test CI runs before any release.
 
 ## Rules that CI enforces
@@ -90,9 +91,14 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
 ## Working on this repo
 
 - Develop on `claude/kind-wright-nwzx7a` (the default branch).
-- The Android SDK isn't reachable from Claude's cloud container; GitHub Actions
-  builds the APK. Fetch emulator screenshots from a release's `screens-N.zip`,
-  or a `failed-N` pre-release when the test fails.
+- The Android SDK installs in Claude's cloud container from `dl.google.com`:
+  command-line tools into `~/android-sdk`, then `sdkmanager "platforms;android-36"
+  "build-tools;35.0.0" "platform-tools"`. With `ANDROID_HOME=~/android-sdk`, run
+  `./gradlew :app:testDebugUnitTest` and `./gradlew :app:lintRelease` before every
+  push; a new database layout file is written there too. Maven Central may answer
+  429 at first: retry after a minute. The emulator test still runs only in CI.
+  Fetch its screenshots from a release's `screens-N.zip`, or a `failed-N`
+  pre-release when it fails.
 - A new push cancels any run still going on the branch, and only the newest
   commit is released. Every failed CI run emails the owner. Batch fixes into one validated push;
   use `[skip ci]` in the commit message for docs-only changes.

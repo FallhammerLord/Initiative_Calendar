@@ -42,7 +42,6 @@ data class ItemRow(
     val end: String?,
     val wall: String,
     val leadMinutes: Int,
-    val partnerAlert: Boolean,
     val durationMinutes: Int,
     val earliestStart: String?,
     val deadline: String?,
@@ -68,6 +67,8 @@ data class ItemRow(
     val icon: String = "FLAG",
     /** Never shared with anyone paired. */
     val neverShare: Boolean = false,
+    /** A side task: see core's Item.side. */
+    val side: Boolean = false,
 )
 
 /**
@@ -304,7 +305,7 @@ interface ItemDao {
 
 @Database(
     entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class, PeerRow::class, ShareRow::class, PeekRow::class],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class InitiativeDb : RoomDatabase() {
@@ -357,9 +358,26 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        /**
+         * Side tasks get their flag; the partner alert, never used, goes. SQLite
+         * can't drop a column on older phones, so the table is copied without it.
+         */
+        internal val ADD_SIDE = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE `items_new` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `titleKey` TEXT NOT NULL, `notes` TEXT NOT NULL, `kind` TEXT NOT NULL, `start` TEXT, `end` TEXT, `wall` TEXT NOT NULL, `leadMinutes` INTEGER NOT NULL, `durationMinutes` INTEGER NOT NULL, `earliestStart` TEXT, `deadline` TEXT, `priority` TEXT NOT NULL, `effort` TEXT NOT NULL, `skipCount` INTEGER NOT NULL, `pinnedSlot` TEXT, `notBefore` TEXT, `recFreq` TEXT, `recInterval` INTEGER NOT NULL, `recDays` TEXT NOT NULL, `templateId` INTEGER, `missPolicy` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `doneAt` TEXT, `activeSince` TEXT, `steps` TEXT NOT NULL, `waitUntil` TEXT, `workedMinutes` INTEGER NOT NULL, `icon` TEXT NOT NULL, `neverShare` INTEGER NOT NULL, `side` INTEGER NOT NULL DEFAULT 0" +
+                        ")",
+                )
+                db.execSQL("INSERT INTO `items_new` (`id`, `title`, `titleKey`, `notes`, `kind`, `start`, `end`, `wall`, `leadMinutes`, `durationMinutes`, `earliestStart`, `deadline`, `priority`, `effort`, `skipCount`, `pinnedSlot`, `notBefore`, `recFreq`, `recInterval`, `recDays`, `templateId`, `missPolicy`, `status`, `createdAt`, `doneAt`, `activeSince`, `steps`, `waitUntil`, `workedMinutes`, `icon`, `neverShare`) SELECT `id`, `title`, `titleKey`, `notes`, `kind`, `start`, `end`, `wall`, `leadMinutes`, `durationMinutes`, `earliestStart`, `deadline`, `priority`, `effort`, `skipCount`, `pinnedSlot`, `notBefore`, `recFreq`, `recInterval`, `recDays`, `templateId`, `missPolicy`, `status`, `createdAt`, `doneAt`, `activeSince`, `steps`, `waitUntil`, `workedMinutes`, `icon`, `neverShare` FROM `items`")
+                db.execSQL("DROP TABLE `items`")
+                db.execSQL("ALTER TABLE `items_new` RENAME TO `items`")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE)
                 .build()
                 .also { instance = it }
         }
@@ -376,7 +394,6 @@ fun Item.toRow() = ItemRow(
     end = end?.toString(),
     wall = wall.name,
     leadMinutes = leadMinutes,
-    partnerAlert = partnerAlert,
     durationMinutes = durationMinutes,
     earliestStart = earliestStart?.toString(),
     deadline = deadline?.toString(),
@@ -399,6 +416,7 @@ fun Item.toRow() = ItemRow(
     workedMinutes = workedMinutes,
     icon = icon.name,
     neverShare = neverShare,
+    side = side,
 )
 
 fun ItemRow.toItem() = Item(
@@ -410,7 +428,6 @@ fun ItemRow.toItem() = Item(
     end = end?.let(LocalDateTime::parse),
     wall = WallStrength.valueOf(wall),
     leadMinutes = leadMinutes,
-    partnerAlert = partnerAlert,
     durationMinutes = durationMinutes,
     earliestStart = earliestStart?.let(LocalDate::parse),
     deadline = deadline?.let(LocalDate::parse),
@@ -437,4 +454,5 @@ fun ItemRow.toItem() = Item(
     workedMinutes = workedMinutes,
     icon = runCatching { MarkIcon.valueOf(icon) }.getOrDefault(MarkIcon.FLAG),
     neverShare = neverShare,
+    side = side,
 )

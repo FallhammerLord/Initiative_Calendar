@@ -41,6 +41,7 @@ import initiative.core.Forecast
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.WallStrength
+import java.time.Duration
 import net.fallhammer.initiative.R
 
 /**
@@ -147,7 +148,17 @@ fun ForecastList(forecast: Forecast, modifier: Modifier, onEdit: (Item) -> Unit,
                 item.title,
                 style = Type.bodySmall.copy(fontWeight = if (item.isAnchor && item.wall == WallStrength.HARD) FontWeight.Bold else FontWeight.Normal),
                 color = if (dragging == item.id) Ink.accent else Ink.text,
+                modifier = Modifier.weight(1f, fill = false),
             )
+            // A task's usual length, so whether it fits shows before it's dragged.
+            if (!item.isAnchor) {
+                Text(
+                    stringResource(R.string.forecast_length, Formats.countdown(Duration.ofMinutes(item.durationMinutes.toLong()))),
+                    style = Type.bodySmall,
+                    color = Ink.dim,
+                    modifier = Modifier.padding(start = Space.xs),
+                )
+            }
         }
     }
 

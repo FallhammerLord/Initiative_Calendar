@@ -8,6 +8,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import initiative.core.Status
 import kotlin.math.atan2
 import kotlin.math.sqrt
 import androidx.compose.ui.draw.drawBehind
@@ -292,7 +295,7 @@ fun BoardScreen(vm: BoardViewModel) {
                       Column(Modifier.padding(top = if (pairmarksShown) pairmarkHeight + Space.inside * 2 else 0.dp)) {
                         // Items stepped aside for a wait: bookmarks from the screen's edge, above the card.
                         if (!keyboardUp) {
-                            Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::switchTo)
+                            Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::tapWaitmark, onHold = vm::done)
                             if (ui.board?.waits.orEmpty().isNotEmpty()) Spacer(Modifier.height(Space.inside))
                         }
                         NowCard(
@@ -525,8 +528,9 @@ fun BoardScreen(vm: BoardViewModel) {
  * it Now (ending its wait early, if it hadn't); the task under way goes back
  * into the day's order. Long names are cut short on screen, never for TalkBack.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Unit) {
+private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Unit, onHold: (Item) -> Unit) {
     if (waits.isEmpty()) return
     val look = LocalLook.current
     val shape = remember(look.handle) { BookmarkShape(look.handle) }
@@ -538,7 +542,9 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
                 key(w.id) {
                     val ready = w.ready(now)
                     val next = w.nextStep
+                    // A side task waits for its appointment, not a clock: it says so, and whether it's started.
                     val text = when {
+                        !ready && w.side -> stringResource(if (w.status == Status.ACTIVE) R.string.waitmark_side_on else R.string.waitmark_side, w.title)
                         !ready -> stringResource(R.string.waitmark_waiting, w.title, Formats.countdown(now, w.waitUntil!!))
                         next != null -> stringResource(R.string.waitmark_ready, w.title, next.title)
                         else -> stringResource(R.string.waitmark_ready_plain, w.title)
@@ -566,10 +572,19 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
                                     if (glint.playing) lookFx(look.fx, glint.t, shine, ornament, ground, look.palette.jewels)
                                 }
                                 .then(if (ready) Modifier else Modifier.border(1.dp, Ink.frame, shape))
-                                .clickable(onClickLabel = stringResource(R.string.waitmark_switch, w.title)) {
-                                    haptics.tick()
-                                    onTap(w)
-                                }
+                                // A side task: a tap starts its clock, holding marks it Done.
+                                .combinedClickable(
+                                    onClickLabel = stringResource(if (w.side && !ready) R.string.waitmark_side_start else R.string.waitmark_switch, w.title),
+                                    onClick = {
+                                        haptics.tick()
+                                        onTap(w)
+                                    },
+                                    onLongClickLabel = if (w.side) stringResource(R.string.waitmark_side_done, w.title) else null,
+                                    onLongClick = if (w.side) ({
+                                        haptics.confirm()
+                                        onHold(w)
+                                    }) else null,
+                                )
                                 .padding(start = Space.xxl, end = Space.xl),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

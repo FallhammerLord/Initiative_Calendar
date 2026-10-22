@@ -47,9 +47,19 @@ data class Moved(val item: Item, val message: String)
 /**
  * Picks the Now card with a fixed, explainable rule. See docs/spec.md, Placement logic.
  */
+/** What a drag to the top does: see [Placement.dragNow]. */
+sealed interface DragNow {
+    /** An appointment holds Now: the task waits beside it, until [until]. */
+    data class Side(val until: LocalDateTime, val anchor: Item) : DragNow
+
+    /** The task starts [at] now; [unpin] lose their pins; [setAside], the task that was Now, goes back into the order. */
+    data class Now(val at: LocalDateTime, val unpin: List<Item>, val setAside: Item?) : DragNow
+}
+
 class Placement(private val window: DayWindow = DayWindow()) {
     private companion object {
         const val FOCUS_FALLBACK_HOURS = 2L
+        const val SIDE_TASK = "Side task"
     }
 
     /** [order] is the person's own task order, by id: a tie breaker when the rules rank tasks equally. */
@@ -65,7 +75,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         var b = pick(items, now, order)
         // A task back from a wait says so, rather than why it ranks.
         b.now.item?.takeIf { it.ready(now) }?.let { back ->
-            b = b.copy(now = NowPick(back, "Ready since ${Formats.clock(back.waitUntil!!)}"))
+            b = b.copy(now = NowPick(back, if (back.side) SIDE_TASK else "Ready since ${Formats.clock(back.waitUntil!!)}"))
         }
         val waits = items.filter { !it.isTemplate && it.isOpen && it.waitUntil != null && it.id != b.now.item?.id }.sortedBy { it.waitUntil }
         b = b.copy(waits = waits)
@@ -82,10 +92,14 @@ class Placement(private val window: DayWindow = DayWindow()) {
             return Board(NowPick(it, "Happening now"), upcoming.firstOrNull())
         }
 
-        // An anchor marked Done on arrival still holds its time: it stays Now until it ends.
+        // An anchor marked Done on arrival still holds its time: it stays Now until it ends,
+        // unless a side task waits beside it; then that's Now.
         live.firstOrNull {
             it.isAnchor && it.status == Status.DONE && it.start != null && !it.start.isAfter(now) && now.isBefore(it.anchorEnd!!)
         }?.let {
+            live.firstOrNull { s -> s.side && s.isOpen && s.waitUntil != null }?.let { side ->
+                return Board(NowPick(side, SIDE_TASK), upcoming.firstOrNull())
+            }
             return Board(NowPick(it, "Done · under way until ${Formats.clock(it.anchorEnd!!)}"), upcoming.firstOrNull())
         }
 
@@ -102,7 +116,10 @@ class Placement(private val window: DayWindow = DayWindow()) {
             !now.isBefore(slot) && now.isBefore(slot.plusMinutes(f.durationMinutes.toLong()))
         }?.let { pin ->
             val after = rank(eligible(floats - pin, now), today, order).firstOrNull()
-            return Board(NowPick(pin, "Pinned to this slot"), nextAnchor ?: after)
+            // Chosen to do now even though it runs into an appointment's warning: said plainly.
+            val warn = nextAnchor?.warnAt?.takeIf { it.isBefore(slot(pin).second) }
+            val why = if (warn != null) "Runs into ${nextAnchor.title}'s warning at ${Formats.clock(warn)}" else "Pinned to this slot"
+            return Board(NowPick(pin, why), nextAnchor ?: after)
         }
 
         if (now.toLocalTime() !in window) {
@@ -243,6 +260,28 @@ class Placement(private val window: DayWindow = DayWindow()) {
     }
 
     /**
+     * A task dragged to the top: "I want to do this now". While an appointment
+     * holds Now (its warning, its time, or done but not over), it can't be put
+     * aside, so the task waits beside it as a side task until it ends. Otherwise
+     * the task is pinned to start now: the task that was Now goes back into the
+     * order, and any task pinned in its way is unpinned, since the person chose.
+     * It may run into the next appointment's warning; the alarms still ring.
+     */
+    fun dragNow(item: Item, items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): DragNow {
+        // Markers are context, never work: no rule of the day sees them.
+        @Suppress("NAME_SHADOWING")
+        val items = items.work()
+        val current = board(items, now, order).now.item?.takeIf { it.id != item.id }
+        if (current != null && current.isAnchor) return DragNow.Side(current.anchorEnd!!, current)
+        val at = now.withSecond(0).withNano(0)
+        val end = at.plusMinutes(item.durationMinutes.toLong())
+        val inTheWay = items.filter { !it.isAnchor && it.isOpen && it.id != item.id && pinHolds(it, now) && it.pinnedSlot!!.isBefore(end) }
+        return DragNow.Now(at, inTheWay, current)
+    }
+
+    private fun slot(f: Item): Pair<LocalDateTime, LocalDateTime> = f.pinnedSlot!! to f.pinnedSlot.plusMinutes(f.durationMinutes.toLong())
+
+    /**
      * Whether [item] can be pinned to start at [at] today: it must fit in free
      * time, clear of every anchor's warning and time and of other pinned tasks.
      */
@@ -354,7 +393,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val current = todayGaps.firstOrNull { now in it }
         val later = todayGaps.filter { current == null || it.start >= current.end }.firstOrNull { it.minutes >= need }
 
-        val skipped = item.copy(skipCount = item.skipCount + 1, status = Status.PENDING, pinnedSlot = null, activeSince = null, waitUntil = null)
+        val skipped = item.copy(skipCount = item.skipCount + 1, status = Status.PENDING, pinnedSlot = null, activeSince = null, waitUntil = null, side = false)
         if (later != null) {
             return Moved(skipped.copy(notBefore = later.start), landing(later, "Back at"))
         }
@@ -374,7 +413,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
     /** Tomorrow: off today's board entirely. Not a skip. */
     fun tomorrow(item: Item, now: LocalDateTime): Moved =
         Moved(
-            item.copy(notBefore = now.toLocalDate().plusDays(1).atTime(window.start), status = Status.PENDING, pinnedSlot = null, activeSince = null, waitUntil = null),
+            item.copy(notBefore = now.toLocalDate().plusDays(1).atTime(window.start), status = Status.PENDING, pinnedSlot = null, activeSince = null, waitUntil = null, side = false),
             "Back tomorrow",
         )
 

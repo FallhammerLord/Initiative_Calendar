@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import initiative.core.Board
 import initiative.core.DayWindow
+import initiative.core.DragNow
 import initiative.core.Forecast
 import initiative.core.Formats
 import initiative.core.Item
@@ -335,6 +336,19 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
      * A waitmark tapped: that item becomes Now (its wait ends, if it hadn't), and
      * the task under way goes back into the day's order.
      */
+    /**
+     * A waitmark tapped. A side task, while its appointment still holds Now,
+     * starts its clock and keeps waiting; anything else is switched to.
+     */
+    fun tapWaitmark(target: Item) {
+        if (target.side && ui.value.board?.now?.item?.isAnchor == true) {
+            acted()
+            viewModelScope.launch { repo.sideOnIt(target, LocalDateTime.now()) }
+        } else {
+            switchTo(target)
+        }
+    }
+
     fun switchTo(target: Item) {
         acted()
         viewModelScope.launch {
@@ -353,6 +367,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
      * otherwise it stays put. Its new place also becomes the tie breaker.
      */
     fun moveTask(item: Item, index: Int): Boolean {
+        if (index == 0) return dragToTop(item)
         // Worked out afresh: the forecast on screen can be up to a tick old.
         val now = LocalDateTime.now()
         val others = placement.forecast(items, now, order.value).slots.filter { it.item.id != item.id }
@@ -371,6 +386,34 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             withContext(Dispatchers.IO) { graph.prefs.taskOrder = mine }
             repo.pin(item, at)
             show(Flash(getApplication<Application>().getString(R.string.moved_to, Formats.clock(at))))
+        }
+        return true
+    }
+
+    /**
+     * Dragged to the top: "I want to do this now". It becomes Now, the task that
+     * was Now goes back into the order, and pins in its way are given up. While
+     * an appointment holds Now, it waits beside the card as a side task instead.
+     */
+    private fun dragToTop(item: Item): Boolean {
+        val now = LocalDateTime.now()
+        acted()
+        when (val drag = placement.dragNow(item, items, now, order.value)) {
+            is DragNow.Side -> viewModelScope.launch {
+                repo.sideTask(item, drag.until)
+                show(Flash(getApplication<Application>().getString(R.string.side_task_flash, drag.anchor.title)))
+            }
+            is DragNow.Now -> {
+                val mine = listOf(item.id) + order.value.filter { it != item.id }
+                order.value = mine
+                viewModelScope.launch {
+                    withContext(Dispatchers.IO) { graph.prefs.taskOrder = mine }
+                    drag.unpin.forEach { repo.unpin(it) }
+                    drag.setAside?.let { repo.setAside(it, now) }
+                    repo.pinNow(item, drag.at)
+                    show(Flash(getApplication<Application>().getString(R.string.now_by_hand, item.title)))
+                }
+            }
         }
         return true
     }

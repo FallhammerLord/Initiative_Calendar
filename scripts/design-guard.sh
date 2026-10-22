@@ -69,4 +69,10 @@ else
   echo "ok   Engine times and dates are formatted only in Formats.kt"
 fi
 
+# Every label the emulator test taps or waits for still exists in the app.
+if ! python3 scripts/emulator-labels.py .; then
+  echo "::error::A label in emulator-smoke.sh no longer matches the app; update the test with the change"
+  failed=1
+fi
+
 exit $failed

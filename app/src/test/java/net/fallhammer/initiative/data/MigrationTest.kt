@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
 class MigrationTest {
 
     @Test
-    fun version1ToLatestKeepsItemsAndAddsAlarmsAndSteps() {
+    fun version1ToLatestKeepsItemsAndAddsAlarmsStepsAndSideTasks() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val name = "migration-test.db"
         context.deleteDatabase(name)
@@ -41,7 +41,7 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS, InitiativeDb.ADD_SIDE)
             .allowMainThreadQueries()
             .build()
         runBlocking {
@@ -52,6 +52,9 @@ class MigrationTest {
             assertEquals(0, dao.all().single().workedMinutes)
             assertEquals("FLAG", dao.all().single().icon)
             assertEquals(false, dao.all().single().neverShare)
+            // Version 7: no side task yet, and the item keeps its id, so a new one numbers on from it.
+            assertEquals(false, dao.all().single().side)
+            assertEquals(1L, dao.all().single().id)
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
             // The pairs tables work: a person, a tick, and a peek.
@@ -59,6 +62,8 @@ class MigrationTest {
             dao.share(ShareRow(peer, 1))
             dao.putPeek(PeekRow(peer, "initiative-peek 1"))
             assertEquals(listOf(ShareRow(peer, 1)), dao.shares())
+            val second = dao.insert(dao.all().single().copy(id = 0, title = "taxes", titleKey = "taxes"))
+            assertEquals(2L, second)
         }
         room.close()
     }

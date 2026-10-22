@@ -144,14 +144,14 @@ object Backup {
     fun itemJson(r: ItemRow): JSONObject = JSONObject()
         .set("id", r.id).set("title", r.title).set("titleKey", r.titleKey).set("notes", r.notes).set("kind", r.kind)
         .set("start", r.start).set("end", r.end).set("wall", r.wall).set("leadMinutes", r.leadMinutes)
-        .set("partnerAlert", r.partnerAlert).set("durationMinutes", r.durationMinutes)
+        .set("durationMinutes", r.durationMinutes)
         .set("earliestStart", r.earliestStart).set("deadline", r.deadline).set("priority", r.priority)
         .set("effort", r.effort).set("skipCount", r.skipCount).set("pinnedSlot", r.pinnedSlot)
         .set("notBefore", r.notBefore).set("recFreq", r.recFreq).set("recInterval", r.recInterval)
         .set("recDays", r.recDays).set("templateId", r.templateId).set("missPolicy", r.missPolicy)
         .set("status", r.status).set("createdAt", r.createdAt).set("doneAt", r.doneAt).set("activeSince", r.activeSince)
         .set("steps", r.steps).set("waitUntil", r.waitUntil).set("workedMinutes", r.workedMinutes).set("icon", r.icon)
-        .set("neverShare", r.neverShare)
+        .set("neverShare", r.neverShare).set("side", r.side)
 
     fun itemRow(o: JSONObject) = ItemRow(
         id = o.getLong("id"),
@@ -163,7 +163,6 @@ object Backup {
         end = o.str("end"),
         wall = o.getString("wall"),
         leadMinutes = o.getInt("leadMinutes"),
-        partnerAlert = o.getBoolean("partnerAlert"),
         durationMinutes = o.getInt("durationMinutes"),
         earliestStart = o.str("earliestStart"),
         deadline = o.str("deadline"),
@@ -189,6 +188,7 @@ object Backup {
         icon = o.str("icon") ?: "FLAG",
         // Backups from before pairs share nothing by default anyway.
         neverShare = o.optBoolean("neverShare", false),
+        side = o.optBoolean("side", false),
     )
 
     private fun peerJson(p: PeerRow): JSONObject = JSONObject()

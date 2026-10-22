@@ -200,6 +200,29 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     }
 
     /** Dragged in the day panel: the task is held to start at [at]. */
+    /**
+     * Dragged to the top: it starts [at], now, pinned there. A task already On it
+     * stays On it; any wait or side task ends.
+     */
+    suspend fun pinNow(item: Item, at: LocalDateTime) {
+        update(item, item.copy(pinnedSlot = at, notBefore = null, waitUntil = null, side = false), note = "now, by hand")
+    }
+
+    /** A pin given up for a task chosen to do now. */
+    suspend fun unpin(item: Item) {
+        update(item, item.copy(pinnedSlot = null), note = "unpinned")
+    }
+
+    /** Dragged to the top while an appointment holds Now: it waits beside the card until [until]. */
+    suspend fun sideTask(item: Item, until: LocalDateTime) {
+        update(item, item.copy(side = true, waitUntil = until, notBefore = until, pinnedSlot = null), note = "side task")
+    }
+
+    /** A side task tapped during the appointment: its clock starts, and it keeps waiting beside the card. */
+    suspend fun sideOnIt(item: Item, now: LocalDateTime) {
+        update(item, item.copy(status = Status.ACTIVE, activeSince = item.activeSince ?: now), note = "on it")
+    }
+
     suspend fun pin(item: Item, at: LocalDateTime) {
         update(item, item.copy(pinnedSlot = at, notBefore = null, status = Status.PENDING), note = "moved by hand")
     }

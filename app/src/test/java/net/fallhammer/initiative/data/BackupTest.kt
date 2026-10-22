@@ -19,7 +19,7 @@ import java.time.LocalDateTime
 class BackupTest {
     private val item = ItemRow(
         id = 7, title = "call landlord", titleKey = "call landlord", notes = "", kind = "FLOAT", start = null, end = null,
-        wall = "FIRM", leadMinutes = 15, partnerAlert = false, durationMinutes = 30, earliestStart = null, deadline = "2026-10-23",
+        wall = "FIRM", leadMinutes = 15, durationMinutes = 30, earliestStart = null, deadline = "2026-10-23",
         priority = "AUTO", effort = "QUICK", skipCount = 2, pinnedSlot = null, notBefore = null, recFreq = null, recInterval = 1,
         recDays = "", templateId = null, missPolicy = "REROLL", status = "PENDING", createdAt = "2026-10-19T09:00",
         doneAt = null, activeSince = null,

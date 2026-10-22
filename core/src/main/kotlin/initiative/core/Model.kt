@@ -34,7 +34,6 @@ data class Item(
     val end: LocalDateTime? = null,
     val wall: WallStrength = WallStrength.FIRM,
     val leadMinutes: Int = DEFAULT_LEAD,
-    val partnerAlert: Boolean = false,
     // Float
     val durationMinutes: Int = DEFAULT_DURATION,
     val earliestStart: LocalDate? = null,
@@ -65,6 +64,12 @@ data class Item(
     val workedMinutes: Int = 0,
     /** A marker's icon. */
     val icon: MarkIcon = MarkIcon.FLAG,
+    /**
+     * A side task: dragged to the top while an appointment held Now, so it waits
+     * beside the card until the appointment ends or is marked Done, then becomes
+     * Now. Its wait runs to the appointment's end.
+     */
+    val side: Boolean = false,
     /** Never shared with anyone paired, whatever the share level. */
     val neverShare: Boolean = false,
 ) {
@@ -112,6 +117,7 @@ data class Item(
         return copy(
             waitUntil = until,
             notBefore = until,
+            side = false,
             workedMinutes = workedMinutes + (Learning.runMinutes(activeSince, now) ?: 0),
             activeSince = null,
             pinnedSlot = null,

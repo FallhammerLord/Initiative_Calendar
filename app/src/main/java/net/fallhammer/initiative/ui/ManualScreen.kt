@@ -49,6 +49,9 @@ private val PARTS = listOf(
         listOf(
             R.string.manual_list_1 to R.string.manual_list_1_does,
             R.string.manual_list_2 to R.string.manual_list_2_does,
+            R.string.manual_list_6 to R.string.manual_list_6_does,
+            R.string.manual_list_7 to R.string.manual_list_7_does,
+            R.string.manual_list_8 to R.string.manual_list_8_does,
             R.string.manual_list_3 to R.string.manual_list_3_does,
             R.string.manual_list_4 to R.string.manual_list_4_does,
             R.string.manual_list_5 to R.string.manual_list_5_does,

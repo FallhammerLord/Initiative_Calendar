@@ -31,7 +31,7 @@ class ManualScreenTest {
     // Each part, and one thing it explains.
     private val parts = listOf(
         "The Now card" to "Hold the card",
-        "Today's list" to "Drag a task",
+        "Today's list" to "During an appointment",
         "Plan ahead" to "Day report",
         "Typing a task" to "Names you've used",
         "Alarms" to "Quiet hours",
