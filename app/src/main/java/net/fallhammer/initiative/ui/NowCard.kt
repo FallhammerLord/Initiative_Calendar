@@ -67,7 +67,16 @@ internal fun NowCard(
     val scroll = rememberScrollState()
     val hint = Ink.accent
     val surface = Ink.surface
-    Card(modifier, now = true, vertical = Space.l) {
+    // On it locks brackets onto the card; Done wipes a scan line down it.
+    val locking = rememberBlink(LOCK_MS)
+    val wiping = rememberBlink(CHANGE_MS)
+    BlinkOnRise(item?.status == Status.ACTIVE, locking)
+    val effects = Modifier.drawWithContent {
+        drawContent()
+        if (locking.playing) lockOn(locking.t, hint)
+        if (wiping.playing) scanDown(wiping.t, hint)
+    }
+    Card(modifier.then(effects), now = true, vertical = Space.l) {
         Column(
             Modifier
                 .weight(1f, fill = false)
@@ -191,7 +200,12 @@ internal fun NowCard(
                 val focusWord = stringResource(R.string.focus_action)
                 // Done confirms; with steps open it only asks, so it just ticks. Later is a neutral tick.
                 val doneTap = {
-                    if (item.nextStep == null) haptics.confirm() else haptics.tick()
+                    if (item.nextStep == null) {
+                        haptics.confirm()
+                        wiping.play()
+                    } else {
+                        haptics.tick()
+                    }
                     onDone(item)
                 }
                 val laterTap = { haptics.tick(); onSkip(item) }

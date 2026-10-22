@@ -55,6 +55,8 @@ fun SettingsScreen(
     onPair: () -> Unit,
     ornaments: Boolean,
     onOrnaments: (Boolean) -> Unit,
+    idleFx: Boolean,
+    onIdleFx: (Boolean) -> Unit,
     texture: Int,
     onTexture: (Int) -> Unit,
     quiet: QuietSetting,
@@ -105,15 +107,36 @@ fun SettingsScreen(
             }
             Section(stringResource(R.string.section_look)) {
                 // A dropdown, each with its accent as a swatch: the list of looks keeps growing.
+                // Your colors is one entry; picking it keeps the color already chosen.
+                val current = Looks.byId(lookId)
                 Dropdown(
                     stringResource(R.string.setting_theme),
-                    Looks.all.map { stringResource(it.label) },
-                    Looks.all.indexOfFirst { it.id == lookId },
-                    swatch = { Looks.all[it].palette.accent },
-                ) { onLook(Looks.all[it].id) }
+                    Looks.picks.map { stringResource(it.label) },
+                    Looks.picks.indexOfFirst { it.pick == current.pick },
+                    swatch = { Looks.picks[it].palette.accent },
+                ) { i ->
+                    val picked = Looks.picks[i]
+                    onLook(if (picked.pick == current.pick) current.id else picked.id)
+                }
+                if (current.pick == Looks.YOURS) {
+                    Spacer(Modifier.height(Space.m))
+                    Body(stringResource(R.string.your_color))
+                    Spacer(Modifier.height(Space.s))
+                    ColorChoice(
+                        Looks.yours.map { it.palette.accent },
+                        Looks.yours.map { stringResource(Looks.colorNames.getValue(it.id)) },
+                        Looks.yours.indexOfFirst { it.id == current.id },
+                        labeled = true,
+                    ) { onLook(Looks.yours[it].id) }
+                    Body(stringResource(R.string.your_color_hint), style = Type.bodySmall)
+                }
                 Spacer(Modifier.height(Space.s))
                 SettingSwitch(stringResource(R.string.setting_ornaments), ornaments, onOrnaments)
                 Body(stringResource(R.string.setting_ornaments_hint), style = Type.bodySmall)
+                Spacer(Modifier.height(Space.s))
+                // Off unless chosen: steady motion on a screen seen all day can pull the eye.
+                SettingSwitch(stringResource(R.string.setting_idle_fx), idleFx, onIdleFx)
+                Body(stringResource(R.string.setting_idle_fx_hint), style = Type.bodySmall)
                 // The pattern's strength, for the look on screen, if it has one: lighter when text over it feels busy.
                 if (ornaments && Looks.byId(shownId).patterned) {
                     SettingSlider(

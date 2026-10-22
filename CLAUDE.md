@@ -14,8 +14,8 @@ sideloaded, no Google services, no internet. The plan and every rule live in
   `ui/BoardViewModel.kt`, with each feature in its own part (`RecapModel`,
   `RecopyModel`, `EditModel`, `BackupModel`, `SettingsModel`, `LauncherModel`, `LogModel`, `PairsModel`); design system in
   `ui/Design.kt` (tokens and components), `ui/Theme.kt` (themes: colors,
-  shapes, outlines, and the look kit's slots), and `ui/Ornaments.kt` (the
-  kit's small drawings); wording in `res/values/strings.xml`.
+  shapes, outlines, and the look kit's slots), `ui/Ornaments.kt` (the
+  kit's small drawings), and `ui/Effects.kt` (the HUD effects); wording in `res/values/strings.xml`.
   Read colors through `Ink` inside composables; capture them into locals
   before drawing on a `Canvas`.
 - `app/schemas/`: saved database layouts, one per version, committed.
@@ -60,6 +60,8 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
   checked with one `wait_for` right after the tap. When it comes at the end of
   something long (a search, a timer), log the outcome and check the log, as
   the Ping step does.
+- The emulator test leaves Idle effects off: steady motion keeps the screen
+  from settling, and the screen reader (`uiautomator dump`) waits for it to settle.
 - Nothing depends on the real date or weekday: compute days relative to today.
 - See each new check fail once before trusting it (in `core`, run it with the
   expectation flipped; elsewhere, read its failure message path).

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -71,7 +73,12 @@ fun PairmarkRow(
                 }
             }
             Spacer(Modifier.weight(1f))
-            GlyphButton(stringResource(R.string.pair_ping), onPing) { bluetooth(it) }
+            // Ping sends radar rings out from its button.
+            val radio = rememberBlink(RADAR_MS)
+            val ring = Ink.accent
+            Box(Modifier.drawWithContent { drawContent(); if (radio.playing) radar(radio.t, ring) }) {
+                GlyphButton(stringResource(R.string.pair_ping), { radio.play(); onPing() }) { bluetooth(it) }
+            }
             Spacer(Modifier.padding(start = Space.s))
             GlyphButton(stringResource(if (shown) R.string.pairs_hide else R.string.pairs_show), { haptics.toggle(!shown); onShown(!shown) }) {
                 eye(it, open = shown)
@@ -105,7 +112,10 @@ private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
         Column(Modifier.padding(start = Space.s).clearAndSetSemantics { }) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
                 Text(p.peer.nickname, style = Type.caption.copy(fontWeight = FontWeight.Bold), color = Ink.text)
-                PairLight(p.peer, lit)
+                // Coming on: one ring flares out from the light.
+                val flaring = rememberBlink(CHANGE_MS)
+                BlinkOnRise(lit, flaring)
+                Box(Modifier.drawWithContent { drawContent(); if (flaring.playing) flare(flaring.t, color) }) { PairLight(p.peer, lit) }
                 Text(seen, style = Type.caption, color = Ink.dim, maxLines = 1)
             }
             Text(doing, style = Type.bodySmall, color = Ink.text, maxLines = 1, overflow = TextOverflow.Ellipsis)

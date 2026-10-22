@@ -50,6 +50,10 @@ class SettingsModel(private val parts: BoardParts) {
     /** Whether the look's ornaments show. */
     val ornaments: StateFlow<Boolean> = _ornaments.asStateFlow()
 
+    private val _idleFx = MutableStateFlow(false)
+    /** Whether the idle effects run. */
+    val idleFx: StateFlow<Boolean> = _idleFx.asStateFlow()
+
     private val _texture = MutableStateFlow(50)
     /** The shown look's background pattern strength, in percent; each look keeps its own. */
     val texture: StateFlow<Int> = _texture.asStateFlow()
@@ -76,6 +80,7 @@ class SettingsModel(private val parts: BoardParts) {
         _lockCard.value = prefs.lockCard
         _look.value = prefs.lookId
         _ornaments.value = prefs.ornaments
+        _idleFx.value = prefs.idleFx
         _holidayLooks.value = prefs.holidayLooks
         _holidays.value = prefs.holidays
         _texture.value = prefs.texture(showing(prefs.lookId))
@@ -133,6 +138,11 @@ class SettingsModel(private val parts: BoardParts) {
         val id = showing(_look.value)
         _shown.value = id
         parts.scope.launch(Dispatchers.IO) { _texture.value = graph.prefs.texture(id) }
+    }
+
+    fun setIdleFx(on: Boolean) {
+        _idleFx.value = on
+        parts.scope.launch(Dispatchers.IO) { graph.prefs.idleFx = on }
     }
 
     fun setOrnaments(on: Boolean) {

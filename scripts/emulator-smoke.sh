@@ -750,6 +750,17 @@ tap Close exact
 wait_gone "Quiet hours" exact || fail "Close should close settings"
 shot christmas-board
 pass "Christmas look"
+# Your colors: Sci-fi's shapes in a picked color. It starts red; eight to choose from.
+open_settings
+pick_theme "Your colors"
+scroll_to "Your color" exact || fail "Your colors should offer its colors"
+scroll_to "Blue" exact || fail "Your colors should offer blue"
+shot your-colors-settings
+tap "Blue" exact
+tap Close exact
+wait_gone "Quiet hours" exact || fail "Close should close settings"
+shot your-colors-blue
+pass "Your colors look"
 # Holiday looks: off until turned on. On, today (Oct 29) wears Halloween over Sci-fi.
 open_settings
 pick_theme Sci-fi

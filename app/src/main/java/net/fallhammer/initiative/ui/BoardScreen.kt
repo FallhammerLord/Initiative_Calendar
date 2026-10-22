@@ -11,6 +11,7 @@ import androidx.compose.animation.AnimatedVisibility
 import kotlin.math.atan2
 import kotlin.math.sqrt
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
@@ -62,10 +63,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -137,6 +140,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val setup by vm.settings.setup.collectAsStateWithLifecycle()
     val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
     val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
+    val idleFx by vm.settings.idleFx.collectAsStateWithLifecycle()
     val texture by vm.settings.texture.collectAsStateWithLifecycle()
     val chosenLook by vm.settings.look.collectAsStateWithLifecycle()
     val holidayLooks by vm.settings.holidayLooks.collectAsStateWithLifecycle()
@@ -467,6 +471,8 @@ fun BoardScreen(vm: BoardViewModel) {
                 onPair = pair,
                 ornaments = ornaments,
                 onOrnaments = vm.settings::setOrnaments,
+                idleFx = idleFx,
+                onIdleFx = vm.settings::setIdleFx,
                 texture = texture,
                 onTexture = vm.settings::setTexture,
                 quiet = quiet,
@@ -517,6 +523,12 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
                     }
                     val ink = if (ready) Ink.onAccent else Ink.dim
                     val seed = look.palette.jewels.firstOrNull()
+                    // Turning ready: one glint across it, in the look's style.
+                    val glint = rememberBlink(CHANGE_MS)
+                    BlinkOnRise(ready, glint)
+                    val shine = Ink.text
+                    val ornament = Ink.ornament
+                    val ground = Ink.bg
                     val shown = remember { MutableTransitionState(false).apply { targetState = true } }
                     AnimatedVisibility(shown, enter = slideInHorizontally(tween(BOOKMARK_MS)) { it } + fadeIn(tween(BOOKMARK_MS))) {
                         Row(
@@ -527,6 +539,10 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
                                 .heightIn(min = Tap.min)
                                 .clip(shape)
                                 .background(if (ready) Ink.accent else Ink.surface)
+                                .drawWithContent {
+                                    drawContent()
+                                    if (glint.playing) lookFx(look.fx, glint.t, shine, ornament, ground, look.palette.jewels)
+                                }
                                 .then(if (ready) Modifier else Modifier.border(1.dp, Ink.frame, shape))
                                 .clickable(onClickLabel = stringResource(R.string.waitmark_switch, w.title)) {
                                     haptics.tick()
@@ -597,8 +613,10 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit, lines: List<DialLine> = e
     val label = stringResource(R.string.plan_ahead)
     val large = LocalDensity.current.fontScale > LARGE_FONT
     val now = ui.now
+    val idle = LocalLook.current.idle && rememberMotionOn()
     Strip(Modifier.clickable(onClickLabel = label, onClick = onOpen)) {
-        Column(Modifier.weight(1f)) {
+        // Idle effects, when chosen: a slow scan crosses the panel now and then.
+        Column(Modifier.weight(1f).idleScan(idle)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // At large font sizes the clock steps aside (the status bar has it), so Now has room.
                 Column(Modifier.weight(1f)) {
@@ -681,6 +699,12 @@ private fun DayDial(ui: BoardUi, lines: List<DialLine> = emptyList()) {
     val cornBase = jewels.getOrNull(4) ?: nowColor
     val coinColor = Ink.accent
     val coinHole = Ink.surface
+    // Idle effects, when chosen: the pointer breathes. The frame clock is read only while drawing.
+    val breathing = LocalLook.current.idle && rememberMotionOn()
+    val frameMs = remember { mutableLongStateOf(0L) }
+    if (breathing) {
+        LaunchedEffect(Unit) { while (true) withFrameMillis { frameMs.longValue = it } }
+    }
     Canvas(Modifier.fillMaxWidth().height(DIAL_HEIGHT + LINE_GAP * lines.size).semantics { contentDescription = description }) {
         // Each paired person's line sits under yours; the pointer goes under them all.
         val under = LINE_GAP.toPx() * lines.size
@@ -773,8 +797,9 @@ private fun DayDial(ui: BoardUi, lines: List<DialLine> = emptyList()) {
         val tx = 1 / norm
         val ty = slope / norm
         val gap = POINTER_GAP.toPx() + under
-        val tall = POINTER_HEIGHT.toPx()
-        val half = POINTER_WIDTH.toPx() / 2
+        val swell = if (breathing) breath(frameMs.longValue) else 1f
+        val tall = POINTER_HEIGHT.toPx() * swell
+        val half = POINTER_WIDTH.toPx() / 2 * swell
         val tipX = px + nx * gap
         val tipY = y(f) + ny * gap
         val backX = tipX + nx * tall

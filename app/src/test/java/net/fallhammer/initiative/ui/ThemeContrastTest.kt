@@ -17,7 +17,7 @@ class ThemeContrastTest {
 
     @Test
     fun everyThemeMeetsContrastTargets() {
-        val palettes = Looks.all.flatMap { look ->
+        val palettes = Looks.every.flatMap { look ->
             val p = look.palette
             val text = listOf("text" to p.text, "dim" to p.dim, "accent" to p.accent)
             val grounds = listOf("bg" to p.bg, "surface" to p.surface)
@@ -25,7 +25,7 @@ class ThemeContrastTest {
                 Triple("${look.id}: onAccent on accent", ratio(p.onAccent, p.accent), TEXT) +
                 grounds.map { (bn, b) -> Triple("${look.id}: frame on $bn", ratio(p.frame, b), OUTLINE) }
         }
-        val pairs = Looks.all.flatMap { look ->
+        val pairs = Looks.every.flatMap { look ->
             // Pair colors: clear as lines on both grounds, and their badge's initial readable.
             val p = look.palette
             (0 until PairColors.count).flatMap { i ->

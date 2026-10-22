@@ -54,6 +54,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(ORNAMENTS, true)
         set(value) = prefs.edit().putBoolean(ORNAMENTS, value).apply()
 
+    /** Idle effects: a slow scan over Plan ahead and the dial pointer breathing. Off unless chosen. */
+    var idleFx: Boolean
+        get() = prefs.getBoolean(IDLE_FX, false)
+        set(value) = prefs.edit().putBoolean(IDLE_FX, value).apply()
+
     /** Holiday looks: off unless turned on, so the board never changes unasked. */
     var holidayLooks: Boolean
         get() = prefs.getBoolean(HOLIDAY_LOOKS, false)
@@ -212,6 +217,7 @@ class Prefs(private val context: Context) {
         const val LOCK_CARD = "lockCard"
         const val LOOK = "look"
         const val ORNAMENTS = "ornaments"
+        const val IDLE_FX = "idle_fx"
         const val TEXTURE = "texture"
         const val HOLIDAY_LOOKS = "holiday_looks"
         const val HOLIDAYS = "holidays"

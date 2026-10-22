@@ -57,6 +57,11 @@ data class Palette(
     val ornament: Color = accent,
     /** A light look: dark text on light panels, so the system bars draw dark icons. */
     val light: Boolean = false,
+    /**
+     * Its own five pair colors, when one of the usual ones is too close to its
+     * accent and is swapped out; null: the usual ones.
+     */
+    val pairs: List<Color>? = null,
 )
 
 /*
@@ -137,9 +142,35 @@ enum class HandleStyle {
     GIFT,
 }
 
+/**
+ * The look's quick effects: a flash with each tap, and one glint when something
+ * changes. Android's "Remove animations" turns them off.
+ */
+enum class Fx {
+    /** A bright band sweeps across; scan lines and brackets (Sci-fi). */
+    SCAN,
+
+    /** A warm glint in the ornament color (Classic, Deco). */
+    GLINT,
+
+    /** Light catches the pane on a slant (Glass). */
+    SHEEN,
+
+    /** Small sparkles twinkle at the corners (Pastel, Starlight). */
+    TWINKLE,
+
+    /** A little ghost drifts up and away (Halloween). */
+    WISP,
+
+    /** Fairy lights blink along the top edge (Christmas). */
+    LIGHTS,
+}
+
 data class Look(
     val id: String,
     @StringRes val label: Int,
+    /** Its entry in the theme list; every Your colors look shares one. */
+    val pick: String = id,
     val palette: Palette,
     val cardShape: Shape,
     val buttonShape: Shape,
@@ -166,6 +197,9 @@ data class Look(
     val nowRise: Dp = 0.dp,
     /** Outline width for cards and panels: a hairline, or heavier came for glass. */
     val came: Dp = 1.dp,
+    val fx: Fx = Fx.SCAN,
+    /** Idle effects on, as chosen in Settings: a slow scan over Plan ahead, the pointer breathing. */
+    val idle: Boolean = false,
 ) {
     /** Whether a pattern shows behind the screens, so its strength can be set. */
     val patterned: Boolean get() = pattern != Pattern.NONE
@@ -304,6 +338,7 @@ object Looks {
     /** Black and amber, rounded. The first look. */
     val Classic = Look(
         id = "classic",
+        fx = Fx.GLINT,
         label = R.string.look_classic,
         palette = Palette(
             bg = Color(0xFF000000),
@@ -328,6 +363,7 @@ object Looks {
      */
     val Deco = Look(
         id = "deco",
+        fx = Fx.GLINT,
         label = R.string.look_deco,
         palette = Palette(
             bg = Color(0xFF1E1812),
@@ -357,6 +393,7 @@ object Looks {
      */
     val Glass = Look(
         id = "glass",
+        fx = Fx.SHEEN,
         label = R.string.look_glass,
         palette = Palette(
             bg = Color(0xFF0E0B12),
@@ -400,6 +437,7 @@ object Looks {
      */
     val Pastel = Look(
         id = "pastel",
+        fx = Fx.TWINKLE,
         label = R.string.look_pastel,
         palette = Palette(
             bg = Color(0xFFFFF4F8),
@@ -438,6 +476,7 @@ object Looks {
      */
     val Starlight = Look(
         id = "starlight",
+        fx = Fx.TWINKLE,
         label = R.string.look_starlight,
         palette = Palette(
             bg = Color(0xFF1B1030),
@@ -477,6 +516,7 @@ object Looks {
      */
     val Halloween = Look(
         id = "halloween",
+        fx = Fx.WISP,
         label = R.string.look_halloween,
         palette = Palette(
             bg = Color(0xFF1A1226),
@@ -515,6 +555,7 @@ object Looks {
      */
     val Christmas = Look(
         id = "christmas",
+        fx = Fx.LIGHTS,
         label = R.string.look_christmas,
         palette = Palette(
             bg = Color(0xFF0F261A),
@@ -546,13 +587,66 @@ object Looks {
 
     val all = listOf(SciFi, Classic, Deco, Glass, Pastel, Starlight, Halloween, Christmas)
 
+    /** One color for Your colors: a full palette, tuned so the contrast test passes. */
+    private class Hue(
+        val name: String,
+        @StringRes val label: Int,
+        val bg: Color,
+        val surface: Color,
+        val text: Color,
+        val dim: Color,
+        val accent: Color,
+        val onAccent: Color,
+        val frame: Color,
+        val pairs: List<Color>,
+    )
+
+    // Each palette's pair colors swap out the one nearest its accent.
+    private val hues = listOf(
+        Hue("red", R.string.color_red, bg = Color(0xFF1B0A09), surface = Color(0xFF281311), text = Color(0xFFFCEEED), dim = Color(0xFFDABCB9), accent = Color(0xFFFF847D), onAccent = Color(0xFF160605), frame = Color(0xFF9B5752), pairs = listOf(Color(0xFFF2B84B), Color(0xFF5FE0D0), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))),
+        Hue("orange", R.string.color_orange, bg = Color(0xFF1A0B04), surface = Color(0xFF26140A), text = Color(0xFFFBEFE9), dim = Color(0xFFD8BEB0), accent = Color(0xFFFF8739), onAccent = Color(0xFF150702), frame = Color(0xFF955B3A), pairs = listOf(Color(0xFFFFE27A), Color(0xFFF596C8), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))),
+        Hue("amber", R.string.color_amber, bg = Color(0xFF160E02), surface = Color(0xFF221705), text = Color(0xFFF7F1E7), dim = Color(0xFFD0C2AB), accent = Color(0xFFDB9C01), onAccent = Color(0xFF120900), frame = Color(0xFF856425), pairs = listOf(Color(0xFFFFA184), Color(0xFFF596C8), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))),
+        Hue("green", R.string.color_green, bg = Color(0xFF071307), surface = Color(0xFF0F1E0F), text = Color(0xFFECF5EC), dim = Color(0xFFB7CBB7), accent = Color(0xFF41C04F), onAccent = Color(0xFF040E04), frame = Color(0xFF467748), pairs = listOf(Color(0xFFF2B84B), Color(0xFFF596C8), Color(0xFFFFA184), Color(0xFFB9A2F5), Color(0xFF7CC4FF))),
+        Hue("teal", R.string.color_teal, bg = Color(0xFF011312), surface = Color(0xFF021E1D), text = Color(0xFFE7F5F4), dim = Color(0xFFABCCC9), accent = Color(0xFF03BDB6), onAccent = Color(0xFF000F0E), frame = Color(0xFF047773), pairs = listOf(Color(0xFFF2B84B), Color(0xFFF596C8), Color(0xFFFFA184), Color(0xFFB9A2F5), Color(0xFF7CC4FF))),
+        Hue("blue", R.string.color_blue, bg = Color(0xFF05101C), surface = Color(0xFF0C1A29), text = Color(0xFFEBF3FC), dim = Color(0xFFB4C6DB), accent = Color(0xFF5AADFE), onAccent = Color(0xFF030C17), frame = Color(0xFF3F6E9C), pairs = listOf(Color(0xFFF2B84B), Color(0xFFF596C8), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFFFFA184))),
+        Hue("violet", R.string.color_violet, bg = Color(0xFF110C1A), surface = Color(0xFF1C1627), text = Color(0xFFF3F0FB), dim = Color(0xFFC7BFD8), accent = Color(0xFFBC94FE), onAccent = Color(0xFF0D0816), frame = Color(0xFF745F98), pairs = listOf(Color(0xFFF2B84B), Color(0xFFF596C8), Color(0xFF8FE39A), Color(0xFFFFA184), Color(0xFF7CC4FF))),
+        Hue("pink", R.string.color_pink, bg = Color(0xFF190A11), surface = Color(0xFF26121C), text = Color(0xFFFAEEF3), dim = Color(0xFFD7BBC7), accent = Color(0xFFFF78BE), onAccent = Color(0xFF14060D), frame = Color(0xFF945775), pairs = listOf(Color(0xFFF2B84B), Color(0xFFFFA184), Color(0xFF8FE39A), Color(0xFFB9A2F5), Color(0xFF7CC4FF))),
+    )
+
+    /**
+     * Your colors: Sci-fi's shapes in a color you pick. Each is its own look,
+     * "yours-red" and so on, saved like any other; the theme list shows them as one.
+     */
+    val yours: List<Look> = hues.map { h ->
+        SciFi.copy(
+            id = "$YOURS-${h.name}",
+            label = R.string.look_yours,
+            pick = YOURS,
+            palette = Palette(
+                bg = h.bg, surface = h.surface, text = h.text, dim = h.dim, accent = h.accent,
+                onAccent = h.onAccent, frame = h.frame, pattern = h.accent, pairs = h.pairs,
+            ),
+        )
+    }
+
+    const val YOURS = "yours"
+
+    /** Each Your colors look's color name, for its swatch. */
+    val colorNames: Map<String, Int> = hues.associate { "$YOURS-${it.name}" to it.label }
+
+    /** The theme list: every look, with Your colors as one entry. */
+    val picks: List<Look> = all + yours.first()
+
+    /** Every look there is, for the contrast test. */
+    val every: List<Look> = all + yours
+
     /** The look a holiday wears. */
     fun of(holiday: Holiday): Look = when (holiday) {
         Holiday.HALLOWEEN -> Halloween
         Holiday.CHRISTMAS -> Christmas
     }
 
-    fun byId(id: String?): Look = all.firstOrNull { it.id == id } ?: SciFi
+    fun byId(id: String?): Look = every.firstOrNull { it.id == id } ?: SciFi
 }
 
 /**
@@ -602,7 +696,7 @@ object PairColors {
     private val deep = listOf(Color(0xFF7A4600), Color(0xFF8A1C58), Color(0xFF1F5E23), Color(0xFF553C99), Color(0xFF154C7D))
     val count: Int get() = bright.size
 
-    fun of(index: Int, palette: Palette): Color = (if (palette.light) deep else bright)[index.mod(count)]
+    fun of(index: Int, palette: Palette): Color = (palette.pairs ?: if (palette.light) deep else bright)[index.mod(count)]
 
     /** The initial printed on a pair's badge. */
     fun ink(palette: Palette): Color = if (palette.light) palette.surface else palette.bg

@@ -900,10 +900,12 @@ fun Body(text: String, modifier: Modifier = Modifier, color: Color = Ink.dim, st
 /** The one filled action on a screen. */
 @Composable
 fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.min) {
+    val blink = rememberBlink()
+    val shape = LocalLook.current.buttonShape
     Button(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = height),
-        shape = LocalLook.current.buttonShape,
+        onClick = { blink.play(); onClick() },
+        modifier = modifier.heightIn(min = height).tapFx(blink, shape),
+        shape = shape,
         contentPadding = ButtonPadding,
         colors = ButtonDefaults.buttonColors(containerColor = Ink.accent, contentColor = Ink.onAccent),
     ) { ButtonText(label) }
@@ -915,10 +917,12 @@ fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
  */
 @Composable
 fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.min) {
+    val blink = rememberBlink()
+    val shape = LocalLook.current.buttonShape
     OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = height),
-        shape = LocalLook.current.buttonShape,
+        onClick = { blink.play(); onClick() },
+        modifier = modifier.heightIn(min = height).tapFx(blink, shape),
+        shape = shape,
         border = BorderStroke(Hairline, Ink.frame),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Ink.surface, contentColor = Ink.text),
         contentPadding = ButtonPadding,
@@ -930,10 +934,12 @@ fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Mod
 /** A small action, for Close, Cancel, and Undo: outlined, like every button, so anything tappable looks it. */
 @Composable
 fun QuietButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = Ink.dim) {
+    val blink = rememberBlink()
+    val shape = LocalLook.current.buttonShape
     TextButton(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = Tap.min),
-        shape = LocalLook.current.buttonShape,
+        onClick = { blink.play(); onClick() },
+        modifier = modifier.heightIn(min = Tap.min).tapFx(blink, shape),
+        shape = shape,
         border = BorderStroke(Hairline, Ink.frame),
         colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
     ) {
@@ -944,10 +950,12 @@ fun QuietButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifie
 /** A small arrow button, such as Earlier and Later: the [mark] shown, the [label] spoken. */
 @Composable
 fun ArrowButton(mark: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val blink = rememberBlink()
+    val shape = LocalLook.current.buttonShape
     TextButton(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = Tap.min).semantics { contentDescription = label },
-        shape = LocalLook.current.buttonShape,
+        onClick = { blink.play(); onClick() },
+        modifier = modifier.heightIn(min = Tap.min).semantics { contentDescription = label }.tapFx(blink, shape),
+        shape = shape,
         border = BorderStroke(Hairline, Ink.frame),
         colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
     ) {
@@ -962,10 +970,12 @@ fun ArrowButton(mark: String, label: String, onClick: () -> Unit, modifier: Modi
 @Composable
 fun GlyphButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, glyph: DrawScope.(Color) -> Unit) {
     val color = Ink.accent
+    val blink = rememberBlink()
+    val shape = LocalLook.current.buttonShape
     TextButton(
-        onClick = onClick,
-        modifier = modifier.size(Tap.min).semantics { contentDescription = label },
-        shape = LocalLook.current.buttonShape,
+        onClick = { blink.play(); onClick() },
+        modifier = modifier.size(Tap.min).semantics { contentDescription = label }.tapFx(blink, shape),
+        shape = shape,
         border = BorderStroke(Hairline, Ink.frame),
         colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
         contentPadding = PaddingValues(Space.s),
@@ -1216,23 +1226,35 @@ private fun Swatch(color: Color) {
 }
 
 /**
- * Round color choices in a row, such as a paired person's color. [names] are
- * what TalkBack hears for each.
+ * Round color choices, wrapping onto more rows as needed, such as a paired
+ * person's color. [names] are what TalkBack hears for each; [labeled] shows
+ * them under the circles too.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ColorChoice(colors: List<Color>, names: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
+fun ColorChoice(colors: List<Color>, names: List<String>, chosen: Int, labeled: Boolean = false, onSelect: (Int) -> Unit) {
     val haptics = rememberHaptics()
-    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+    FlowRow(
+        Modifier.selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(Space.m),
+        verticalArrangement = Arrangement.spacedBy(Space.s),
+    ) {
         colors.forEachIndexed { i, c ->
-            Box(
+            Column(
                 Modifier
-                    .size(Tap.min)
-                    .clip(CircleShape)
-                    .background(c)
-                    .border(if (i == chosen) CHOSEN_RING else 1.dp, if (i == chosen) Ink.text else Ink.frame, CircleShape)
                     .selectable(selected = i == chosen, role = Role.RadioButton) { haptics.tick(); onSelect(i) }
-                    .semantics { contentDescription = names.getOrElse(i) { "" } },
-            )
+                    .semantics(mergeDescendants = true) { contentDescription = names.getOrElse(i) { "" } },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier
+                        .size(Tap.min)
+                        .clip(CircleShape)
+                        .background(c)
+                        .border(if (i == chosen) CHOSEN_RING else 1.dp, if (i == chosen) Ink.text else Ink.frame, CircleShape),
+                )
+                if (labeled) Text(names.getOrElse(i) { "" }, style = Type.caption, color = Ink.text, modifier = Modifier.clearAndSetSemantics { })
+            }
         }
     }
 }

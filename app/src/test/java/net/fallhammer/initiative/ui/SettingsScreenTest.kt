@@ -33,17 +33,18 @@ class SettingsScreenTest {
     private var look = ""
     private var holidayLooks: Boolean? = null
     private var paired = false
+    private var idle: Boolean? = null
 
-    private fun show(holidaysOn: Boolean = false) {
+    private fun show(holidaysOn: Boolean = false, lookId: String = "scifi") {
         compose.setContent {
             InitiativeTheme(Looks.SciFi) {
                 SettingsScreen(
                     unlock = UnlockSetting(), onBoardOnUnlock = {}, lockCard = true, onLockCard = {},
-                    lookId = "scifi", shownId = "scifi", onLook = { look = it },
+                    lookId = lookId, shownId = lookId, onLook = { look = it },
                     holidayLooks = holidaysOn, onHolidayLooks = { holidayLooks = it },
                     holidays = Holiday.entries.toSet(), onHoliday = { _, _ -> },
                     peers = emptyList(), peeks = emptyMap(), now = LocalDateTime.of(2026, 10, 29, 12, 0), onOpenPair = {}, onPair = { paired = true },
-                    ornaments = true, onOrnaments = {}, texture = 50, onTexture = {},
+                    ornaments = true, onOrnaments = {}, idleFx = false, onIdleFx = { idle = it }, texture = 50, onTexture = {},
                     quiet = QuietSetting(), onQuiet = {}, lapseHours = 24, onLapseHours = {}, recopyDays = 7, onRecopyDays = {},
                     backup = BackupState(), onBackupFolder = {}, onBackUpNow = {}, onRestoreFile = {},
                     onRestoreConfirm = {}, onRestoreCancel = {}, onClose = {},
@@ -76,6 +77,31 @@ class SettingsScreenTest {
         show()
         compose.onNodeWithText("Pair with someone").performScrollTo().tap()
         assertEquals(true, paired)
+    }
+
+    @Test fun yourColorsStartsRedAndKeepsItsColor() {
+        show()
+        compose.onNodeWithContentDescription("Theme, Sci-fi").performScrollTo().tap()
+        compose.onNodeWithText("Your colors").tap()
+        assertEquals("yours-red", look)
+    }
+
+    @Test fun yourColorsOffersEightColors() {
+        show(lookId = "yours-red")
+        compose.onNodeWithText("Your color").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Blue").performScrollTo().tap()
+        assertEquals("yours-blue", look)
+    }
+
+    @Test fun colorsHideForOtherLooks() {
+        show()
+        compose.onNodeWithText("Your color").assertDoesNotExist()
+    }
+
+    @Test fun idleEffectsStartOff() {
+        show()
+        compose.onNodeWithText("Idle effects").performScrollTo().tap()
+        assertEquals(true, idle)
     }
 
     @Test fun endsWithUpdate() {

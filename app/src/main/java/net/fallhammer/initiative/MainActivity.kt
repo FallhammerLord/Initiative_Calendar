@@ -30,10 +30,11 @@ class MainActivity : ComponentActivity() {
             val look by vm.settings.shown.collectAsStateWithLifecycle()
             val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
             val texture by vm.settings.texture.collectAsStateWithLifecycle()
+            val idleFx by vm.settings.idleFx.collectAsStateWithLifecycle()
             // A light look gets dark status bar icons, so the clock and battery stay readable.
             val light = Looks.byId(look).palette.light
             LaunchedEffect(light) { bars(light) }
-            InitiativeTheme(Looks.byId(look).let { if (ornaments) it.copy(texture = texture / 100f) else it.plain() }) { BoardScreen(vm) }
+            InitiativeTheme(Looks.byId(look).let { if (ornaments) it.copy(texture = texture / 100f) else it.plain() }.copy(idle = idleFx)) { BoardScreen(vm) }
         }
     }
 
