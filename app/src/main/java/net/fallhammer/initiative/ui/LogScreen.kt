@@ -36,8 +36,8 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -471,12 +471,13 @@ private fun DayCell(date: LocalDate, fixed: Boolean, marked: Boolean, picked: Bo
 /** One month in the Year view: its name and its fixed times. Tap to open the month. */
 @Composable
 private fun MonthRow(month: LogMonth, today: LocalDate, onOpen: (LocalDate) -> Unit) {
-    val context = LocalContext.current
+    // Read through LocalResources, so a language or font change redraws the row.
+    val resources = LocalResources.current
     val thisMonth = today.withDayOfMonth(1)
     val past = month.first < thisMonth
     val summary = when {
         month.anchors.isNotEmpty() -> month.anchors.joinToString(", ") {
-            context.getString(R.string.log_month_anchor, it.item.title, it.date.dayOfMonth)
+            resources.getString(R.string.log_month_anchor, it.item.title, it.date.dayOfMonth)
         }
         // A month with nothing fixed stays blank, rather than saying so twelve times.
         else -> ""
