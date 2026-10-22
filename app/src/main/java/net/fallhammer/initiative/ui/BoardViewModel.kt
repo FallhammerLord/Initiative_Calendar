@@ -360,7 +360,10 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
 
     fun switchTo(target: Item) {
         acted()
+        // The person chose: the hold on the task that was Now gives way.
+        hold.value = null
         viewModelScope.launch {
+            withContext(Dispatchers.IO) { graph.prefs.hold = null }
             repo.switchTo(target, ui.value.board?.now?.item, LocalDateTime.now())
             clock.value = LocalDateTime.now()
         }

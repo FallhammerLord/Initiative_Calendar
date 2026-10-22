@@ -38,4 +38,11 @@ class HoldTest {
         val onIt = taxes.copy(id = 4, createdAt = at(6), status = Status.ACTIVE, activeSince = at(11, 50))
         assertEquals(onIt.id, engine.board(listOf(taxes, onIt), at(12, 1), hold = hold).now.item?.id)
     }
+
+    @Test fun aWaitComingBackWaitsForTheHold() {
+        // A tap on its waitmark ends the wait now; the board then drops the hold, since the person chose.
+        val back = Item(id = 5, title = "laundry", kind = Kind.FLOAT, durationMinutes = 15, waitUntil = at(12, 1), createdAt = created)
+        assertEquals(taxes.id, engine.board(listOf(taxes, back), at(12, 2), hold = hold).now.item?.id)
+        assertEquals(back.id, engine.board(listOf(taxes, back), at(12, 2)).now.item?.id)
+    }
 }

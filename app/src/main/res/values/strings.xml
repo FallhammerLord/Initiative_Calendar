@@ -494,7 +494,7 @@
     <string name="manual_now_7_does">Starts focus, the same as Focus.</string>
     <string name="manual_now_8">Steps</string>
     <string name="manual_now_9">A new Now</string>
-    <string name="manual_now_9_does">Stays put for 5 minutes, even if something higher comes in. An appointment still takes over.</string>
+    <string name="manual_now_9_does">Stays put for 5 minutes, even if something higher comes in. An appointment, or a waitmark you tap, still takes over.</string>
     <string name="manual_now_8_does">Tick each one on the card as you go. A step with a wait sets the task aside until the wait is over.</string>
     <string name="manual_list">Today\'s list</string>
     <string name="manual_list_1">The Next line</string>
