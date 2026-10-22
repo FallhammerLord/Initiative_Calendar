@@ -499,7 +499,9 @@ hide_keyboard
 expect_text "pickup at 2:00 PM"
 shot anchor-in-ledger
 
-quick_add "dentist thu"
+# A weekday two days on, whatever today is, so the task stays off today's list.
+later_day=$(date -d '+2 days' +%a | tr '[:upper:]' '[:lower:]')
+quick_add "dentist $later_day"
 expect_text "anchor, float, or marker"
 shot ask-chips
 tap Float exact
