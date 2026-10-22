@@ -22,7 +22,7 @@ import java.time.LocalDateTime
  * each, and their last peeks. Pairing itself, over Bluetooth, comes later; until
  * then the only way to add someone is the emulator's pretend partner.
  */
-class PairsModel(private val parts: BoardParts) {
+class PairsModel(private val parts: BoardParts) : PairEdits {
     private val dao get() = parts.graph.dao
 
     val peers: StateFlow<List<PeerRow>> = dao.observePeers().stateIn(parts.scope, SharingStarted.Eagerly, emptyList())
@@ -41,26 +41,26 @@ class PairsModel(private val parts: BoardParts) {
         parts.scope.launch(Dispatchers.IO) { dao.updatePeer(peer) }
     }
 
-    fun rename(peer: PeerRow, nickname: String) = save(peer.copy(nickname = nickname, initial = initialOf(nickname, peer.initial)))
+    override fun rename(peer: PeerRow, nickname: String) = save(peer.copy(nickname = nickname, initial = initialOf(nickname, peer.initial)))
 
-    fun setColor(peer: PeerRow, color: Int) = save(peer.copy(color = color))
+    override fun setColor(peer: PeerRow, color: Int) = save(peer.copy(color = color))
 
-    fun setLevel(peer: PeerRow, level: ShareLevel) = save(peer.copy(level = level.name))
+    override fun setLevel(peer: PeerRow, level: ShareLevel) = save(peer.copy(level = level.name))
 
-    fun setShareReport(peer: PeerRow, on: Boolean) = save(peer.copy(shareReport = on))
+    override fun setShareReport(peer: PeerRow, on: Boolean) = save(peer.copy(shareReport = on))
 
-    fun setShowMark(peer: PeerRow, on: Boolean) = save(peer.copy(showMark = on))
+    override fun setShowMark(peer: PeerRow, on: Boolean) = save(peer.copy(showMark = on))
 
-    fun setShowLine(peer: PeerRow, on: Boolean) = save(peer.copy(showLine = on))
+    override fun setShowLine(peer: PeerRow, on: Boolean) = save(peer.copy(showLine = on))
 
-    fun setShowMarks(peer: PeerRow, on: Boolean) = save(peer.copy(showMarks = on))
+    override fun setShowMarks(peer: PeerRow, on: Boolean) = save(peer.copy(showMarks = on))
 
-    fun tick(peer: Long, item: Long, on: Boolean) {
+    override fun tick(peer: Long, item: Long, on: Boolean) {
         parts.scope.launch(Dispatchers.IO) { if (on) dao.share(ShareRow(peer, item)) else dao.unshare(peer, item) }
     }
 
     /** Unpairs at once on this phone: the person, their ticks, and their last peek go. */
-    fun unpair(peer: Long) {
+    override fun unpair(peer: Long) {
         parts.scope.launch(Dispatchers.IO) {
             dao.deleteSharesOf(peer)
             dao.deletePeekOf(peer)

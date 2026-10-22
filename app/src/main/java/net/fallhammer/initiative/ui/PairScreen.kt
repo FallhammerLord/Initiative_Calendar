@@ -46,6 +46,19 @@ import net.fallhammer.initiative.data.PeerRow
 import java.time.LocalDate
 import java.time.LocalDateTime
 
+/** What a paired person's page can change. The pairs model does it for real; screen tests use a stand-in. */
+interface PairEdits {
+    fun rename(peer: PeerRow, nickname: String)
+    fun setColor(peer: PeerRow, color: Int)
+    fun setLevel(peer: PeerRow, level: ShareLevel)
+    fun setShareReport(peer: PeerRow, on: Boolean)
+    fun setShowMark(peer: PeerRow, on: Boolean)
+    fun setShowLine(peer: PeerRow, on: Boolean)
+    fun setShowMarks(peer: PeerRow, on: Boolean)
+    fun tick(peer: Long, item: Long, on: Boolean)
+    fun unpair(peer: Long)
+}
+
 /** A paired person's badge: their initial on their color. */
 @Composable
 fun PairBadge(peer: PeerRow, modifier: Modifier = Modifier) {
@@ -146,7 +159,7 @@ fun PairScreen(
     now: LocalDateTime,
     shareable: List<Shareable>,
     ticked: Set<Long>,
-    pairs: PairsModel,
+    pairs: PairEdits,
     onClose: () -> Unit,
 ) {
     var name by rememberSaveable(peer.id) { mutableStateOf(peer.nickname) }

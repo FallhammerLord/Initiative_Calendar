@@ -767,25 +767,11 @@ scroll_to "Partner, " || fail "a pretend partner should show under Pairs"
 shot pairs-settings
 tap "Partner, "
 wait_for "What you share with Partner" || fail "a paired person's page should open"
-expect_text "Only the items you tick go to Partner."
 shot pair-page
-tap "Everything" exact
-wait_for "All of these go to Partner." || fail "Everything should share everything"
-tap "Ticked only" exact
-wait_for "Only the items you tick go to Partner." || fail "Ticked only should come back"
+# Sharing levels, ticks, and Unpair asking first are checked as a screen test
+# (PairScreenTest); here, only that Unpair works on the phone.
 scroll_to "Unpair" exact || fail "the page should end with Unpair"
 shot pair-page-end
-tap "Unpair" exact
-scroll_to "Keep" exact || fail "Unpair should ask first"
-tap "Keep" exact
-wait_gone "Keep" exact || fail "Keep should leave them paired"
-pass "a paired person's page: sharing levels, and Unpair asks first"
-adb shell input keyevent KEYCODE_BACK
-wait_for "Lock-screen card" exact 6 || scroll_to "Partner, " || fail "Back should return to settings"
-scroll_to "Partner, " || fail "Back should return to settings"
-tap "Partner, "
-wait_for "What you share with Partner" || fail "the page should open again"
-scroll_to "Unpair" exact
 tap "Unpair" exact
 scroll_to "Keep" exact || fail "Unpair should ask first"
 tap "Unpair" exact
