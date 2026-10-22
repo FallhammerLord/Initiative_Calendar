@@ -560,14 +560,14 @@ After two weeks on v0.1, we review what got ignored, what annoyed you, and what 
 
 - [x] **Launcher base.** Written from scratch, so the codebase stays small and fully understood.
 - [x] **Build setup.** GitHub Actions builds the APK and tests it on an Android 16 emulator; nothing to install.
-- [ ] **Pairs: two builds.** Each peek carries a format version; an older phone says "update Initiative" rather than failing.
-- [ ] **Pairs: unpairing apart.** Unpair takes effect on this phone at once; the other learns at the next meeting.
-- [ ] **Pairs: backup and restore.** Nicknames, colors, and share ticks are backed up; keys are not, so a restored phone pairs again.
-- [ ] **Pairs: testing in CI.** A pretend partner, in test builds only, so the emulator can show pairmarks and dial lines and check their TalkBack labels; the real Bluetooth is tested by hand on the two phones.
+- [ ] **Pairs: two builds.** Each peek carries a format version. Today an older phone quietly doesn't keep a newer peek; it should say "update Initiative" instead.
+- [x] **Pairs: unpairing apart.** Unpair takes effect on this phone at once; the other learns at the next meeting.
+- [x] **Pairs: backup and restore.** Nicknames, colors, and share ticks are backed up; keys are not, so a restored phone pairs again.
+- [x] **Pairs: testing in CI.** A pretend partner, in test builds only, so the emulator can show pairmarks and dial lines and check their TalkBack labels; the real Bluetooth is tested by hand on the two phones.
 - [ ] **Partner rung.** Does your partner want Hard-wall texts, and for which anchors?
 - [ ] **Kids' lane.** Should the daughters' events get their own color or marker on the ledger line?
 - [ ] **Lapse threshold.** Is 24 hours right, or does a shorter window catch you sooner?
 - [ ] **Escalation timing.** Are the rung times and Soft's ceiling at rung 2 right?
 - [ ] **Sync conflicts.** When phone and desktop both edit one item between syncs, does the phone always win, or the latest edit?
 - [ ] **Name.** Initiative is a working title.
-- [ ] **Next phone (back burner).** Only the Pixel 9 Pro on Android 16 is tested. Before a new phone: check that alarms ring with the screen off, and that brand battery lists (Samsung sleeping apps, Xiaomi auto-start) let it run. Later, if wanted: a small-screen Android 10 emulator run in CI, and a width cap for tablets and foldables.
+- [ ] **Next phone (back burner).** Only Pixels on Android 16 are tested (the Pixel 9 Pro first, now two Pixel 10 Pros). Before a new phone: check that alarms ring with the screen off, and that brand battery lists (Samsung sleeping apps, Xiaomi auto-start) let it run. Later, if wanted: a small-screen Android 10 emulator run in CI, and a width cap for tablets and foldables.

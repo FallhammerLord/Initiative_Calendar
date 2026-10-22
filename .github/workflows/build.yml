@@ -87,7 +87,7 @@ jobs:
       - name: Run the smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          # Android 16, the version on the owner's Pixel 9 Pro. Google APIs
+          # Android 16, the version on the owner's Pixel 10 Pro. Google APIs
           # image without the Play Store, so adb root still works.
           api-level: 36
           target: google_apis
