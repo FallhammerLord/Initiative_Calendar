@@ -91,6 +91,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    // Screen tests: Compose UI tests, run on the build machine under Robolectric.
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
 
 // A failed test prints its message in the CI log, so a failure says what broke.
