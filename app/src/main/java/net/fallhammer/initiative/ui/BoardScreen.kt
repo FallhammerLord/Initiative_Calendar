@@ -95,7 +95,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -140,6 +142,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val setup by vm.settings.setup.collectAsStateWithLifecycle()
     val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
     val ornaments by vm.settings.ornaments.collectAsStateWithLifecycle()
+    val names by vm.names.names.collectAsStateWithLifecycle()
     val idleFx by vm.settings.idleFx.collectAsStateWithLifecycle()
     val texture by vm.settings.texture.collectAsStateWithLifecycle()
     val chosenLook by vm.settings.look.collectAsStateWithLifecycle()
@@ -242,7 +245,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     onStop = vm.recopy::stop,
                 )
             } else if (editing != null) {
-                EditScreen(editing, vm.edit, paired = peers.isNotEmpty())
+                EditScreen(editing, vm.edit, paired = peers.isNotEmpty(), names = names, onForget = vm.names::forget, onUnforget = vm.names::unforget)
             } else if (reportOn != null) {
                 ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport, marks = reportMarks)
             } else if (logOpen) {
@@ -258,6 +261,9 @@ fun BoardScreen(vm: BoardViewModel) {
                     repeats = repeats,
                     onStopSeries = vm::stopSeries,
                     onReport = vm::openReport,
+                    names = names,
+                    onForget = vm.names::forget,
+                    onUnforget = vm.names::unforget,
                 )
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
@@ -352,7 +358,14 @@ fun BoardScreen(vm: BoardViewModel) {
                     }
                     // One setup step at a time, until all are done.
                     setup.firstOrNull()?.let { step -> PromptLine(stringResource(step.text)) { openStep(step) } }
-                    QuickAdd(onSubmit = vm::submit, modifier = Modifier.onGloballyPositioned { fieldArea = it.boundsInRoot() })
+                    QuickAdd(
+                        onSubmit = vm::submit,
+                        names = names,
+                        onForget = vm.names::forget,
+                        onUnforget = vm.names::unforget,
+                        // The suggestions count as the field, so tapping one doesn't let the field go.
+                        modifier = Modifier.onGloballyPositioned { fieldArea = it.boundsInRoot() },
+                    )
                     Spacer(Modifier.height(Space.panel))
                     // The way to the app drawer: a swipe up that starts in this bottom band,
                     // which sits above Android's own gesture strip, or the Apps handle.
@@ -428,8 +441,17 @@ fun BoardScreen(vm: BoardViewModel) {
                 onSettings = vm.launcher::openSettings,
                 onHomeChooser = vm.launcher::openHomeChooser,
                 onAppSettings = vm::showSettings,
+                onManual = vm::showManual,
                 onClose = { vm.setDrawer(false) },
             )
+        }
+
+        AnimatedVisibility(
+            visible = overlay == Overlay.MANUAL,
+            enter = slideInVertically { it },
+            exit = slideOutVertically { it },
+        ) {
+            ManualScreen(onClose = { vm.setDrawer(false) })
         }
 
         AnimatedVisibility(
@@ -1030,9 +1052,20 @@ private fun DupeChips(title: String, onReplace: () -> Unit, onKeep: () -> Unit, 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifier) {
-    // Saved across process restarts, so a half-typed line survives.
-    var text by rememberSaveable { mutableStateOf("") }
+private fun QuickAdd(
+    onSubmit: (String) -> Boolean,
+    names: List<String>,
+    onForget: (String) -> Unit,
+    onUnforget: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Saved across process restarts, so a half-typed line survives. Kept with its
+    // cursor, so a picked name leaves the cursor after it, ready for a day or time.
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    val text = field.text
+    fun clear() {
+        field = TextFieldValue("")
+    }
     // Once the keyboard has been up while the field has focus, the keyboard going
     // down lets the field go too, so it never stays lit with no keyboard. Forced,
     // so nothing can hold on to it. The board's own check backs this up.
@@ -1062,23 +1095,30 @@ private fun QuickAdd(onSubmit: (String) -> Boolean, modifier: Modifier = Modifie
             delay(KEYBOARD_CHECK_MS)
         }
     }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        singleLine = true,
-        placeholder = { Text(stringResource(R.string.quick_add_hint), style = Type.bodySmall, color = Ink.dim) },
-        textStyle = Type.body.copy(color = Ink.text),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { if (onSubmit(text)) text = "" }),
-        // Enter adds too; the button is there for anyone who'd rather tap.
-        trailingIcon = if (text.isBlank()) {
-            null
-        } else {
-            { QuietButton(stringResource(R.string.quick_add_button), { if (onSubmit(text)) text = "" }, color = Ink.accent) }
-        },
-        colors = fieldColors(),
-        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
-    )
+    Column(modifier.fillMaxWidth()) {
+        // Names used before, above the field (the keyboard is below it).
+        if (focused) {
+            Suggestions(text, names, onPick = { name -> field = TextFieldValue("$name ", TextRange(name.length + 1)) }, onForget, onUnforget)
+            Spacer(Modifier.height(Space.inside))
+        }
+        OutlinedTextField(
+            value = field,
+            onValueChange = { field = it },
+            singleLine = true,
+            placeholder = { Text(stringResource(R.string.quick_add_hint), style = Type.bodySmall, color = Ink.dim) },
+            textStyle = Type.body.copy(color = Ink.text),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (onSubmit(text)) clear() }),
+            // Enter adds too; the button is there for anyone who'd rather tap.
+            trailingIcon = if (text.isBlank()) {
+                null
+            } else {
+                { QuietButton(stringResource(R.string.quick_add_button), { if (onSubmit(text)) clear() }, color = Ink.accent) }
+            },
+            colors = fieldColors(),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+        )
+    }
 }
 
 /** A swipe up of at least [travel]. */

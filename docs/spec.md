@@ -49,7 +49,6 @@ Every entry is an Item, and every Item is either an Anchor or a Float.
 | Start, end | Anchor | Date and time |
 | Wall strength | Anchor | Soft, Firm, Hard |
 | Lead time | Anchor | Minutes of warning before start, default 15 |
-| Partner alert | Anchor | On or off, Hard only |
 | Duration | Float | Estimate in minutes: 15 for Quick tasks, 30 for Focus; learned over time |
 | Earliest start | Float | Optional date |
 | Deadline | Float | Optional date |
@@ -102,11 +101,13 @@ Top to bottom: glance at the top, act at the bottom, where the thumb reaches. St
 4. **Quick-add bar.** One line of text to capture anything, with a mic button.
 5. **Apps.** Below the dock, a slim ⌃ pull tab opens the app list with a tap; it's the visible twin of the swipe. A dock of six fixed slots for favourite apps runs along the bottom. Tap a slot to open its app; an empty slot shows + and opens a picker; hold a slot to change or empty it. Holding an app in the drawer adds it to the first empty slot. In the Sci-fi look the slots are nested hexagon trios (two stacked, one tucked to the right, each tile's point in the next one's notch); taps go by each tile's real outline, not its box. In Classic they're plain squares. A swipe up that starts in this bottom band (the dock and the Apps button, above Android's own gesture strip) opens the app list; a swipe anywhere else on the board doesn't. The pull tab does the same with a tap.
 
-**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on, the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission, which Android 15 and later block for sideloaded apps until "Allow restricted settings" is chosen in the app's info page. On the owner's Pixel 9 Pro (Android 16) the unlock worked: Settings, Apps, Initiative, ⋮, Allow restricted settings, then Display over other apps. With it on, the board after unlock runs smoothly. It stays off by default, since a new install needs those steps first; as the Home app, the board is one press of Home away meanwhile. The switch is in Initiative settings; when on, the board shows a one-line prompt until the permission is granted.
+**Board after unlock.** Unlocking normally returns you to whatever app was open. With this setting on, the board moves to the front when the screen turns off, so the next unlock lands on it with no visible jump. Unlock itself is a backup trigger. Calls are left alone. It needs Android's "Display over other apps" permission, which Android 15 and later block for sideloaded apps until "Allow restricted settings" is chosen in the app's info page. On the owner's Pixel 9 Pro (Android 16) the unlock worked: Settings, Apps, Initiative, ⋮, Allow restricted settings, then Display over other apps. With it on, the board after unlock runs smoothly. It stays off by default, since a new install needs those steps first; as the Home app, the board is one press of Home away meanwhile. The switch is in Settings; when on, the board shows a one-line prompt until the permission is granted.
 
 **Lock-screen card.** A silent ongoing notification shows the Now card on the lock screen: "Now: call landlord · Next: pickup in 1h 40m." No sound, no badge, no counter. It refreshes at each gap boundary through the same scheduler as the alarms. Android phones have no lock-screen widgets, so this is the glance before unlocking; board after unlock is the full view after it.
 
-**Initiative settings.** Opened from the app drawer's header. Grouped as Board (board after unlock, lock-screen card), Look (theme), and Alarms (quiet hours, with start and end times). The drawer itself holds only apps and the two exits to the normal phone.
+**Settings.** Opened from the app drawer's header. Grouped as Board (board after unlock, lock-screen card), Look (theme), and Alarms (quiet hours, with start and end times). The drawer itself holds only apps and the two exits to the normal phone.
+
+**Manual.** Beside Settings and Close in the app drawer's header: **How Initiative works**, place by place (the Now card, today's list, Plan ahead, typing a task, alarms, Pairs, looks, backup, getting around). One part opens at a time, each listing what you do, then what happens, in plain words. Rules that act without saying why on screen are written down here. It lives in the app, so it matches the build you have.
 
 The Log, from the Plan ahead panel, holds the week and beyond. It exists for planning and is never required.
 
@@ -130,7 +131,7 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 
 **Readability.** Large type, high contrast, short labels. Font choice in settings, with Atkinson Hyperlegible as the default. It's an open-licensed font designed for low-vision readers.
 
-**Themes.** Picked in Initiative settings. Each theme sets colors, card and button shapes, outlines, and an optional background pattern (hairlines at half strength, so they read as texture, not a wash); layout and type stay the same.
+**Themes.** Picked in Settings. Each theme sets colors, card and button shapes, outlines, and an optional background pattern (hairlines at half strength, so they read as texture, not a wash); layout and type stay the same.
 
 - **Sci-fi** (default), after the Foundry quest log module: navy panels with thin teal frames and cut corners, cyan accents, a faint hexagon grid behind each screen. Section labels keep the quest log's cyan and bold but stay in sentence case.
 - **Classic**: black and amber, rounded. The plainest, highest-contrast look.
@@ -148,7 +149,7 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 
 **The look kit.** A look is assembled from named slots, each a short list of choices, so a new theme is a new palette and a pick per slot, without new layout code: background pattern (none, hexagons, fans, leaded glass, dots, sparkles, web, knit), card corners (none, brackets, sparkles, cobwebs, snow), the Now card's crown (none, rose, bow, brooch, jack-o'-lantern, holly), the dial's pointer (triangle, seed, heart, star, candy corn, tree), done marks (tick, coin, heart, sparkle, ghost, snowflake), the All done flourish (the pattern's own, hearts, sparkles, bats, snow, none), marker bubbles (hexagon, circle, medallion, roundel, sweet, gem, pumpkin, bauble), and the Apps handle. Ornaments are drawn in the palette's ornament color, never used for text. A light palette switches Android's light color scheme and dark status bar icons. 
 
-**Ornaments.** One switch in Initiative settings, on by default, for every look: the background pattern, the corner details, the Now card's crown, and the All done flourish. Off, any look turns calm and plain, for low-energy days or a busy head. While on, a **Texture strength** slider (in tenths, half by default) sets how strongly the pattern shows, for looks that have one. Each look keeps its own strength, so a faint Sci-fi grid and bolder glass both stay as set.
+**Ornaments.** One switch in Settings, on by default, for every look: the background pattern, the corner details, the Now card's crown, and the All done flourish. Off, any look turns calm and plain, for low-energy days or a busy head. While on, a **Texture strength** slider (in tenths, half by default) sets how strongly the pattern shows, for looks that have one. Each look keeps its own strength, so a faint Sci-fi grid and bolder glass both stay as set.
 
 **Text over the pattern.** Plain text never lies on the background pattern: every screen's words sit in a panel (a header strip, and a card per section or list), and every button and text field sits on the panel's dark surface. Anything tappable is a button and looks it: outlined, including each row of a list that opens something (a Log entry, a task in the day panel, an app in the drawer). This holds for every screen, now and later. In the Sci-fi look the dock's hexagons are outlined twice as heavily as the grid behind them, so they stand apart from it.
 
@@ -220,13 +221,12 @@ Only anchors can interrupt. Each anchor climbs one rung at a time until you resp
 | 1. Quiet notice | Silent notification with the countdown. | At lead time |
 | 2. Nudge | Notification with sound and vibration, shown over other apps. | 5 minutes before start |
 | 3. Alarm | Full-screen alarm with sound until you respond. | At start |
-| 4. Partner | Pre-written SMS to your partner. | 5 minutes after start, if no On it |
 
 | Wall strength | Highest rung |
 | --- | --- |
 | Soft | 2. Nudge |
 | Firm | 3. Alarm |
-| Hard | 3. Alarm, or 4. Partner when Partner alert is on |
+| Hard | 3. Alarm |
 
 If the lead time is under 5 minutes, rungs 1 and 2 merge into one nudge at lead time.
 
@@ -271,6 +271,8 @@ One line in the quick-add bar creates an item, parsed on the device.
 The rule of thumb: a time makes an anchor, no time makes a float. Words like *hard*, *soft*, *high*, *by*, and *every other* set the extra fields.
 
 When the parser is unsure, it asks one question as a tap chip: "Anchor or float?"
+
+**Names used before.** After two letters, up to four names you've used show above the field (below it in the Log's add line and the edit form), newest first, the typed part in bold: names that start with it, then a word inside, then names holding it, then near-misses (one letter off, or two swapped). A tap fills the name and leaves the cursor after it, so a day or time can follow; the list then stays shut while the text starts with that name. Holding one forgets it (Undo for a moment); past tasks keep their names. Picking a name you've used keeps its learned length, so "Dinner" doesn't split into "Dinner" and "Make dinner".
 
 - **Share target.** Text shared from any app lands in quick-add.
 - **Voice.** A large mic button on the board. Speak a task and the parser creates the item with no typing. Speech runs on the phone through Whisper (whisper.cpp, base model), fully offline, the same on stock Android and GrapheneOS. A tap chip confirms when the parser is unsure.
@@ -481,7 +483,7 @@ Standards pass, done, so the remaining screens are built from shared parts:
 
 Then, built:
 
-- Initiative settings screen, with quiet hours
+- Settings screen, with quiet hours
 - Focus mode
 - Lapse recap with miss policies ("Previously on")
 - Weekly recopy
@@ -506,7 +508,6 @@ After v0.1, built:
 
 - The Log: planning beyond today (below)
 - Subtasks: one level of steps inside an item (below)
-- Partner SMS rung
 - .ics import
 - Rotating alert wording
 
@@ -568,8 +569,8 @@ After two weeks on v0.1, we review what got ignored, what annoyed you, and what 
 - [x] **Pairs: unpairing apart.** Unpair takes effect on this phone at once; the other learns at the next meeting.
 - [x] **Pairs: backup and restore.** Nicknames, colors, and share ticks are backed up; keys are not, so a restored phone pairs again.
 - [x] **Pairs: testing in CI.** A pretend partner, in test builds only, so the emulator can show pairmarks and dial lines and check their TalkBack labels; the real Bluetooth is tested by hand on the two phones.
-- [ ] **Partner rung.** Does your partner want Hard-wall texts, and for which anchors?
-- [ ] **Kids' lane.** Should the daughters' events get their own color or marker on the ledger line?
+- [x] **Partner rung.** Retired: a text sent for you when an alarm goes unanswered could do more harm than good. Hard appointments stop at the full alarm. (The unused partner-alert field goes with the next database change.)
+- [x] **Kids' lane.** Retired: Pairs gives each paired person their own line under the dial.
 - [ ] **Lapse threshold.** Is 24 hours right, or does a shorter window catch you sooner?
 - [ ] **Escalation timing.** Are the rung times and Soft's ceiling at rung 2 right?
 - [ ] **Sync conflicts.** When phone and desktop both edit one item between syncs, does the phone always win, or the latest edit?

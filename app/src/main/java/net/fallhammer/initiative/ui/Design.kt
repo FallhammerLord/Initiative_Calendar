@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -42,6 +43,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -68,20 +70,28 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import initiative.core.Names
 import initiative.core.Trio
+import kotlinx.coroutines.delay
+import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.Apps
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -1341,3 +1351,83 @@ fun FlashLine(text: String, undoLabel: String?, onUndo: () -> Unit) {
         if (undoLabel != null) QuietButton(undoLabel, onUndo, color = Ink.text)
     }
 }
+
+/**
+ * Names used before, under or over a task's name field while it's typed: up to
+ * four, newest first, the typed part in bold. A tap fills the name; holding one
+ * forgets it, with Undo. It shows nothing until two letters are typed, and goes
+ * once the text runs past every name.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Suggestions(typed: String, names: List<String>, onPick: (String) -> Unit, onForget: (String) -> Unit, onUnforget: (String) -> Unit) {
+    // Once a name is picked, the list stays shut while the text still starts with it.
+    var picked by remember { mutableStateOf<String?>(null) }
+    val past = picked?.let { typed.startsWith(it, ignoreCase = true) } == true
+    val shown = remember(typed, names, past) { if (past) emptyList() else Names.suggest(typed, names) }
+    var forgot by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(forgot) {
+        if (forgot != null) {
+            delay(FORGOT_MS)
+            forgot = null
+        }
+    }
+    if (shown.isEmpty() && forgot == null) return
+    val haptics = rememberHaptics()
+    val shape = LocalLook.current.cardShape
+    val pickLabel = stringResource(R.string.names_pick)
+    val forgetLabel = stringResource(R.string.names_forget)
+    val count = pluralStringResource(R.plurals.names_count, shown.size, shown.size)
+    val bold = SpanStyle(fontWeight = FontWeight.Bold, color = Ink.text)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Ink.surface)
+            .border(Hairline, Ink.frame, shape)
+            .semantics { paneTitle = count },
+    ) {
+        shown.forEachIndexed { i, name ->
+            if (i > 0) Box(Modifier.fillMaxWidth().height(Hairline).background(Ink.frame))
+            val at = name.lowercase().indexOf(typed.trim().lowercase())
+            Text(
+                buildAnnotatedString {
+                    append(name)
+                    if (at >= 0 && typed.isNotBlank()) addStyle(bold, at, at + typed.trim().length)
+                },
+                style = Type.body,
+                color = Ink.dim,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Tap.min)
+                    .combinedClickable(
+                        onClickLabel = pickLabel,
+                        onClick = {
+                            haptics.tick()
+                            picked = name
+                            onPick(name)
+                        },
+                        onLongClickLabel = forgetLabel,
+                        onLongClick = {
+                            haptics.tick()
+                            forgot = name
+                            onForget(name)
+                        },
+                    )
+                    .padding(horizontal = Space.l, vertical = Space.m),
+            )
+        }
+        forgot?.let { name ->
+            if (shown.isNotEmpty()) Box(Modifier.fillMaxWidth().height(Hairline).background(Ink.frame))
+            Row(Modifier.fillMaxWidth().padding(start = Space.l, end = Space.s), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.names_forgot, name), style = Type.bodySmall, color = Ink.text, modifier = Modifier.weight(1f))
+                QuietButton(stringResource(R.string.action_undo), {
+                    onUnforget(name)
+                    forgot = null
+                }, color = Ink.accent)
+            }
+        }
+    }
+}
+
+private const val FORGOT_MS = 4_000L

@@ -71,6 +71,8 @@ ui() {
 
 # Prints "x y" for the first node matching $1. Modes: contains (default), exact, class.
 # Class mode takes the last match: the top-most layer, such as the open drawer.
+# "lastexact" is exact, but takes the last match, such as an app in a list
+# below a button of the same name.
 find_node() {
   ui > "$OUT/ui.xml"
   python3 - "$OUT/ui.xml" "$1" "${2:-contains}" <<'PY'
@@ -81,7 +83,7 @@ try:
 except Exception:
     sys.exit(1)
 nodes = list(root.iter("node"))
-if mode == "class":
+if mode in ("class", "lastexact"):
     nodes.reverse()
 for n in nodes:
     # Text boxes echo what was typed; never treat them as labels.
@@ -99,7 +101,7 @@ for n in nodes:
     vals = [n.get("class") or ""] if mode == "class" else [n.get("text") or "", n.get("content-desc") or ""]
     for v in vals:
         # "iexact" ignores case too: the keyboard may capitalize a line's first letter.
-        hit = (v == q) if mode in ("exact", "class") else (v.lower() == q.lower()) if mode == "iexact" else (q in v)
+        hit = (v == q) if mode in ("exact", "class", "lastexact") else (v.lower() == q.lower()) if mode == "iexact" else (q in v)
         if hit:
             x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
             print((x1 + x2) // 2, (y1 + y2) // 2)
@@ -306,11 +308,11 @@ set_clock() {
   sleep 4
 }
 
-# From the board: drawer, then Initiative settings.
+# From the board: drawer, then Initiative's Settings.
 open_settings() {
   open_drawer
-  tap "Initiative settings" exact
-  wait_for "Lock-screen card" exact || fail "Initiative settings didn't open"
+  tap Settings exact
+  wait_for "Lock-screen card" exact || fail "Settings didn't open"
 }
 
 # pick_theme: open the Theme dropdown in settings and choose $1.
@@ -430,6 +432,18 @@ pass "setup line clears once everything is granted"
 quick_add "call landlord"
 quick_add "taxes by fri high"
 hide_keyboard
+# Names used before show while typing: "cal" offers "call landlord" above the field.
+xy=$(find_node android.widget.EditText class) || fail "no quick-add field"
+adb shell input tap $xy
+sleep 1
+adb shell input text cal
+wait_for "call landlord" exact 6 || fail "typing 'cal' should suggest 'call landlord'"
+shot name-suggestions
+adb shell input keyevent KEYCODE_MOVE_END
+adb shell input keyevent KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL
+hide_keyboard
+[ -z "$(field_text)" ] || fail "the quick-add field should be empty again (holds '$(field_text)')"
+pass "names used before show while typing"
 expect_text "taxes"
 expect_text "High priority"
 expect_text "Next: call landlord"
@@ -531,6 +545,17 @@ crash_check
 open_drawer
 expect_text "Change home app"
 shot app-drawer
+# The manual: from the apps list, beside Settings; one part opens at a time.
+tap Manual exact
+wait_for "How Initiative works" exact || fail "Manual should open How Initiative works"
+shot manual
+tap "The Now card" exact
+scroll_to "Hold the card" exact || fail "The Now card should list what you do there"
+shot manual-now-card
+adb shell input keyevent KEYCODE_BACK
+wait_gone "How Initiative works" exact || fail "Back should close the manual"
+wait_for "Change home app" exact || fail "Back from the manual should return to the apps list"
+pass "the manual opens from the apps list, and Back returns there"
 
 tap "Phone settings" exact
 expect_front com.android.settings "Phone settings opens Settings"
@@ -554,7 +579,8 @@ adb shell input text Settings
 sleep 1
 hide_keyboard
 shot drawer-search
-tap Settings exact
+# The phone's Settings app, in the list, not Initiative's Settings button above it.
+tap Settings lastexact
 expect_front com.android.settings "Apps in the drawer launch"
 home
 expect_front $PKG "Home returns to the board"

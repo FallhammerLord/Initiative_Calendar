@@ -12,7 +12,7 @@ sideloaded, no Google services, no internet. The plan and every rule live in
   `./gradlew -p core test` (works without the Android SDK).
 - `app/`: the Android launcher. Services in `AppGraph.kt`; the board's state in
   `ui/BoardViewModel.kt`, with each feature in its own part (`RecapModel`,
-  `RecopyModel`, `EditModel`, `BackupModel`, `SettingsModel`, `LauncherModel`, `LogModel`, `PairsModel`); design system in
+  `RecopyModel`, `EditModel`, `BackupModel`, `SettingsModel`, `LauncherModel`, `LogModel`, `PairsModel`, `NamesModel`); design system in
   `ui/Design.kt` (tokens and components), `ui/Theme.kt` (themes: colors,
   shapes, outlines, and the look kit's slots), `ui/Ornaments.kt` (the
   kit's small drawings), and `ui/Effects.kt` (the HUD effects); wording in `res/values/strings.xml`.
@@ -48,7 +48,7 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
 - Screens are tested as Compose UI tests in `app/src/test` (Robolectric, in the
   build job, about a minute, full messages). Find things by what they say or
   their description, never by position; `performScrollTo()` before touching or
-  checking anything. Settings, a paired person's page, the pairmark row, and the Now card are there now; when
+  checking anything. Settings, a paired person's page, the pairmark row, the Now card, name suggestions, and the manual are there now; when
   another screen changes, its checks move there too.
 - `scripts/emulator-smoke.sh` covers only what needs a phone: being the home
   app and every way back, alarms and rungs, the lock screen and unlock,
@@ -68,6 +68,8 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
 
 ## Rules CI can't fully check
 
+- A new action or rule gets a line in the manual (`ManualScreen.kt`, wording in
+  `strings.xml`), so the manual matches the build.
 - Build new screens from `Screen`, `Card`, `Strip`, the buttons, and the type scale.
   One primary button per screen. Space panels with `Space.zone` (24dp, between
   zones) and `Space.inside` (8dp, within one); see the spec's Layout rhythm.

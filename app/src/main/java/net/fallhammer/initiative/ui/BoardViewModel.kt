@@ -62,7 +62,7 @@ data class BoardUi(
 data class FocusView(val item: Item, val until: LocalDateTime, val wall: Item?)
 
 /** What's drawn over the board. */
-enum class Overlay { NONE, DRAWER, SETTINGS, PICK }
+enum class Overlay { NONE, DRAWER, SETTINGS, MANUAL, PICK }
 
 /**
  * A short note after an action. Undo puts [undo] and [undoAlso] back as they
@@ -98,6 +98,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val edit = EditModel(parts, saved) { items }
     val backup = BackupModel(parts)
     val settings = SettingsModel(parts)
+    val names = NamesModel(parts, repo.items)
     // What could be shared is read when a ping happens, from the board as it stands then.
     val pairs = PairsModel(parts) { shareable.value }
     val launcher = LauncherModel(parts)
@@ -274,6 +275,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 }
                 settings.load(prefs, now.toLocalDate())
                 pairs.load(prefs)
+                names.load(prefs)
                 order.value = prefs.taskOrder
                 backup.load(prefs)
                 recopy.load(prefs, now)
@@ -493,6 +495,11 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         saved[OVERLAY] = Overlay.SETTINGS
     }
 
+    /** The manual, How Initiative works, from the apps list. */
+    fun showManual() {
+        saved[OVERLAY] = Overlay.MANUAL
+    }
+
     /**
      * Back steps out one level: edit form or recopy walk, the Done question, the
      * Log, then settings to the drawer, then the drawer to the board.
@@ -513,7 +520,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         } else if (pairOpen.value >= 0) {
             closePair()
         } else {
-            saved[OVERLAY] = if (overlay.value == Overlay.SETTINGS) Overlay.DRAWER else Overlay.NONE
+            saved[OVERLAY] = if (overlay.value == Overlay.SETTINGS || overlay.value == Overlay.MANUAL) Overlay.DRAWER else Overlay.NONE
         }
     }
 

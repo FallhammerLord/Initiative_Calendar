@@ -44,8 +44,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,6 +84,9 @@ fun LogScreen(
     repeats: List<Pair<Item, Item?>> = emptyList(),
     onStopSeries: (Item) -> Unit = {},
     onReport: (LocalDate) -> Unit = {},
+    names: List<String> = emptyList(),
+    onForget: (String) -> Unit = {},
+    onUnforget: (String) -> Unit = {},
 ) {
     // The Repeats list, in place of the days: every running series, to change or stop.
     var showRepeats by rememberSaveable { mutableStateOf(false) }
@@ -126,7 +131,7 @@ fun LogScreen(
         }
         Spacer(Modifier.height(Space.inside))
         if (showAdd) {
-            AddField(addDay, view.today, onAdd)
+            AddField(addDay, view.today, onAdd, names, onForget, onUnforget)
         } else {
             OutlinedTextField(
                 value = query,
@@ -382,18 +387,27 @@ private fun EntryText(entry: LogEntry, title: String, modifier: Modifier = Modif
  * Enter adds and leaves the line ready for the next one.
  */
 @Composable
-private fun AddField(day: LocalDate, today: LocalDate, onAdd: (String, LocalDate) -> Boolean) {
-    // Saved across a restart, so a half-typed line survives.
-    var text by rememberSaveable { mutableStateOf("") }
+private fun AddField(
+    day: LocalDate,
+    today: LocalDate,
+    onAdd: (String, LocalDate) -> Boolean,
+    names: List<String>,
+    onForget: (String) -> Unit,
+    onUnforget: (String) -> Unit,
+) {
+    // Saved across a restart, so a half-typed line survives. Kept with its
+    // cursor, so a picked name leaves the cursor after it, ready for a time.
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    val text = field.text
     val cursor = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { cursor.requestFocus() } }
     fun submit() {
-        if (onAdd(text, day)) text = ""
+        if (onAdd(text, day)) field = TextFieldValue("")
     }
     val hint = if (day == today) stringResource(R.string.log_add_hint_today) else stringResource(R.string.log_add_hint, Formats.weekday(day))
     OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
+        value = field,
+        onValueChange = { field = it },
         singleLine = true,
         placeholder = { Text(hint, style = Type.bodySmall, color = Ink.dim) },
         textStyle = Type.body.copy(color = Ink.text),
@@ -403,6 +417,11 @@ private fun AddField(day: LocalDate, today: LocalDate, onAdd: (String, LocalDate
         colors = fieldColors(),
         modifier = Modifier.fillMaxWidth().focusRequester(cursor),
     )
+    // Names used before, under the line.
+    if (text.isNotBlank()) {
+        Spacer(Modifier.height(Space.inside))
+        Suggestions(text, names, onPick = { name -> field = TextFieldValue("$name ", TextRange(name.length + 1)) }, onForget, onUnforget)
+    }
 }
 
 /** The month as a grid, Monday first. Days with fixed times carry a mark; tap a day to list it below. */

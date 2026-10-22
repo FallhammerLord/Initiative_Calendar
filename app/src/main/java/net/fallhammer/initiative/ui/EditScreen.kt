@@ -25,11 +25,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import initiative.core.Effort
 import initiative.core.Formats
@@ -59,6 +62,9 @@ fun EditScreen(
     draft: Item,
     edit: EditModel,
     paired: Boolean = false,
+    names: List<String> = emptyList(),
+    onForget: (String) -> Unit = {},
+    onUnforget: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val rule by edit.rule.collectAsStateWithLifecycle()
@@ -67,7 +73,9 @@ fun EditScreen(
     // Remove on a time of a series asks which: just this time, or this and later.
     var asking by rememberSaveable(draft.id) { mutableStateOf(false) }
     // Keyed by the item, so opening another item starts fresh; saved across a restart.
-    var title by rememberSaveable(draft.id) { mutableStateOf(draft.title) }
+    // Kept with its cursor, so a picked name leaves the cursor after it.
+    var title by rememberSaveable(draft.id, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(draft.title)) }
+    var titleFocused by remember { mutableStateOf(false) }
     var notes by rememberSaveable(draft.id) { mutableStateOf(draft.notes) }
     // Steps too, one line each (see core's Steps), so a tick made on the board is kept.
     var steps by rememberSaveable(draft.id) { mutableStateOf(draft.steps.map(Steps::line)) }
@@ -97,7 +105,21 @@ fun EditScreen(
         }
         Spacer(Modifier.height(Space.panel))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            Field(stringResource(R.string.edit_title), title, { title = it }, singleLine = true)
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.edit_title), style = Type.bodySmall) },
+                textStyle = Type.body.copy(color = Ink.text),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                colors = fieldColors(),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { titleFocused = it.isFocused },
+            )
+            // Names used before, once the name is being changed.
+            if (titleFocused && title.text != draft.title) {
+                Spacer(Modifier.height(Space.inside))
+                Suggestions(title.text, names, onPick = { name -> title = TextFieldValue(name, TextRange(name.length)) }, onForget, onUnforget)
+            }
             Spacer(Modifier.height(Space.s))
             Field(stringResource(R.string.edit_notes), notes, { notes = it }, singleLine = false)
             // Once anyone is paired: keep this one home, whatever is shared.
@@ -290,7 +312,7 @@ fun EditScreen(
             )
             // A marker can't be done: it only informs.
             draft.isMark && draft.isOpen -> ActionRow(
-                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title.text, notes, typed()) }, it) },
                 Action {
                     SecondaryButton(
                         stringResource(R.string.edit_remove),
@@ -300,9 +322,9 @@ fun EditScreen(
                 },
             )
             draft.isOpen -> ActionRow(
-                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title.text, notes, typed()) }, it) },
                 // Done here works for any open item, Now or not.
-                Action { SecondaryButton(stringResource(R.string.edit_done), { edit.done(title, notes, typed()) }, it) },
+                Action { SecondaryButton(stringResource(R.string.edit_done), { edit.done(title.text, notes, typed()) }, it) },
                 Action {
                     SecondaryButton(
                         stringResource(R.string.edit_remove),
@@ -313,12 +335,12 @@ fun EditScreen(
             )
             // A done or removed item can go back on the board; a removed one can also go for good.
             draft.status == Status.DROPPED -> ActionRow(
-                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title.text, notes, typed()) }, it) },
                 Action { SecondaryButton(stringResource(R.string.edit_put_back), edit::putBack, it) },
                 Action { SecondaryButton(stringResource(R.string.edit_delete), edit::deleteForGood, it) },
             )
             else -> ActionRow(
-                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title, notes, typed()) }, it) },
+                Action(2f) { PrimaryButton(stringResource(R.string.edit_save), { edit.save(title.text, notes, typed()) }, it) },
                 Action { SecondaryButton(stringResource(R.string.edit_put_back), edit::putBack, it) },
             )
         }

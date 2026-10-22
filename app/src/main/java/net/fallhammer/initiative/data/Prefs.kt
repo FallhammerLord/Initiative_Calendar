@@ -70,6 +70,11 @@ class Prefs(private val context: Context) {
             ?: Holiday.entries.toSet()
         set(value) = prefs.edit().putStringSet(HOLIDAYS, value.map { it.name }.toSet()).apply()
 
+    /** Past task names no longer offered while typing (their keys, as Item.keyFor makes them). */
+    var forgottenNames: Set<String>
+        get() = prefs.getStringSet(FORGOTTEN_NAMES, null)?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(FORGOTTEN_NAMES, value).apply()
+
     /** This Initiative's own random ID, made once; how paired phones know it. */
     val instanceId: String
         get() = prefs.getString(INSTANCE_ID, null) ?: java.util.UUID.randomUUID().toString().also {
@@ -221,6 +226,7 @@ class Prefs(private val context: Context) {
         const val TEXTURE = "texture"
         const val HOLIDAY_LOOKS = "holiday_looks"
         const val HOLIDAYS = "holidays"
+        const val FORGOTTEN_NAMES = "forgotten_names"
         const val PAIRS_SHOWN = "pairs_shown"
         const val INSTANCE_ID = "instance_id"
         const val DEFAULT_TEXTURE = 50

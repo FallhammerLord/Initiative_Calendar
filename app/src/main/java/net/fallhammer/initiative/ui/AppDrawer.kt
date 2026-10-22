@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
@@ -21,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -46,6 +48,7 @@ fun AppDrawer(
     onHomeChooser: () -> Unit,
     onAppSettings: () -> Unit,
     onClose: () -> Unit,
+    onManual: () -> Unit = {},
     picking: Boolean = false,
     onClearSlot: (() -> Unit)? = null,
 ) {
@@ -54,10 +57,24 @@ fun AppDrawer(
 
     // Catch taps on empty space so they never reach the board underneath.
     Screen(Modifier.pointerInput(Unit) { detectTapGestures { } }) {
+        // Manual and Settings sit beside Close; at large font sizes they drop to a row of their own.
+        val large = LocalDensity.current.fontScale > LARGE_FONT
         Strip(Modifier.onSwipeDown(onClose)) {
             Title(stringResource(if (picking) R.string.pick_title else R.string.drawer_title), style = Type.title, modifier = Modifier.weight(1f))
-            if (!picking) QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
+            if (!picking && !large) {
+                QuietButton(stringResource(R.string.manual_open), onManual, color = Ink.accent)
+                Spacer(Modifier.width(Space.inside))
+                QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
+                Spacer(Modifier.width(Space.inside))
+            }
             QuietButton(stringResource(R.string.drawer_close), onClose)
+        }
+        if (!picking && large) {
+            Spacer(Modifier.height(Space.s))
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                QuietButton(stringResource(R.string.manual_open), onManual, color = Ink.accent)
+                QuietButton(stringResource(R.string.drawer_app_settings), onAppSettings, color = Ink.accent)
+            }
         }
         Spacer(Modifier.height(Space.s))
         OutlinedTextField(
