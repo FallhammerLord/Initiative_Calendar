@@ -48,7 +48,7 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
 - Screens are tested as Compose UI tests in `app/src/test` (Robolectric, in the
   build job, about a minute, full messages). Find things by what they say or
   their description, never by position; `performScrollTo()` before touching or
-  checking anything. Settings and a paired person's page are there now; when
+  checking anything. Settings, a paired person's page, and the pairmark row are there now; when
   another screen changes, its checks move there too.
 - `scripts/emulator-smoke.sh` covers only what needs a phone: being the home
   app and every way back, alarms and rungs, the lock screen and unlock,
