@@ -774,19 +774,18 @@ for perm in BLUETOOTH_SCAN BLUETOOTH_ADVERTISE BLUETOOTH_CONNECT; do adb shell p
 adb shell cmd bluetooth_manager enable 2>/dev/null
 sleep 2
 tap "Ping" exact
-# Any end will do: no one found, or a Bluetooth problem said plainly. If Android
-# still asks to turn Bluetooth on, decline it; the test goes on either way.
+# Any end will do: no one found, or a Bluetooth problem. Its message shows for
+# only a few seconds, so the app's log is checked instead. If Android still asks
+# to turn Bluetooth on, decline it; the test goes on either way.
 ping_end=""
-end=$((SECONDS + 80))
+end=$((SECONDS + 90))
 while [ -z "$ping_end" ] && [ $SECONDS -lt $end ]; do
-  for m in "No one found" "do Pairs over Bluetooth" "Bluetooth is off" "Nearby devices permission" "connection dropped"; do
-    see "$m" && ping_end="$m" && break
-  done
+  ping_end=$(adb logcat -d -s Initiative:V | grep -o "ping: .*" | tail -1)
   if [ -z "$ping_end" ] && see "turn on Bluetooth"; then
     adb shell input keyevent KEYCODE_BACK
     ping_end="declined turning Bluetooth on"
   fi
-  sleep 1
+  [ -z "$ping_end" ] && sleep 3
 done
 [ -n "$ping_end" ] || fail "Ping should search, then say how it went"
 pass "Ping ended: $ping_end"

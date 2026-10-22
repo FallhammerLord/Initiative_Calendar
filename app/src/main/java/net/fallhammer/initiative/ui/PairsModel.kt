@@ -1,6 +1,7 @@
 package net.fallhammer.initiative.ui
 
 import android.bluetooth.BluetoothSocket
+import android.util.Log
 import androidx.annotation.StringRes
 import initiative.core.Kind
 import initiative.core.PairWire
@@ -184,12 +185,15 @@ class PairsModel(private val parts: BoardParts, private val shareable: () -> Lis
             try {
                 val (met, problem) = nearby.meet(Nearby.PING, PING_MS)
                 if (met == null) {
+                    Log.i(TAG, "ping: ${problem ?: "none"}")
                     parts.show(Flash(parts.text(reasonFor(problem))))
                     return@launch
                 }
                 val name = withContext(Dispatchers.IO) { met.socket.use { pingOver(met) } }
+                Log.i(TAG, if (name != null) "ping: swapped" else "ping: stranger")
                 parts.show(Flash(name?.let { parts.app.getString(R.string.pair_pinged, it) } ?: parts.text(R.string.pair_stranger)))
             } catch (e: Exception) {
+                Log.i(TAG, "ping: dropped")
                 parts.show(Flash(parts.text(R.string.pairing_broke)))
             } finally {
                 pinging = false
@@ -282,6 +286,7 @@ class PairsModel(private val parts: BoardParts, private val shareable: () -> Lis
         private const val PAIR_MS = 120_000L
         private const val PING_MS = 60_000L
         private const val ANSWER_MS = 90_000L
+        private const val TAG = "Initiative"
 
         /** A nickname's initial: its first letter or digit, or [fallback] for none. */
         fun initialOf(nickname: String, fallback: String): String =
