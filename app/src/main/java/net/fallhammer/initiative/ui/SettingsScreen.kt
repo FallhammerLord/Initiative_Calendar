@@ -139,6 +139,7 @@ fun SettingsScreen(
                 Body(stringResource(R.string.setting_idle_fx_hint), style = Type.bodySmall)
                 // The pattern's strength, for the look on screen, if it has one: lighter when text over it feels busy.
                 if (ornaments && Looks.byId(shownId).patterned) {
+                    Spacer(Modifier.height(Space.s))
                     SettingSlider(
                         stringResource(R.string.setting_texture),
                         stringResource(R.string.percent, texture),

@@ -822,7 +822,7 @@ pass "a pairmark and dial line on the board, Ping, and pairs on and off"
 # Settings offers Pair with someone; pairing itself needs two phones, tested by hand.
 open_settings
 scroll_to "Partner, " || fail "a pretend partner should show under Pairs"
-expect_text "Pair with someone"
+scroll_to "Pair with someone" exact || fail "Pairs should offer Pair with someone"
 shot pairs-settings
 tap "Partner, "
 wait_for "What you share with Partner" || fail "a paired person's page should open"
