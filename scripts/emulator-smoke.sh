@@ -215,7 +215,8 @@ wait_gone() {
   done
 }
 
-expect_text() { wait_for "$1" && pass "shows '$1'" || fail "expected '$1' on screen"; }
+# A step inside a check: logged, but it leaves the check's own pass or "not passed" alone.
+expect_text() { wait_for "$1" && log "ok   shows '$1'" || fail "expected '$1' on screen"; }
 
 # The Now card shows On it and Later until the task is under way; then Done,
 # Later, Tomorrow, and Focus. start_now taps On it if it's showing.

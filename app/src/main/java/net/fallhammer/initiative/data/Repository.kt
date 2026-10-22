@@ -247,11 +247,16 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     }
 
     /**
-     * A task that was under way and is no longer Now: its hands-on time is banked
-     * and its clock stops, so only the task in hand counts as under way.
+     * A task that was Now and no longer is: it gives up its pin, so it can't take
+     * Now back by itself. If it was under way, its hands-on time is banked and its
+     * clock stops, so only the task in hand counts as under way.
      */
     suspend fun setAside(item: Item, now: LocalDateTime) {
-        if (item.isAnchor || !item.isOpen || item.activeSince == null) return
+        if (item.isAnchor || !item.isOpen) return
+        if (item.activeSince == null) {
+            if (item.pinnedSlot != null) update(item, item.copy(pinnedSlot = null))
+            return
+        }
         val banked = item.workedMinutes + (Learning.runMinutes(item.activeSince, now) ?: 0)
         update(item, item.copy(status = Status.PENDING, activeSince = null, pinnedSlot = null, workedMinutes = banked), note = "set aside")
     }
