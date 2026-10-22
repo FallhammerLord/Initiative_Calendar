@@ -774,7 +774,7 @@ wait_for "Only the items you tick go to Partner." || fail "Ticked only should co
 scroll_to "Unpair" exact || fail "the page should end with Unpair"
 shot pair-page-end
 tap "Unpair" exact
-wait_for "Keep" exact || fail "Unpair should ask first"
+scroll_to "Keep" exact || fail "Unpair should ask first"
 tap "Keep" exact
 wait_gone "Keep" exact || fail "Keep should leave them paired"
 pass "a paired person's page: sharing levels, and Unpair asks first"
@@ -785,7 +785,7 @@ tap "Partner, "
 wait_for "What you share with Partner" || fail "the page should open again"
 scroll_to "Unpair" exact
 tap "Unpair" exact
-wait_for "Keep" exact
+scroll_to "Keep" exact || fail "Unpair should ask first"
 tap "Unpair" exact
 wait_gone "What you share with Partner" || fail "Unpair should close the page"
 wait_gone "Partner, " || fail "Unpair should take them off the list"
