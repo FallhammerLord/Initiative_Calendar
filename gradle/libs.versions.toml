@@ -1,18 +1,20 @@
 # Every library and plugin version, in one place. The app and the engine both read this file.
+# Android libraries stay on releases built for compileSdk 36, the newest AGP 8 supports;
+# AGP 9 (built-in Kotlin, Gradle 9) is its own later step.
 
 [versions]
-agp = "8.10.1"
-kotlin = "2.0.21"
-ksp = "2.0.21-1.0.28"
-coreKtx = "1.15.0"
-activityCompose = "1.9.3"
-lifecycle = "2.8.7"
-coroutines = "1.9.0"
-composeBom = "2024.12.01"
-room = "2.6.1"
+agp = "8.13.2"
+kotlin = "2.3.21"
+ksp = "2.3.12"
+coreKtx = "1.17.0"
+activityCompose = "1.12.4"
+lifecycle = "2.10.0"
+coroutines = "1.10.2"
+composeBom = "2025.12.01"
+room = "2.7.2"
 junit = "4.13.2"
-robolectric = "4.14.1"
-androidxTestCore = "1.6.1"
+robolectric = "4.16.1"
+androidxTestCore = "1.7.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -27,7 +29,6 @@ compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-ui-test = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
