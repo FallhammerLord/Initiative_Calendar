@@ -295,7 +295,7 @@ private fun DrawScope.rail(style: HandleStyle, accent: Color, frame: Color, jewe
                 var x = 0f
                 var up = true
                 while (x < size.width) {
-                    quadraticBezierTo(x + step / 2, y + (if (up) -1 else 1) * RAIL_TICK.toPx(), x + step, y)
+                    quadraticTo(x + step / 2, y + (if (up) -1 else 1) * RAIL_TICK.toPx(), x + step, y)
                     x += step
                     up = !up
                 }
@@ -440,7 +440,7 @@ private fun DrawScope.pennants(jewels: List<Color>, string: Color, y: Float) {
     val line = Path().apply {
         moveTo(0f, y)
         var x = 0f
-        while (x < size.width) { quadraticBezierTo(x + swag / 2, y + 2 * dip, x + swag, y); x += swag }
+        while (x < size.width) { quadraticTo(x + swag / 2, y + 2 * dip, x + swag, y); x += swag }
     }
     drawPath(line, string, style = Stroke(Hairline.toPx() * 1.5f))
     if (jewels.isEmpty()) return
@@ -471,7 +471,7 @@ private fun DrawScope.lights(jewels: List<Color>, wire: Color, y: Float) {
     val line = Path().apply {
         moveTo(0f, y)
         var x = 0f
-        while (x < size.width) { quadraticBezierTo(x + swag / 2, y + 2 * dip, x + swag, y); x += swag }
+        while (x < size.width) { quadraticTo(x + swag / 2, y + 2 * dip, x + swag, y); x += swag }
     }
     val leaf = jewels.lastOrNull() ?: wire
     drawPath(line, leaf, style = Stroke(Hairline.toPx() * 1.2f))
@@ -627,7 +627,7 @@ private fun DrawScope.cobwebs(color: Color) {
                 val y = o.y + r * sin(a).toFloat()
                 if (i == 0) p.moveTo(x, y) else {
                     val m = a - Math.toRadians(11.25)
-                    p.quadraticBezierTo(o.x + sx * r * WEB_SAG_CARD * cos(m).toFloat(), o.y + r * WEB_SAG_CARD * sin(m).toFloat(), x, y)
+                    p.quadraticTo(o.x + sx * r * WEB_SAG_CARD * cos(m).toFloat(), o.y + r * WEB_SAG_CARD * sin(m).toFloat(), x, y)
                 }
             }
             drawPath(p, color, style = Stroke(line))
@@ -647,7 +647,7 @@ private fun DrawScope.snowcap(color: Color) {
         var k = 0
         while (x > 0f) {
             val next = maxOf(0f, x - bump)
-            quadraticBezierTo((x + next) / 2, h * (if (k % 2 == 0) 1.15f else 0.95f), next, h * 0.6f)
+            quadraticTo((x + next) / 2, h * (if (k % 2 == 0) 1.15f else 0.95f), next, h * 0.6f)
             x = next
             k++
         }

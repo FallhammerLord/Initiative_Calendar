@@ -172,8 +172,8 @@ private fun DrawScope.eye(color: Color, open: Boolean) {
     val line = Stroke(GLYPH_LINE.toPx(), cap = StrokeCap.Round)
     val lid = Path().apply {
         moveTo(w * 0.1f, h * 0.5f)
-        quadraticBezierTo(w * 0.5f, h * 0.1f, w * 0.9f, h * 0.5f)
-        quadraticBezierTo(w * 0.5f, h * 0.9f, w * 0.1f, h * 0.5f)
+        quadraticTo(w * 0.5f, h * 0.1f, w * 0.9f, h * 0.5f)
+        quadraticTo(w * 0.5f, h * 0.9f, w * 0.1f, h * 0.5f)
         close()
     }
     drawPath(lid, color, style = line)

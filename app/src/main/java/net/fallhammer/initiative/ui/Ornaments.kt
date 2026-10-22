@@ -33,10 +33,10 @@ fun heartPath(c: Offset, s: Float): Path = Path().apply {
 fun sparklePath(c: Offset, r: Float): Path = Path().apply {
     val k = r * SPARKLE_WAIST
     moveTo(c.x, c.y - r)
-    quadraticBezierTo(c.x + k, c.y - k, c.x + r, c.y)
-    quadraticBezierTo(c.x + k, c.y + k, c.x, c.y + r)
-    quadraticBezierTo(c.x - k, c.y + k, c.x - r, c.y)
-    quadraticBezierTo(c.x - k, c.y - k, c.x, c.y - r)
+    quadraticTo(c.x + k, c.y - k, c.x + r, c.y)
+    quadraticTo(c.x + k, c.y + k, c.x, c.y + r)
+    quadraticTo(c.x - k, c.y + k, c.x - r, c.y)
+    quadraticTo(c.x - k, c.y - k, c.x, c.y - r)
     close()
 }
 
@@ -236,8 +236,8 @@ fun DrawScope.jack(c: Offset, r: Float, fill: Color, rib: Color, stem: Color, fa
     }
     val smile = Path().apply {
         moveTo(c.x - r * 0.55f, c.y + r * 0.2f)
-        quadraticBezierTo(c.x, c.y + r * 0.75f, c.x + r * 0.55f, c.y + r * 0.2f)
-        quadraticBezierTo(c.x, c.y + r * 0.48f, c.x - r * 0.55f, c.y + r * 0.2f)
+        quadraticTo(c.x, c.y + r * 0.75f, c.x + r * 0.55f, c.y + r * 0.2f)
+        quadraticTo(c.x, c.y + r * 0.48f, c.x - r * 0.55f, c.y + r * 0.2f)
         close()
     }
     drawPath(smile, face)
@@ -280,8 +280,8 @@ fun DrawScope.holly(c: Offset, s: Float, leaf: Color, berry: Color) {
         val mid = Offset((c.x + end.x) / 2, (c.y + end.y) / 2)
         val p = Path().apply {
             moveTo(c.x, c.y)
-            quadraticBezierTo(mid.x + n.x, mid.y + n.y, end.x, end.y)
-            quadraticBezierTo(mid.x - n.x, mid.y - n.y, c.x, c.y)
+            quadraticTo(mid.x + n.x, mid.y + n.y, end.x, end.y)
+            quadraticTo(mid.x - n.x, mid.y - n.y, c.x, c.y)
             close()
         }
         drawPath(p, leaf)
@@ -311,7 +311,7 @@ fun Modifier.web(color: Color, moon: Color, ground: Color, bats: List<Color>, st
             } else {
                 // Each thread sags a little toward the corner.
                 val m = a - Math.toRadians(5.6)
-                path.quadraticBezierTo(ring * WEB_SAG * cos(m).toFloat(), ring * WEB_SAG * sin(m).toFloat(), x, y)
+                path.quadraticTo(ring * WEB_SAG * cos(m).toFloat(), ring * WEB_SAG * sin(m).toFloat(), x, y)
             }
         }
         ring *= WEB_GROWTH

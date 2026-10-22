@@ -691,7 +691,7 @@ private fun DayDial(ui: BoardUi, lines: List<DialLine> = emptyList()) {
         fun y(f: Float): Float = base - 4 * rise * f * (1 - f)
         val arc = Path().apply {
             moveTo(0f, base)
-            quadraticBezierTo(w / 2, base - 2 * rise, w, base)
+            quadraticTo(w / 2, base - 2 * rise, w, base)
         }
         drawPath(arc, lineColor, style = Stroke(ARC_WIDTH.toPx()))
 
@@ -724,7 +724,7 @@ private fun DayDial(ui: BoardUi, lines: List<DialLine> = emptyList()) {
             val drop = -LINE_GAP.toPx() * (i + 1)
             val faint = Path().apply {
                 moveTo(0f, base - drop)
-                quadraticBezierTo(w / 2, base - 2 * rise - drop, w, base - drop)
+                quadraticTo(w / 2, base - 2 * rise - drop, w, base - drop)
             }
             drawPath(faint, l.color.copy(alpha = LINE_FAINT), style = Stroke(LINE_THIN.toPx()))
             l.spans.forEach { (from, to, _) -> band(from, to, l.color.copy(alpha = LINE_SOLID), LINE_SPAN, lift = drop) }
