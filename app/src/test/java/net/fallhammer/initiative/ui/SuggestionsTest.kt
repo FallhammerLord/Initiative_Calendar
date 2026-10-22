@@ -55,10 +55,7 @@ class SuggestionsTest {
 
     @Test fun holdForgetsWithUndo() {
         show("din")
-        // Held still, so the Undo line's few seconds don't pass before it's checked.
-        compose.mainClock.autoAdvance = false
         compose.onNodeWithText("Make dinner").hold()
-        compose.mainClock.advanceTimeByFrame()
         assertEquals(listOf("Make dinner"), forgot)
         compose.onNodeWithText("Forgot \"Make dinner\"").assertIsDisplayed()
         compose.onNodeWithText("Undo").tap()
