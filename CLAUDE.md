@@ -41,6 +41,24 @@ sideloaded, no Google services, no internet. The plan and every rule live in
   of every screen it visits, and StrictMode (main-thread writes, network, and
   leaked handles fail).
 
+## How tests are written
+
+Most CI failures so far were the tests, not the app. These rules keep them sturdy.
+
+- Screens are tested as Compose UI tests in `app/src/test` (Robolectric, in the
+  build job, about a minute, full messages). Find things by what they say or
+  their description, never by position; `performScrollTo()` before touching or
+  checking anything.
+- `scripts/emulator-smoke.sh` covers only what needs a phone: being the home
+  app and every way back, alarms and rungs, the lock screen and unlock,
+  permissions, the drag, 200% font, StrictMode, the TalkBack sweep, and
+  screenshots. Anything below the first screenful: `scroll_to` first.
+- Typed text may come back capitalized by the keyboard: match from the second
+  letter, or with `iexact`.
+- Nothing depends on the real date or weekday: compute days relative to today.
+- See each new check fail once before trusting it (in `core`, run it with the
+  expectation flipped; elsewhere, read its failure message path).
+
 ## Rules CI can't fully check
 
 - Build new screens from `Screen`, `Card`, `Strip`, the buttons, and the type scale.
