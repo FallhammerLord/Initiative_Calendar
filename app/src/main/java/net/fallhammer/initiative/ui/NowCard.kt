@@ -67,14 +67,16 @@ internal fun NowCard(
     val scroll = rememberScrollState()
     val hint = Ink.accent
     val surface = Ink.surface
-    // On it locks brackets onto the card; Done wipes a scan line down it.
+    // On it closes the card's outline in on it; Done wipes a scan line down it.
     val locking = rememberBlink(LOCK_MS)
     val wiping = rememberBlink(CHANGE_MS)
     BlinkOnRise(item?.status == Status.ACTIVE, locking)
+    // Both follow the card's own outline: Glass's arch, Sci-fi's cut corners, and so on.
+    val shape = LocalLook.current.let { it.nowShape ?: it.cardShape }
     val effects = Modifier.drawWithContent {
         drawContent()
-        if (locking.playing) lockOn(locking.t, hint)
-        if (wiping.playing) scanDown(wiping.t, hint)
+        if (locking.playing) lockOn(locking.t, hint, outlineOf(shape))
+        if (wiping.playing) scanDown(wiping.t, hint, outlineOf(shape))
     }
     Card(modifier.then(effects), now = true, vertical = Space.l) {
         Column(

@@ -16,9 +16,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -139,29 +143,20 @@ fun DrawScope.lookFx(fx: Fx, t: Float, shine: Color, ornament: Color, bg: Color,
     }
 }
 
-/** On it: four corner brackets close in on the card, then fade. */
-fun DrawScope.lockOn(t: Float, color: Color) {
-    val travel = LOCK_TRAVEL.toPx() * (1f - (t * 3f).coerceAtMost(1f))
+/** The outline [shape] gives this area, as a path: an arch, cut corners, steps, whatever the look's is. */
+fun DrawScope.outlineOf(shape: Shape): Path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@outlineOf)) }
+
+/** On it: the card's own [outline] closes in on it from a little outside, then fades. */
+fun DrawScope.lockOn(t: Float, color: Color, outline: Path) {
+    val grow = 1f + LOCK_GROW * (1f - (t * 3f).coerceAtMost(1f))
     val alpha = if (t < 0.5f) 1f else (1f - t) * 2f
-    val arm = LOCK_ARM.toPx()
-    val stroke = Stroke(LOCK_WIDTH.toPx())
-    val w = size.width
-    val h = size.height
-    val c = color.copy(alpha = alpha)
-    // Each corner: where it sits, and which way its arms point.
-    listOf(
-        Triple(Offset(-travel, -travel), 1f, 1f),
-        Triple(Offset(w + travel, -travel), -1f, 1f),
-        Triple(Offset(-travel, h + travel), 1f, -1f),
-        Triple(Offset(w + travel, h + travel), -1f, -1f),
-    ).forEach { (o, dx, dy) ->
-        drawLine(c, o, Offset(o.x + arm * dx, o.y), stroke.width)
-        drawLine(c, o, Offset(o.x, o.y + arm * dy), stroke.width)
+    scale(grow, grow, center) {
+        drawPath(outline, color.copy(alpha = alpha), style = Stroke(LOCK_WIDTH.toPx()))
     }
 }
 
-/** Done: a scan line wipes down the card. */
-fun DrawScope.scanDown(t: Float, color: Color) {
+/** Done: a scan line wipes down the card, inside its [outline]. */
+fun DrawScope.scanDown(t: Float, color: Color, outline: Path) = clipPath(outline) {
     val y = size.height * t
     val glow = SCAN_GLOW.toPx()
     drawRect(
@@ -239,8 +234,8 @@ private const val RING_LAG = 0.3f
 private const val RING_REACH = 1.6f
 private const val FLARE_REACH = 2.2f
 private const val BREATH = 0.18f
-private val LOCK_TRAVEL = 14.dp
-private val LOCK_ARM = 18.dp
+/** How far out the lock-on outline starts: a share of the card's size. */
+private const val LOCK_GROW = 0.08f
 private val LOCK_WIDTH = 3.dp
 private val SCAN_GLOW = 18.dp
 private val SCAN_LINE = 2.dp
