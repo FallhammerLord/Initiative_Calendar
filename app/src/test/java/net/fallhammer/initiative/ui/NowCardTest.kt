@@ -10,7 +10,6 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.width
@@ -126,7 +125,7 @@ class NowCardTest {
     @Test fun reasonSitsAboveTheSteps() {
         show(taxes.copy(steps = listOf(Step("find the forms"), Step("sign them"))))
         val said = compose.onNodeWithText(reason).getUnclippedBoundsInRoot()
-        val step = compose.onNodeWithText("find the forms").performScrollTo().getUnclippedBoundsInRoot()
+        val step = compose.onNodeWithText("find the forms").getUnclippedBoundsInRoot()
         assertTrue("the reason should come before the steps", said.top < step.top)
     }
 
