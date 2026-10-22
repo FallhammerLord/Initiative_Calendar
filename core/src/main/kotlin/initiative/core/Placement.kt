@@ -45,8 +45,17 @@ data class Forecast(val slots: List<Slot>, val later: List<Item>)
 data class Moved(val item: Item, val message: String)
 
 /**
- * Picks the Now card with a fixed, explainable rule. See docs/spec.md, Placement logic.
+ * The task just shown as Now, held there a few minutes so it doesn't change
+ * under your thumb before On it. A task On it outranks it.
  */
+data class Hold(val itemId: Long, val since: LocalDateTime) {
+    fun active(now: LocalDateTime): Boolean = now.isBefore(since.plusMinutes(MINUTES))
+
+    companion object {
+        const val MINUTES = 5L
+    }
+}
+
 /** What a drag to the top does: see [Placement.dragNow]. */
 sealed interface DragNow {
     /** An appointment holds Now: the task waits beside it, until [until]. */
@@ -56,6 +65,9 @@ sealed interface DragNow {
     data class Now(val at: LocalDateTime, val unpin: List<Item>, val setAside: Item?) : DragNow
 }
 
+/**
+ * Picks the Now card with a fixed, explainable rule. See docs/spec.md, Placement logic.
+ */
 class Placement(private val window: DayWindow = DayWindow()) {
     private companion object {
         const val FOCUS_FALLBACK_HOURS = 2L
@@ -68,22 +80,23 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * same as the day panel shows; the walls stay in view on the dial. With nothing
      * left in today's order, Next is the next anchor, if there is one.
      */
-    fun board(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Board {
+    fun board(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList(), hold: Hold? = null): Board {
         // Markers are context, never work: no rule of the day sees them.
         @Suppress("NAME_SHADOWING")
         val items = items.work()
-        var b = pick(items, now, order)
+        val held = hold?.takeIf { it.active(now) }?.itemId
+        var b = pick(items, now, order, held)
         // A task back from a wait says so, rather than why it ranks.
         b.now.item?.takeIf { it.ready(now) }?.let { back ->
             b = b.copy(now = NowPick(back, if (back.side) SIDE_TASK else "Ready since ${Formats.clock(back.waitUntil!!)}"))
         }
         val waits = items.filter { !it.isTemplate && it.isOpen && it.waitUntil != null && it.id != b.now.item?.id }.sortedBy { it.waitUntil }
         b = b.copy(waits = waits)
-        val slot = forecast(items, now, order).slots.firstOrNull { it.item.id != b.now.item?.id } ?: return b
+        val slot = forecast(items, now, order, hold).slots.firstOrNull { it.item.id != b.now.item?.id } ?: return b
         return b.copy(next = slot.item, nextAt = slot.at.takeIf { !slot.item.isAnchor })
     }
 
-    private fun pick(items: List<Item>, now: LocalDateTime, order: List<Long>): Board {
+    private fun pick(items: List<Item>, now: LocalDateTime, order: List<Long>, held: Long?): Board {
         val today = now.toLocalDate()
         val live = items.filter { !it.isTemplate }
         val upcoming = openAnchors(live).filter { it.start!!.isAfter(now) }
@@ -128,7 +141,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         }
 
         // The forecast leads, so the Now card and the day panel always agree.
-        val forecast = forecast(items, now, order)
+        val forecast = forecast(items, now, order, held?.let { Hold(it, now) })
         val tasks = forecast.slots.filter { !it.item.isAnchor }
         val upNext = tasks.firstOrNull()
 
@@ -218,7 +231,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * forecast waits for the next one coming back. Tasks that can't fit go in
      * [Forecast.later]. A forecast, not a promise: it reshuffles as the day goes.
      */
-    fun forecast(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): Forecast {
+    fun forecast(items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList(), hold: Hold? = null): Forecast {
         // Markers are context, never work: no rule of the day sees them.
         @Suppress("NAME_SHADOWING")
         val items = items.work()
@@ -227,10 +240,14 @@ class Placement(private val window: DayWindow = DayWindow()) {
         val anchors = openAnchors(live).filter { it.start!!.toLocalDate() == today && it.anchorEnd!!.isAfter(now) }
         val floats = live.filter { workable(it, now) && (it.earliestStart == null || !it.earliestStart.isAfter(today)) }
         val pinned = floats.filter { pinHolds(it, now) && it.pinnedSlot!!.toLocalDate() == today }
-        val pool = rank(floats - pinned.toSet(), today, order).toMutableList()
+        // The task in hand: the one On it most recently, not set aside for a wait; or,
+        // for its first few minutes as Now, the task just shown.
+        // A task On it outranks the hold, as after Undo brings it back.
+        val held = hold?.takeIf { h -> h.active(now) && floats.none { it.id != h.itemId && it.status == Status.ACTIVE && it.waitUntil == null } }?.itemId
+        val pool = rank(floats - pinned.toSet(), today, order, held).toMutableList()
         val placed = mutableListOf<Slot>()
-        // The task in hand: the one most recently shown as Now, not set aside for a wait.
-        val inHand = pool.filter { it.activeSince != null && it.waitUntil == null }.maxByOrNull { it.activeSince!! }
+        val inHand = pool.firstOrNull { it.id == held && it.waitUntil == null }
+            ?: pool.filter { it.activeSince != null && it.waitUntil == null }.maxByOrNull { it.activeSince!! }
         for ((start, end) in freeTimes(today, live, now, pinned)) {
             var cursor = start
             while (true) {
@@ -267,11 +284,11 @@ class Placement(private val window: DayWindow = DayWindow()) {
      * order, and any task pinned in its way is unpinned, since the person chose.
      * It may run into the next appointment's warning; the alarms still ring.
      */
-    fun dragNow(item: Item, items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList()): DragNow {
+    fun dragNow(item: Item, items: List<Item>, now: LocalDateTime, order: List<Long> = emptyList(), hold: Hold? = null): DragNow {
         // Markers are context, never work: no rule of the day sees them.
         @Suppress("NAME_SHADOWING")
         val items = items.work()
-        val current = board(items, now, order).now.item?.takeIf { it.id != item.id }
+        val current = board(items, now, order, hold).now.item?.takeIf { it.id != item.id }
         if (current != null && current.isAnchor) return DragNow.Side(current.anchorEnd!!, current)
         val at = now.withSecond(0).withNano(0)
         val end = at.plusMinutes(item.durationMinutes.toLong())
@@ -438,14 +455,16 @@ class Placement(private val window: DayWindow = DayWindow()) {
         return need <= current.minutes || (need > longest && current.minutes == longest)
     }
 
-    private fun rank(floats: List<Item>, today: LocalDate, order: List<Long> = emptyList()): List<Item> {
+    private fun rank(floats: List<Item>, today: LocalDate, order: List<Long> = emptyList(), held: Long? = null): List<Item> {
         // The person's own order breaks ties; tasks they haven't placed come after, oldest first.
         val place = order.withIndex().associate { (i, id) -> id to i }
         // A task back from a wait comes first; but while a task is under way, that one
         // stays first, and the waiting task is next: it never takes over by itself.
         // Under way: the task most recently picked up, if it isn't one back from a wait.
         val waits = floats.any { it.waitUntil != null }
-        val underWay = if (waits) floats.filter { it.activeSince != null && it.waitUntil == null }.maxByOrNull { it.activeSince!! }?.id else null
+        // A task just shown as Now stays first for its first few minutes, whatever comes in.
+        val underWay = held?.takeIf { id -> floats.any { it.id == id && it.waitUntil == null } }
+            ?: if (waits) floats.filter { it.activeSince != null && it.waitUntil == null }.maxByOrNull { it.activeSince!! }?.id else null
         return floats.sortedWith(
             compareBy<Item> { it.id != underWay }
                 .thenBy { it.waitUntil == null }

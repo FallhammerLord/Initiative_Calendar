@@ -10,6 +10,7 @@ import initiative.core.DayWindow
 import initiative.core.DragNow
 import initiative.core.Forecast
 import initiative.core.Formats
+import initiative.core.Hold
 import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.LedgerMark
@@ -110,14 +111,17 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     /** The person's own task order; see Placement.board. */
     private val order = MutableStateFlow<List<Long>>(emptyList())
 
+    /** The task just shown as Now, held a few minutes so it doesn't change under the thumb. */
+    private val hold = MutableStateFlow<Hold?>(null)
+
     /** The board recalculates whenever the data changes, the clock ticks, focus changes, or the screen opens. */
-    val ui: StateFlow<BoardUi> = combine(repo.items, clock, _focus, order) { all, now, focus, mine ->
+    val ui: StateFlow<BoardUi> = combine(repo.items, clock, _focus, order, hold) { all, now, focus, mine, held ->
         items = all
         BoardUi(
             now = now,
-            board = placement.board(all, now, mine),
+            board = placement.board(all, now, mine, held),
             ledger = placement.ledger(all, now.toLocalDate()),
-            forecast = placement.forecast(all, now, mine),
+            forecast = placement.forecast(all, now, mine, held),
             window = graph.window,
             focus = focus?.takeIf { now.isBefore(it.until) }?.let { f ->
                 all.firstOrNull { it.id == f.itemId && it.isOpen }?.let { FocusView(it, f.until, placement.nextWall(all, now)) }
@@ -236,7 +240,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 }
             }
         }
-        // Start the duration clock the first time a float shows as Now; a task that
+        // A task newly shown as Now is held there a few minutes; one On it that
         // stops being Now without being finished is set aside, its clock stopped.
         viewModelScope.launch {
             var shown: Long? = null
@@ -245,7 +249,11 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 val before = shown
                 shown = f?.id
                 if (before != null && before != f?.id) items.firstOrNull { it.id == before }?.let { repo.setAside(it, u.now) }
-                if (f != null && f.kind == Kind.FLOAT && f.activeSince == null) repo.markActive(f, u.now)
+                if (f != null && before != f.id && f.kind == Kind.FLOAT && f.activeSince == null) {
+                    val h = Hold(f.id, u.now)
+                    hold.value = h
+                    withContext(Dispatchers.IO) { graph.prefs.hold = h }
+                }
             }
         }
         // Focus ends by itself at the wall, or when its task is done some other way.
@@ -277,6 +285,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 settings.load(prefs, now.toLocalDate())
                 pairs.load(prefs)
                 names.load(prefs)
+                hold.value = prefs.hold
                 order.value = prefs.taskOrder
                 backup.load(prefs)
                 recopy.load(prefs, now)
@@ -370,7 +379,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         if (index == 0) return dragToTop(item)
         // Worked out afresh: the forecast on screen can be up to a tick old.
         val now = LocalDateTime.now()
-        val others = placement.forecast(items, now, order.value).slots.filter { it.item.id != item.id }
+        val others = placement.forecast(items, now, order.value, hold.value).slots.filter { it.item.id != item.id }
         val at = placement.dropTime(others, index, now)
         if (!placement.canPin(item, items, at, now)) {
             show(Flash(text(R.string.doesnt_fit)))
@@ -398,7 +407,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     private fun dragToTop(item: Item): Boolean {
         val now = LocalDateTime.now()
         acted()
-        when (val drag = placement.dragNow(item, items, now, order.value)) {
+        when (val drag = placement.dragNow(item, items, now, order.value, hold.value)) {
             is DragNow.Side -> viewModelScope.launch {
                 repo.sideTask(item, drag.until)
                 show(Flash(getApplication<Application>().getString(R.string.side_task_flash, drag.anchor.title)))

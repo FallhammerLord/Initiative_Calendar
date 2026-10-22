@@ -479,7 +479,7 @@
     <string name="manual_hide">Hide</string>
     <string name="manual_now">The Now card</string>
     <string name="manual_now_1">On it</string>
-    <string name="manual_now_1_does">Says you\'ve started. Its clock starts, and the buttons turn to Done, Later, Tomorrow, and Focus. An appointment\'s alarms stop.</string>
+    <string name="manual_now_1_does">Says you\'ve started. Its clock starts, and Done then teaches how long it takes. The buttons turn to Done, Later, Tomorrow, and Focus. An appointment\'s alarms stop.</string>
     <string name="manual_now_2">Later</string>
     <string name="manual_now_2_does">Sets it aside; it comes back later today, and says when.</string>
     <string name="manual_now_3">Tomorrow</string>
@@ -493,6 +493,8 @@
     <string name="manual_now_7">Hold the card</string>
     <string name="manual_now_7_does">Starts focus, the same as Focus.</string>
     <string name="manual_now_8">Steps</string>
+    <string name="manual_now_9">A new Now</string>
+    <string name="manual_now_9_does">Stays put for 5 minutes, even if something higher comes in. An appointment still takes over.</string>
     <string name="manual_now_8_does">Tick each one on the card as you go. A step with a wait sets the task aside until the wait is over.</string>
     <string name="manual_list">Today\'s list</string>
     <string name="manual_list_1">The Next line</string>

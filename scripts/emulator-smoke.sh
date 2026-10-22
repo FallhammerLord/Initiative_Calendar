@@ -429,8 +429,9 @@ home
 wait_gone "Setup:" || fail "setup line still showing after every grant"
 pass "setup line clears once everything is granted"
 
-quick_add "call landlord"
+# Taxes first: a new Now holds its place 5 minutes, so a task added after waits.
 quick_add "taxes by fri high"
+quick_add "call landlord"
 hide_keyboard
 # Names used before show while typing: "cal" offers "call landlord" above the field.
 xy=$(find_node android.widget.EditText class) || fail "no quick-add field"

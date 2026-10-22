@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import initiative.core.Hold
 import initiative.core.Holiday
 import initiative.core.Lapse
 import initiative.core.QuietHours
@@ -163,6 +164,19 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(QUICK_SHORTENED, false)
         set(value) = prefs.edit().putBoolean(QUICK_SHORTENED, value).apply()
 
+    /** The task just shown as Now, held there a few minutes; see Placement.board. */
+    var hold: Hold?
+        get() {
+            val id = prefs.getLong(HOLD_ITEM, -1)
+            val since = time(HOLD_SINCE) ?: return null
+            return Hold(id, since).takeIf { id >= 0 }
+        }
+        set(value) {
+            val edit = prefs.edit()
+            if (value == null) edit.remove(HOLD_ITEM).remove(HOLD_SINCE) else edit.putLong(HOLD_ITEM, value.itemId).putString(HOLD_SINCE, value.since.toString())
+            edit.apply()
+        }
+
     /** The person's own task order, by id, from dragging in the day panel: a tie breaker in ranking. */
     var taskOrder: List<Long>
         get() = prefs.getString(TASK_ORDER, "").orEmpty().split(",").mapNotNull { it.toLongOrNull() }
@@ -246,6 +260,8 @@ class Prefs(private val context: Context) {
         const val LAST_RECOPY = "lastRecopy"
         const val LAPSE_HOURS = "lapseHours"
         const val TASK_ORDER = "taskOrder"
+        const val HOLD_ITEM = "holdItem"
+        const val HOLD_SINCE = "holdSince"
         const val QUICK_SHORTENED = "quickDefaultsShortened"
         const val RECOPY_DAYS = "recopyDays"
         const val RECOPY_LATER = "recopyLater"

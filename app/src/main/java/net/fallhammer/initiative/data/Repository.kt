@@ -227,16 +227,6 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         update(item, item.copy(pinnedSlot = at, notBefore = null, status = Status.PENDING), note = "moved by hand")
     }
 
-    /**
-     * First time a float becomes Now, start its clock, quietly: it isn't On it
-     * until the person says so, but learning has a start if they never do.
-     */
-    suspend fun markActive(item: Item, now: LocalDateTime) {
-        if (item.activeSince != null || item.isAnchor) return
-        // Back from a wait, it keeps its wait time, so it stays first until it's done or set aside.
-        update(item, item.copy(activeSince = now, notBefore = null))
-    }
-
     /** On it: in hand, and timed from now. Skip, Tomorrow, or another task taking Now ends it. */
     suspend fun onIt(item: Item, now: LocalDateTime) {
         update(item, item.copy(status = Status.ACTIVE, activeSince = now, notBefore = null), note = "on it")

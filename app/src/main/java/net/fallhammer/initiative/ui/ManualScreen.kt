@@ -42,6 +42,7 @@ private val PARTS = listOf(
             R.string.manual_now_6 to R.string.manual_now_6_does,
             R.string.manual_now_7 to R.string.manual_now_7_does,
             R.string.manual_now_8 to R.string.manual_now_8_does,
+            R.string.manual_now_9 to R.string.manual_now_9_does,
         ),
     ),
     Part(
