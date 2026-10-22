@@ -89,6 +89,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -98,8 +99,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -188,6 +192,9 @@ fun BoardScreen(vm: BoardViewModel) {
     // All done sends one ring of light across the background grid, from the Now card.
     val glow = remember { Animatable(1f) }
     var cardCenter by remember { mutableStateOf(Offset.Zero) }
+    // The pairmark row's height: a tall Now card stops below it while pairmarks show.
+    var pairmarkHeight by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
     val focus = LocalFocusManager.current
 
     // Coming back home should show the board, not an open keyboard.
@@ -282,8 +289,9 @@ fun BoardScreen(vm: BoardViewModel) {
                     // While typing, the board keeps only what typing needs: the panel
                     // goes, and the card shrinks to its title, so nothing is squeezed.
                     if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog, lines = dialLines)
+                    val pairmarksShown = !keyboardUp && pairsShown && pairViews.any { it.peer.showMark }
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
-                      Column {
+                      Column(Modifier.padding(top = if (pairmarksShown) pairmarkHeight + Space.inside * 2 else 0.dp)) {
                         // Items stepped aside for a wait: bookmarks from the screen's edge, above the card.
                         if (!keyboardUp) {
                             Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::switchTo)
@@ -314,7 +322,10 @@ fun BoardScreen(vm: BoardViewModel) {
                               onFront = vm::setPairFront,
                               onPing = ping,
                               onShown = vm.pairs::setShown,
-                              modifier = Modifier.align(Alignment.TopStart).padding(top = Space.inside),
+                              modifier = Modifier
+                                  .align(Alignment.TopStart)
+                                  .padding(top = Space.inside)
+                                  .onSizeChanged { pairmarkHeight = with(density) { it.height.toDp() } },
                           )
                       }
                       // Markers hang off the Plan ahead panel's bottom edge, over the open space.
@@ -520,7 +531,7 @@ private fun NowCard(
     val scroll = rememberScrollState()
     val hint = Ink.accent
     val surface = Ink.surface
-    Card(modifier, now = true) {
+    Card(modifier, now = true, vertical = Space.l) {
         Column(
             Modifier
                 .weight(1f, fill = false)
@@ -546,7 +557,7 @@ private fun NowCard(
                 .verticalScroll(scroll, enabled = scroll.maxValue > 0),
         ) {
             // Tapping the title area opens the edit form; holding it starts focus,
-            // with the Focus button as the visible twin. TalkBack reads both actions.
+            // with the Focus button, once on it, as the visible twin. TalkBack reads both actions.
             val editLabel = stringResource(R.string.edit_action)
             val focusLabel = stringResource(R.string.focus_action)
             Column(
@@ -561,22 +572,6 @@ private fun NowCard(
                     )
                 },
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                    // On it, once tapped, says so in place of the button, with when.
-                    val onIt = item != null && item.status == Status.ACTIVE
-                    val since = item?.activeSince
-                    Label(
-                        if (onIt && since != null) stringResource(R.string.now_on_it, Formats.clock(since)) else stringResource(R.string.now_label),
-                        Modifier.weight(1f),
-                    )
-                    if (item != null && item.isOpen && !onIt) {
-                        QuietButton(stringResource(R.string.on_it_action), { onOnIt(item) }, color = Ink.accent)
-                    }
-                    if (item != null && !item.isAnchor) {
-                        QuietButton(stringResource(R.string.focus_action), { onFocus(item) }, color = Ink.accent)
-                    }
-                }
-                Spacer(Modifier.height(Space.s))
                 // Until the database loads, the card stays blank rather than showing a wrong "Free time".
                 // A new Now fades in and rises a little, so the change is seen, not missed.
                 if (board != null) {
@@ -589,10 +584,48 @@ private fun NowCard(
                         label = "now",
                     ) { shown ->
                         Column {
-                            Title(shown?.title ?: stringResource(R.string.free_time))
+                            // The card's place says Now; TalkBack hears it too.
+                            val title = shown?.title ?: stringResource(R.string.free_time)
+                            val spoken = stringResource(R.string.now_spoken, title)
+                            Title(title, modifier = Modifier.semantics { contentDescription = spoken })
                             if (shown != null && shown.isAnchor && shown.isOpen) Body(Formats.anchorLine(shown), style = Type.bodySmall)
                         }
                     }
+                }
+            }
+            if (!compact && board != null) {
+                Spacer(Modifier.height(Space.xs))
+                if (settled) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.now_done_mark), style = Type.body, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
+                        Body(board.now.reason, Modifier.padding(start = Space.s))
+                    }
+                } else {
+                    // On it, once tapped, leads the reason line, with when.
+                    val since = item?.activeSince
+                    if (item != null && item.status == Status.ACTIVE && since != null) {
+                        val lead = stringResource(R.string.now_on_it, Formats.clock(since))
+                        val join = stringResource(R.string.now_join)
+                        val accent = Ink.accent
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(SpanStyle(color = accent)) { append(lead) }
+                                append(join)
+                                append(board.now.reason)
+                            },
+                            style = Type.body,
+                            color = Ink.dim,
+                        )
+                    } else {
+                        Body(board.now.reason)
+                    }
+                }
+                // A task back from a wait, waiting on this one: said in words as well as on its tab.
+                board.waits.firstOrNull { it.ready(ui.now) && it.id != item?.id }?.let { back ->
+                    Body(
+                        stringResource(R.string.waitmark_next, back.title, Formats.clock(back.waitUntil!!)),
+                        style = Type.bodySmall,
+                    )
                 }
             }
             // Steps tick off right here; Done asks about any left open.
@@ -608,26 +641,8 @@ private fun NowCard(
                     StepRow(text, step.done) { onStep(item, i) }
                 }
             }
-            if (!compact && board != null) {
-                Spacer(Modifier.height(Space.m))
-                if (settled) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.now_done_mark), style = Type.body, color = Ink.accent, modifier = Modifier.clearAndSetSemantics { })
-                        Body(board.now.reason, Modifier.padding(start = Space.s))
-                    }
-                } else {
-                    Body(board.now.reason)
-                }
-                // A task back from a wait, waiting on this one: said in words as well as on its tab.
-                board.waits.firstOrNull { it.ready(ui.now) && it.id != item?.id }?.let { back ->
-                    Body(
-                        stringResource(R.string.waitmark_next, back.title, Formats.clock(back.waitUntil!!)),
-                        style = Type.bodySmall,
-                    )
-                }
-            }
         }
-        Column(Modifier.padding(top = if (compact && flash == null) Space.xs else Space.xl)) {
+        Column(Modifier.padding(top = if (compact && flash == null) Space.xs else Space.m)) {
             flash?.let {
                 FlashLine(it.text, if (it.canUndo) stringResource(R.string.action_undo) else null, onUndo)
                 Spacer(Modifier.height(Space.m))
@@ -635,24 +650,31 @@ private fun NowCard(
             // A done anchor still showing until its end has nothing left to act on.
             if (!compact && item != null && item.isOpen) {
                 val done = stringResource(R.string.action_done)
-                val skip = stringResource(R.string.action_skip)
+                val later = stringResource(R.string.action_skip)
                 val tomorrow = stringResource(R.string.action_tomorrow)
-                // Done confirms; with steps open it only asks, so it just ticks. Skip is a neutral tick.
+                val focusWord = stringResource(R.string.focus_action)
+                // Done confirms; with steps open it only asks, so it just ticks. Later is a neutral tick.
                 val doneTap = {
                     if (item.nextStep == null) haptics.confirm() else haptics.tick()
                     onDone(item)
                 }
-                val skipTap = { haptics.tick(); onSkip(item) }
-                if (item.isAnchor) {
-                    ActionRow(
-                        Action { PrimaryButton(done, doneTap, it) },
-                        Action { SecondaryButton(skip, skipTap, it) },
+                val laterTap = { haptics.tick(); onSkip(item) }
+                // Up next: On it, or Later for not now. Once on it, the row turns
+                // to what comes after: Done, Later, and for tasks Tomorrow and Focus.
+                when {
+                    item.status != Status.ACTIVE -> ActionRow(
+                        Action(ON_IT_SHARE) { PrimaryButton(stringResource(R.string.on_it_action), { haptics.tick(); onOnIt(item) }, it) },
+                        Action { SecondaryButton(later, laterTap, it) },
                     )
-                } else {
-                    ActionRow(
+                    item.isAnchor -> ActionRow(
                         Action { PrimaryButton(done, doneTap, it) },
-                        Action { SecondaryButton(skip, skipTap, it) },
-                        Action(1.3f) { SecondaryButton(tomorrow, { haptics.tick(); onTomorrow(item) }, it) },
+                        Action { SecondaryButton(later, laterTap, it) },
+                    )
+                    else -> ActionRow(
+                        Action { PrimaryButton(done, doneTap, it) },
+                        Action { SecondaryButton(later, laterTap, it) },
+                        Action(TOMORROW_SHARE) { SecondaryButton(tomorrow, { haptics.tick(); onTomorrow(item) }, it) },
+                        Action { SecondaryButton(focusWord, { onFocus(item) }, it) },
                     )
                 }
             }
@@ -1277,6 +1299,10 @@ private val POINTER_HEIGHT = 8.dp
 private const val NOW_IN_MS = 260
 private const val NOW_OUT_MS = 120
 private const val NOW_RISE = 6
+
+/** On the Now card's row: On it takes most of it, beside Later; Tomorrow is the longest word. */
+private const val ON_IT_SHARE = 2.4f
+private const val TOMORROW_SHARE = 1.5f
 
 // The Now card's scroll hint: the bar's width, its place in the margin, strength, and the fade.
 private val SCROLL_WIDTH = 3.dp

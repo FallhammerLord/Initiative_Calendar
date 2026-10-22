@@ -93,7 +93,7 @@ private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
         modifier
             // Past the board's side margin, to the screen's edge.
             .offset(x = -Space.l)
-            .heightIn(min = Tap.primary)
+            .heightIn(min = Tap.row)
             .clip(shape)
             .background(Ink.surface)
             .border(PAIRMARK_EDGE, color, shape)

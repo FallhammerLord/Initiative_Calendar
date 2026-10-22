@@ -126,7 +126,7 @@ fun PairRow(peer: PeerRow, peek: Peek?, now: LocalDateTime, onOpen: () -> Unit) 
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = Tap.primary)
+            .heightIn(min = Tap.row)
             .clip(shape)
             .background(Ink.surface)
             .border(1.dp, Ink.frame, shape)

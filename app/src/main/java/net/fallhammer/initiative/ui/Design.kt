@@ -120,9 +120,10 @@ object Space {
     val panel = m
 }
 
-/** Touch-target heights. */
+/** Touch-target heights. Every button is [min]; rows and tiles that carry more are taller. */
 object Tap {
     val min = 48.dp
+    val row = 56.dp
     val primary = 64.dp
     val alarm = 88.dp
 }
@@ -133,13 +134,13 @@ object Type {
     private fun style(size: Int, line: Int, weight: FontWeight = FontWeight.Normal) =
         TextStyle(fontFamily = Atkinson, fontSize = size.sp, lineHeight = line.sp, fontWeight = weight)
 
-    val hero = style(48, 54, FontWeight.Bold)
-    val display = style(40, 46, FontWeight.Bold)
-    val title = style(28, 34, FontWeight.Bold)
+    val hero = style(40, 46, FontWeight.Bold)
+    val display = style(30, 36, FontWeight.Bold)
+    val title = style(24, 30, FontWeight.Bold)
     val heading = style(22, 28)
     val body = style(20, 26)
     val bodySmall = style(18, 24)
-    val button = style(20, 24, FontWeight.Bold)
+    val button = style(18, 22, FontWeight.Bold)
     val caption = style(16, 22)
     val label = style(16, 22, FontWeight.Bold)
 }
@@ -521,6 +522,7 @@ fun Card(
     arrangement: Arrangement.Vertical = Arrangement.Top,
     now: Boolean = false,
     inner: Dp = Space.xl,
+    vertical: Dp = inner,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val look = LocalLook.current
@@ -570,7 +572,7 @@ fun Card(
                 },
             )
             .then(if (look.framed) Modifier.border(look.came, Ink.frame, shape) else Modifier)
-            .padding(start = inner, end = inner, bottom = inner, top = inner + if (now) look.nowRise else 0.dp),
+            .padding(start = inner, end = inner, bottom = vertical, top = vertical + if (now) look.nowRise else 0.dp),
         verticalArrangement = arrangement,
         content = content,
     )
@@ -897,7 +899,7 @@ fun Body(text: String, modifier: Modifier = Modifier, color: Color = Ink.dim, st
 
 /** The one filled action on a screen. */
 @Composable
-fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.primary) {
+fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.min) {
     Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = height),
@@ -912,7 +914,7 @@ fun PrimaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modif
  * dark surface, so its words stand clear of the background pattern.
  */
 @Composable
-fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.primary) {
+fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = Tap.min) {
     OutlinedButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = height),
@@ -982,18 +984,16 @@ private fun ButtonText(label: String, color: Color = Color.Unspecified, weight: 
 
 /**
  * A row of actions. At large system font sizes the first (the primary) takes a
- * full row and the rest share the row under it, so no label is cut mid-word
- * and three buttons take two rows, not three.
+ * full row and the rest go two to a row under it, so no label is cut mid-word.
  */
 @Composable
 fun ActionRow(vararg actions: Action) {
     if (LocalDensity.current.fontScale > LARGE_FONT) {
         Column(verticalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
             actions.firstOrNull()?.content?.invoke(Modifier.fillMaxWidth())
-            val rest = actions.drop(1)
-            if (rest.isNotEmpty()) {
+            actions.drop(1).chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
-                    rest.forEach { it.content(Modifier.weight(it.weight)) }
+                    pair.forEach { it.content(Modifier.weight(1f)) }
                 }
             }
         }

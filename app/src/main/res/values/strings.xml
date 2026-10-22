@@ -20,7 +20,7 @@
     <string name="edit_step_wait_none">Add a wait after</string>
     <string name="edit_step_wait">Then wait %1$s</string>
     <string name="action_done">Done</string>
-    <string name="action_skip">Skip</string>
+    <string name="action_skip">Later</string>
     <string name="action_tomorrow">Tomorrow</string>
     <string name="action_undo">Undo</string>
     <string name="next_anchor">Next: %1$s in %2$s</string>
@@ -285,7 +285,11 @@
     <string name="report_line">%1$s · %2$s · %3$s</string>
     <string name="report_share_title">Share the day report</string>
     <string name="on_it_action">On it</string>
-    <string name="now_on_it">Now · on it since %1$s</string>
+    <string name="now_on_it">On it since %1$s</string>
+    <!-- Between "On it since…" and the reason, on one line. -->
+    <string name="now_join">" · "</string>
+    <!-- What TalkBack says for the Now card's title. -->
+    <string name="now_spoken">Now: %1$s</string>
     <string name="edit_need_title">Add a title first</string>
     <string name="edit_action">Edit</string>
 

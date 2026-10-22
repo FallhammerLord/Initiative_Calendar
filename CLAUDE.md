@@ -56,6 +56,10 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
   screenshots. Anything below the first screenful: `scroll_to` first.
 - Typed text may come back capitalized by the keyboard: match from the second
   letter, or with `iexact`.
+- A message that shows for only a few seconds (a flash, an Undo line) is
+  checked with one `wait_for` right after the tap. When it comes at the end of
+  something long (a search, a timer), log the outcome and check the log, as
+  the Ping step does.
 - Nothing depends on the real date or weekday: compute days relative to today.
 - See each new check fail once before trusting it (in `core`, run it with the
   expectation flipped; elsewhere, read its failure message path).

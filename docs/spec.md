@@ -94,7 +94,7 @@ The board is a hybrid. It uses Board B's single card and buttons, and folds Boar
 Top to bottom: glance at the top, act at the bottom, where the thumb reaches. Steven Hoober's field study of how people hold phones found the bottom middle easiest to reach and the top corners hardest; Pixel's own home screen keeps glanceable facts at the top for the same reason (cited from memory).
 
 0. **Plan ahead panel.** The time, large, and the date, with the day's dial under them: a low arc across the planning day. Everything in today's order lies on it as a span from its start to its end: anchors solid (Hard ones thicker), tasks outlined since they're a forecast, and Now lit in the accent color; things done are small ticks at the time they were done. The dial shows time only, never progress: steps stay on the Now card. A pointer under the arc tracks now, on the curve's perpendicular like a dimension arrow, gliding with the clock (never with ticks), so it never hides a span; outside the planning day it rests at the nearer end, hollow. Left to right is time, evenly, so an hour is the same width anywhere on the curve. TalkBack reads it as today's line, walls and all. Tap the panel to open the Log. At large font sizes the date steps aside and the dial stays. While the keyboard is up, the panel steps aside and the Now card shrinks to its title. No weather: the app has no internet, and Android has no weather source an app can read.
-1. **Now card.** Sits on the bottom group, below an open space that takes up whatever's left. One item in large type, its steps as a checklist, and a one-line reason, such as "Due tomorrow, fits before pickup." Three buttons: **Done**, **Skip**, **Tomorrow**. A small **On it** in the card's header says the task is in hand, not skipped: the header then reads "Now · on it since 2:31 PM", a fixed event's alarms stop (as from the notification), and duration learning counts from then. Until it's tapped a task's clock starts quietly when it first shows as Now, so learning still has a start. Skip, Tomorrow, or another task taking Now ends it. The card grows upward, so the buttons stay in one place whatever the card holds; its words scroll if they overflow, and the buttons never do.
+1. **Now card.** Sits on the bottom group, below an open space that takes up whatever's left. Most of the card goes to words: the item in large type, a one-line reason right under it, such as "Due tomorrow, fits before pickup.", then its steps as a checklist. No "Now" label; the card's place says it, and TalkBack hears "Now: taxes". One row of 48 dp buttons that turns with the task. Up next: a wide **On it**, and **Later** for not now. **On it** says the task is in hand: the reason line then starts "On it since 2:31 PM", a fixed event's alarms stop (as from the notification), and duration learning counts from then, and the row turns to **Done**, **Later**, **Tomorrow**, and **Focus** (an anchor: **Done** and **Later**). At large system font, Done takes its own row and the rest go two to a row. While pairmarks show, a tall card stops below them. Until it's tapped a task's clock starts quietly when it first shows as Now, so learning still has a start. Skip, Tomorrow, or another task taking Now ends it. The card grows upward, so the buttons stay in one place whatever the card holds; its words scroll if they overflow, and the buttons never do.
 2. **Next peek.** One small line under the card: the next thing in the day's order, task or anchor, the same as the day panel's next entry. An anchor shows a countdown ("School pickup in 1h 40m"); a task shows its time ("Laundry at 8:25 AM"). With nothing left in today's order, it shows the next anchor. The walls themselves stay in view on the Plan ahead dial. It is also the handle of the day panel: tap it or swipe it up to open the panel; swipe down, tap outside, or press Back to fold it.
 3. **Forecast.** The open day panel lies over the board as a sheet, so the Now card never shrinks to make room. (Its old ledger line now lives on the board, as the Plan ahead dial.) The forecast lists the rest of today with times: anchors at their starts, and tasks filling the free time between in rank order. A skipped or missed task lands at the time it's back, not at the bottom. Tasks that can't fit today sit under Later. It's a forecast, not a promise, and reshuffles as the day goes.
 
@@ -117,10 +117,10 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 **Buttons.**
 
 - **Done** marks it finished. With steps still open it asks first, on purpose: tick what's done, then **All done** (the item and every step) or **Not yet** (it stays as it is). Back, or a tap outside, is Not yet.
-- **Skip** moves the card to its next reasonable slot and shows where it landed, e.g. "Back at 3:30, after pickup." See Placement logic.
+- **Later** (a skip) moves the card to its next reasonable slot and shows where it landed, e.g. "Back at 3:30, after pickup." See Placement logic.
 - **Tomorrow** takes it off today's board entirely.
 
-**Focus.** Hold the card for about two-thirds of a second, or tap the small Focus button. See Focus mode.
+**Focus.** Hold the card for about two-thirds of a second, or, once on it, tap Focus. See Focus mode.
 
 **Weekly recopy.** Derived from Ken's old sticky-pad system: one list, recopied weekly, finished items simply fall off. Once a week the single card becomes "Recopy the list." It walks every open item, oldest first, one card at a time: Keep, Reschedule (later this week or next week), or Drop. Items skipped three or more times get a nudge to drop them or give them a real time.
 
@@ -350,12 +350,12 @@ Second pass, after v0.1:
 
 - **Readability first.** Atkinson Hyperlegible, sentence case, left-aligned, no italics, no all caps. Body text 18 sp or larger. Layouts hold at 200% system font size.
 - **One primary action per screen.** It's the filled accent button; the rest are outlined.
-- **Touch targets.** At least 48 dp; primary actions 64 dp.
-- **Forgiving actions.** Done, Skip, and Tomorrow show a short Undo instead of asking first.
+- **Touch targets.** At least 48 dp, the height of every button. Rows that carry more (a pairmark, a paired person) are 56 dp; the dock's tiles 64 dp.
+- **Forgiving actions.** Done, Later, and Tomorrow show a short Undo instead of asking first.
 - **Every state designed.** Loading, empty (Free time), error, and permission missing.
 - **TalkBack works.** Every control has a label, and custom drawings like the ledger line describe themselves.
 - **Neutral copy.** Plain words, no blame, no counters. Times read "3:00 PM" and durations "1h 40m", everywhere.
-- **Every gesture has a visible twin.** Swipe up has the Apps button; hold-to-focus has the Focus button.
+- **Every gesture has a visible twin.** Swipe up has the Apps button; hold-to-focus has the Focus button, once on it.
 - **Short motion.** Animations stay brief and follow the system's reduced-animation setting.
 
 Gaps today:
@@ -383,6 +383,7 @@ One source for every look, phrase, and format, so new screens are assembled from
   - The day panel unfolds upward out of the Next strip and folds back into it. A Now card whose words overflow shows a slim scroll bar in its margin and fades its last line.
   - Touch targets are at least 48 dp, with at least 8 dp between neighbours. The dock's trio tiles touch, so their taps go by outline instead.
   - One text edge: panel text sits 24 dp in from the panel's side, in the Now card, the day strip, and the open day sheet alike.
+  - Space goes to words before frame. The type scale tops out at 40 sp (a focus countdown); a Now title is 30 sp, screen titles and the clock 24 sp, body text stays 20 sp. The Now card's frame is 16 dp top and bottom, one 48 dp button row, and 12 dp between them.
   - Panels look like panels: the folded day panel is a framed strip (`Strip`), matching the card and the sheet it opens into.
   - The design guard fails on a hand-typed spacing value outside `Design.kt`.
   - Sources: SAP Fiori for Android, following Material 3 ([layout basics](https://www.sap.com/design-system/fiori-design-android/v26-4/foundations/adaptive-layout/layout-basics)); Material's older metrics and keylines ([m1.material.io](https://m1.material.io/layout/metrics-keylines.html)).

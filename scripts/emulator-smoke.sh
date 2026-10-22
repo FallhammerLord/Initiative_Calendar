@@ -169,6 +169,13 @@ wait_gone() {
 
 expect_text() { wait_for "$1" && pass "shows '$1'" || fail "expected '$1' on screen"; }
 
+# The Now card shows On it and Later until the task is under way; then Done,
+# Later, Tomorrow, and Focus. start_now taps On it if it's showing.
+start_now() {
+  if wait_for "On it" exact 3; then tap "On it" exact; fi
+  wait_for "Done" exact || fail "the Now card should offer Done once on it"
+}
+
 tap() {
   local xy end=$((SECONDS + 6))
   until xy=$(find_node "$1" "${2:-contains}"); do
@@ -473,22 +480,27 @@ wait_gone "Hide today" exact || fail "a tap outside should fold the day panel"
 pass "swipe up opens the day panel; a tap outside folds it"
 expect_notification "Now: taxes" "lock-screen card shows the Now card"
 # On it: the task is in hand, not skipped; the card says so, with when.
+expect_text "Later"
 tap "On it" exact
-wait_for "on it since" || fail "On it should show on the Now card"
+wait_for "On it since" || fail "On it should show on the Now card"
+wait_for "Focus" exact || fail "On it should turn the row to Done, Later, Tomorrow, Focus"
+expect_text "Tomorrow"
 shot on-it
 pass "On it marks the task in hand"
 
-tap Skip exact
+tap Later exact
 expect_text "Back at"
 expect_text "call landlord"
 shot after-skip
 
+start_now
 tap Done exact
 expect_text "Undo"
 tap Undo exact
 expect_text "Put back"
 expect_text "call landlord"
 pass "Undo puts the item back"
+start_now
 tap Done exact
 expect_text "Free time"
 shot after-done
@@ -853,7 +865,8 @@ adb shell settings put system font_scale 2.0
 home
 sleep 2
 shot large-font
-for label in Done Skip Tomorrow; do
+start_now
+for label in Done Later Tomorrow Focus; do
   xy=$(find_node "$label" exact) || fail "'$label' button missing at 200% font"
   y=${xy#* }
   [ "$y" -lt 2400 ] || fail "'$label' button off screen at 200% font"
@@ -868,13 +881,14 @@ crash_check
 
 home
 expect_text "taxes"
+start_now
 tap Focus exact
 expect_text "Done with it"
 expect_text "until pickup at 2:00 PM"
 shot focus
 expect_notification "Focus: taxes" "lock-screen card shows the focus"
 tap "End focus" exact
-expect_text "Tomorrow"
+expect_text "Later"
 pass "End focus returns to the board"
 xy=$(find_node "taxes" exact) || fail "no Now title to hold"
 adb shell input swipe $xy $xy 900
@@ -1001,6 +1015,7 @@ expect_text "ind the number"
 expect_text "ake the call"
 shot now-steps
 tap "ind the number"
+start_now
 tap Done exact
 expect_text "All done"
 expect_text "Not yet"
@@ -1009,6 +1024,7 @@ adb shell input keyevent KEYCODE_BACK
 wait_gone "All done" exact || fail "Back should close the Done question"
 expect_text "dentist call"
 pass "Done with a step open asks first, and Back leaves the item as it was"
+start_now
 tap Done exact
 tap "All done" exact
 expect_text "Undo"
