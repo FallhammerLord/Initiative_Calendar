@@ -1,5 +1,8 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.draw.alpha
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.Arrangement
@@ -154,14 +157,19 @@ fun EditScreen(
                         // A wait after the step (a washer's run): each tap steps to the next length, then back to none.
                         val wait = step.waitMinutes
                         val length = Formats.countdown(Duration.ofMinutes(wait.toLong()))
-                        GlyphButton(
-                            if (wait == 0) stringResource(R.string.edit_step_wait_add, i + 1) else stringResource(R.string.edit_step_wait_set, length, i + 1),
-                            {
-                                val after = DURATIONS.firstOrNull { it > wait } ?: 0
-                                steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(waitMinutes = after)) }
-                            },
-                            text = if (wait == 0) null else length,
-                        ) { clock(it) }
+                        // As wide as the longest wait it can show, set or not, so every step's text lines up.
+                        Box {
+                            GlyphButton("", {}, Modifier.alpha(0f).clearAndSetSemantics { }, text = WIDEST_WAIT) { clock(it) }
+                            GlyphButton(
+                                if (wait == 0) stringResource(R.string.edit_step_wait_add, i + 1) else stringResource(R.string.edit_step_wait_set, length, i + 1),
+                                {
+                                    val after = DURATIONS.firstOrNull { it > wait } ?: 0
+                                    steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(waitMinutes = after)) }
+                                },
+                                Modifier.matchParentSize(),
+                                text = if (wait == 0) null else length,
+                            ) { clock(it) }
+                        }
                         Spacer(Modifier.width(Space.inside))
                         GlyphButton(stringResource(R.string.edit_step_remove_n, i + 1), { steps = steps.filterIndexed { j, _ -> j != i } }) { cross(it) }
                     }
@@ -439,6 +447,9 @@ private val REPEATS: List<Pair<Int, Recurrence?>> = listOf(
     R.string.repeat_yearly to Recurrence(Freq.YEARLY),
 )
 private val DURATIONS = listOf(15, 30, 45, 60, 90, 120)
+
+/** The longest wait a step's button shows, which sets the button's width. */
+private val WIDEST_WAIT = DURATIONS.map { Formats.countdown(Duration.ofMinutes(it.toLong())) }.maxBy { it.length }
 
 /** How far ahead a marker can show, in days. */
 private val HEADS_UP = listOf(0, 1, 2, 3, 7)

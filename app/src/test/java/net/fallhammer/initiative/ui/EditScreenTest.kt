@@ -87,6 +87,14 @@ class EditScreenTest {
         assertTrue("the buttons should sit beside the step", cross.top < field.bottom && cross.left > field.left)
     }
 
+    @Test fun stepsLineUpWithOrWithoutAWait() {
+        show(dentist.copy(steps = listOf(initiative.core.Step("find the card", waitMinutes = 90), initiative.core.Step("call"))))
+        val set = compose.onNodeWithContentDescription("Wait 1h 30m after step 1, change").performScrollTo().getUnclippedBoundsInRoot()
+        val unset = compose.onNodeWithContentDescription("Add a wait after step 2").performScrollTo().getUnclippedBoundsInRoot()
+        assertEquals(set.left, unset.left)
+        assertEquals(set.right, unset.right)
+    }
+
     @Test fun everyDayMakesItRepeat() {
         show(dentist)
         compose.onNodeWithText("Every day").performScrollTo().tap()
