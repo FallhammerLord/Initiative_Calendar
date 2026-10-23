@@ -717,6 +717,36 @@ x=$(( x1 + (x2 - x1) * 165 / 175 )); y=$(( (y1 + y2) / 2 ))
 adb shell input tap $x $y
 expect_front com.android.settings "a tap on a tile's point opens that tile's app"
 home
+# Trays: holding a tile opens the picker, which stays open to fill the tray and
+# lists what the space holds. Then the tile's tap slides its tray open (instant
+# here, with animations off); Back shuts it, and an app in it opens.
+read -r x1 y1 x2 y2 < <(node_bounds "Settings") || fail "no Settings tile to hold"
+adb shell input swipe $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) 900
+wait_for "In this space" exact || fail "holding a tile should list what its space holds"
+xy=$(find_node android.widget.EditText class) || fail "no search box in the picker"
+adb shell input tap $xy
+sleep 1
+adb shell input text Contacts
+tap Contacts exact
+wait_for "Move down" exact || fail "a tapped app should join the tray, and the picker stay open"
+hide_keyboard
+shot dock-tray-picker
+tap Close exact
+wait_gone "Pick an app" exact || fail "Close should shut the picker"
+tap "Settings, opens a tray"
+wait_for "Contacts" exact || fail "tapping a tile with a tray should open it"
+expect_text "Settings, tray open"
+shot dock-tray-open
+adb shell input keyevent KEYCODE_BACK
+wait_gone "Contacts" exact || fail "Back should shut the tray"
+expect_front $PKG "Back shuts the tray and stays on the board"
+tap "Settings, opens a tray"
+wait_for "Contacts" exact || fail "the tray should open again"
+tap Contacts exact
+expect_front "contacts" "an app in the tray opens"
+home
+wait_gone "Settings, tray open" exact 3 || fail "the tray should be shut after opening an app"
+pass "a tray fills from the picker, slides open, shuts, and opens its apps"
 read -r x1 y1 x2 y2 < <(node_bounds "Settings") || fail "Settings tile gone after Home"
 adb shell input swipe $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) 900
 wait_for "Empty this space" exact || fail "holding a tile should open the picker with Empty"

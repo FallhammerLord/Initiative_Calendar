@@ -40,22 +40,72 @@ class Apps(private val context: Context) {
         return List(DOCK_SIZE) { saved.getOrNull(it)?.ifEmpty { null } }
     }
 
-    /** Apps in the dock, for marking them in the drawer. */
-    fun pinned(): List<String> = dock().filterNotNull()
-
-    fun setSlot(slot: Int, key: String?) {
-        val now = dock().toMutableList()
-        now[slot] = key
-        prefs.edit().putString(DOCK, now.joinToString("|") { it.orEmpty() }).apply()
+    /**
+     * Each slot's apps, the slot's own first, then up to [TRAY_SIZE] - 1 more in
+     * its tray, nearest the slot first. Empty for an empty slot.
+     */
+    fun slots(): List<List<String>> {
+        val trays = prefs.getString(TRAYS, "").orEmpty().split("|")
+        return dock().mapIndexed { i, own ->
+            if (own == null) emptyList() else listOf(own) + trays.getOrNull(i).orEmpty().split(",").filter { it.isNotEmpty() }
+        }
     }
 
-    /** Holding an app in the drawer: out of the dock if it's there, else into the first empty slot, or the last. */
+    private fun save(slots: List<List<String>>) {
+        prefs.edit()
+            .putString(DOCK, slots.joinToString("|") { it.firstOrNull().orEmpty() })
+            .putString(TRAYS, slots.joinToString("|") { it.drop(1).joinToString(",") })
+            .apply()
+    }
+
+    /** Apps in the dock and its trays, for marking them in the drawer. */
+    fun pinned(): List<String> = slots().flatten()
+
+    /** Puts [key] in [slot]'s own place, or empties the slot and its tray. */
+    fun setSlot(slot: Int, key: String?) {
+        val now = slots().map { it - setOfNotNull(key) }.toMutableList()
+        now[slot] = if (key == null) emptyList() else listOf(key) + now[slot].drop(1)
+        save(now)
+    }
+
+    /**
+     * Adds [key] to [slot]: its own place if empty, else the tray's next spot.
+     * An app lives in one place only, so it leaves anywhere else. False when full.
+     */
+    fun add(slot: Int, key: String): Boolean {
+        val now = slots().map { it - key }.toMutableList()
+        if (now[slot].size >= TRAY_SIZE) return false
+        now[slot] = now[slot] + key
+        save(now)
+        return true
+    }
+
+    /** Takes [key] out of [slot]; if it was the slot's own app, the tray's nearest takes its place. */
+    fun remove(slot: Int, key: String) {
+        save(slots().toMutableList().also { it[slot] = it[slot] - key })
+    }
+
+    /** Moves the app at [index] one place nearer the slot; at 1, it becomes the slot's own app. */
+    fun moveDown(slot: Int, index: Int) {
+        val now = slots().toMutableList()
+        val apps = now[slot].toMutableList()
+        if (index !in 1 until apps.size) return
+        apps[index] = apps[index - 1].also { apps[index - 1] = apps[index] }
+        now[slot] = apps
+        save(now)
+    }
+
+    /**
+     * Holding an app in the drawer: out of the dock if it's there, else into the
+     * first empty slot, then the first tray with room, or the last slot.
+     */
     fun togglePin(entry: AppEntry) {
-        val now = dock()
-        val at = now.indexOf(entry.key)
+        val now = slots()
+        val at = now.indexOfFirst { entry.key in it }
         when {
-            at >= 0 -> setSlot(at, null)
-            null in now -> setSlot(now.indexOf(null), entry.key)
+            at >= 0 -> remove(at, entry.key)
+            now.any { it.isEmpty() } -> setSlot(now.indexOfFirst { it.isEmpty() }, entry.key)
+            now.any { it.size < TRAY_SIZE } -> add(now.indexOfFirst { it.size < TRAY_SIZE }, entry.key)
             else -> setSlot(DOCK_SIZE - 1, entry.key)
         }
     }
@@ -85,7 +135,11 @@ class Apps(private val context: Context) {
 
     companion object {
         const val DOCK_SIZE = 6
+
+        /** Apps one slot holds: its own, and four more in its tray. */
+        const val TRAY_SIZE = 5
         private const val PINNED = "pinned"
         private const val DOCK = "dock"
+        private const val TRAYS = "trays"
     }
 }

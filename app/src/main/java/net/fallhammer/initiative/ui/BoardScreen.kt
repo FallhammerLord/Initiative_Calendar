@@ -68,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -141,6 +142,11 @@ fun BoardScreen(vm: BoardViewModel) {
     val dock by vm.launcher.dock.collectAsStateWithLifecycle()
     val icons by vm.launcher.icons.collectAsStateWithLifecycle()
     val pickSlot by vm.pickSlot.collectAsStateWithLifecycle()
+    val slots by vm.launcher.slots.collectAsStateWithLifecycle()
+    val trayOpen by vm.trayOpen.collectAsStateWithLifecycle()
+    val pickEditing by vm.pickEditing.collectAsStateWithLifecycle()
+    // Where each dock slot sits, so its tray rises from it.
+    val slotAt = remember { mutableStateMapOf<Int, Rect>() }
     val unlock by vm.settings.unlock.collectAsStateWithLifecycle()
     val setup by vm.settings.setup.collectAsStateWithLifecycle()
     val lockCard by vm.settings.lockCard.collectAsStateWithLifecycle()
@@ -209,6 +215,7 @@ fun BoardScreen(vm: BoardViewModel) {
     // Home screens never close on Back, and Back never ends focus by accident.
     BackHandler {
         when {
+            trayOpen >= 0 -> vm.closeTray()
             overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen || reportDay != null -> vm.back()
             expanded -> expanded = false
         }
@@ -380,7 +387,10 @@ fun BoardScreen(vm: BoardViewModel) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(Space.panel, Alignment.Bottom),
                     ) {
-                        Dock(dock, icons, onTap = vm::tapSlot, onHold = vm::holdSlot)
+                        Dock(
+                            dock, icons, onTap = vm::tapSlot, onHold = vm::holdSlot,
+                            more = slots.map { it.size > 1 }, open = trayOpen, onPlaced = { i, at -> slotAt[i] = at },
+                        )
                         // The Apps button, on its look's fixture: the swipe's visible twin.
                         AppsHandle(stringResource(R.string.apps_open), onClick = { vm.setDrawer(true) })
                     }
@@ -412,6 +422,9 @@ fun BoardScreen(vm: BoardViewModel) {
             }
         }
 
+        // A dock slot's tray, over the dimmed board.
+        DockTrayLayer(trayOpen, slots, icons, slotAt, onTap = vm::tapTray, onClose = vm::closeTray)
+
         AnimatedVisibility(
             visible = overlay == Overlay.PICK,
             enter = slideInVertically { it },
@@ -428,6 +441,9 @@ fun BoardScreen(vm: BoardViewModel) {
                 onClose = { vm.setDrawer(false) },
                 picking = true,
                 onClearSlot = if (dock.getOrNull(pickSlot) != null) vm::clearSlot else null,
+                slotApps = if (pickEditing) slots.getOrNull(pickSlot).orEmpty() else emptyList(),
+                onRemove = vm::removeFromSlot,
+                onMoveDown = vm::moveDownInSlot,
             )
         }
 

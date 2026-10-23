@@ -128,6 +128,7 @@ private val PARTS = listOf(
         listOf(
             R.string.manual_around_1 to R.string.manual_around_1_does,
             R.string.manual_around_2 to R.string.manual_around_2_does,
+            R.string.manual_around_8 to R.string.manual_around_8_does,
             R.string.manual_around_3 to R.string.manual_around_3_does,
             R.string.manual_around_4 to R.string.manual_around_4_does,
             R.string.manual_around_5 to R.string.manual_around_5_does,

@@ -222,6 +222,12 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     /** The dock slot an app is being picked for, while the picker is open. */
     val pickSlot: StateFlow<Int> = saved.getStateFlow(PICK_SLOT, -1)
 
+    /** Whether the picker was opened by holding a slot: then it stays open to fill the tray. */
+    val pickEditing: StateFlow<Boolean> = saved.getStateFlow(PICK_EDIT, false)
+
+    /** The dock slot whose tray is open over the board; -1 when none is. */
+    val trayOpen: StateFlow<Int> = saved.getStateFlow(TRAY, -1)
+
     private val _opened = MutableStateFlow(0)
     /** Bumps each time the board comes to the front, so the screen can reset focus. */
     val opened: StateFlow<Int> = _opened.asStateFlow()
@@ -536,6 +542,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         notYet()
         closePair()
         if (pairs.pairing.value != null) pairs.cancelPairing()
+        closeTray()
         saved[OVERLAY] = Overlay.NONE
     }
 
@@ -579,18 +586,48 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         }
     }
 
-    /** A dock slot: an app opens; an empty slot opens the picker. */
+    /**
+     * A dock slot: its app opens, or, with more in its tray, the tray slides open
+     * (a second tap shuts it). An empty slot opens the picker.
+     */
     fun tapSlot(slot: Int) {
-        val app = launcher.dock.value.getOrNull(slot)
-        if (app != null) launch(app) else pick(slot)
+        val apps = launcher.slots.value.getOrNull(slot).orEmpty()
+        when {
+            apps.isEmpty() -> pick(slot, editing = false)
+            apps.size == 1 -> launch(apps.first())
+            trayOpen.value == slot -> closeTray()
+            else -> saved[TRAY] = slot
+        }
     }
 
-    /** Holding a dock slot opens the picker to change or empty it. */
-    fun holdSlot(slot: Int) = pick(slot)
+    /** An app in the open tray: it opens, and the tray shuts behind it. */
+    fun tapTray(entry: AppEntry) {
+        closeTray()
+        launch(entry)
+    }
 
+    fun closeTray() {
+        saved[TRAY] = -1
+    }
+
+    /** Holding a dock slot opens the picker to fill its tray, change it, or empty it. */
+    fun holdSlot(slot: Int) {
+        closeTray()
+        pick(slot, editing = true)
+    }
+
+    /**
+     * An app picked: from an empty slot's tap, it fills the slot and the picker
+     * closes. Opened by a hold, it joins the slot (or its tray) and the picker
+     * stays, so a tray fills in one visit.
+     */
     fun pickApp(entry: AppEntry) {
-        launcher.setSlot(pickSlot.value, entry)
-        saved[OVERLAY] = Overlay.NONE
+        if (!pickEditing.value) {
+            launcher.setSlot(pickSlot.value, entry)
+            saved[OVERLAY] = Overlay.NONE
+            return
+        }
+        launcher.add(pickSlot.value, entry) { show(Flash(text(R.string.tray_full))) }
     }
 
     fun clearSlot() {
@@ -598,8 +635,15 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         saved[OVERLAY] = Overlay.NONE
     }
 
-    private fun pick(slot: Int) {
+    /** In the picker: takes an app out of the slot being changed. */
+    fun removeFromSlot(entry: AppEntry) = launcher.remove(pickSlot.value, entry)
+
+    /** In the picker: one place nearer the slot; the nearest becomes the slot's own app. */
+    fun moveDownInSlot(index: Int) = launcher.moveDown(pickSlot.value, index)
+
+    private fun pick(slot: Int, editing: Boolean) {
         saved[PICK_SLOT] = slot
+        saved[PICK_EDIT] = editing
         saved[OVERLAY] = Overlay.PICK
     }
 
@@ -705,6 +749,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val REPORT = "report"
         const val REPORT_NOTES = "report_notes"
         const val PICK_SLOT = "pick_slot"
+        const val PICK_EDIT = "pick_edit"
+        const val TRAY = "tray"
         const val CONFIRM = "confirm_done"
         const val NONE = -1L
     }

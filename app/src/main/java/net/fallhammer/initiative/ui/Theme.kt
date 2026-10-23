@@ -112,6 +112,9 @@ enum class DoneMark { TICK, COIN, HEART, SPARKLE, GHOST, SNOWFLAKE }
 /** The All done flourish: the pattern's own (a ring, a sunburst, a rose window), or its own burst. */
 enum class Flourish { NONE, PATTERN, HEARTS, SPARKLES, BATS, SNOW }
 
+/** The mark on a dock slot that holds a tray: a chevron in the look's own style, turned over while open. */
+enum class More { CHEVRON, ROUND, DOUBLE, ARCH, CANDY_CORN, STAR }
+
 /** A marker bubble's shape. */
 enum class Bubble { HEX, CIRCLE, MEDALLION, ROUNDEL, CANDY, GEM, PUMPKIN, BAUBLE }
 
@@ -187,6 +190,7 @@ data class Look(
     val doneMark: DoneMark = DoneMark.TICK,
     val flourish: Flourish = Flourish.PATTERN,
     val bubble: Bubble = Bubble.CIRCLE,
+    val more: More = More.ROUND,
     /** How strongly the background pattern shows, 0 to 1; set in Settings. */
     val texture: Float = DEFAULT_TEXTURE,
     /** The Apps handle's fixture. */
@@ -288,6 +292,7 @@ class BookmarkShape(private val style: HandleStyle, private val fromLeft: Boolea
 
 // The bookmark's ends: the chevron's cut, the steps' size, and the arch's reach, as shares of its height.
 private const val BOOKMARK_CUT = 0.4f
+private const val SCRIM = 0.6f
 private const val BOOKMARK_STEP = 0.18f
 private const val BOOKMARK_ARCH = 0.9f
 private const val BOOKMARK_NOTCH = 0.35f
@@ -314,6 +319,7 @@ object Looks {
     /** Navy panels, teal frames, cut corners, a faint hex grid. After the quest log. */
     val SciFi = Look(
         id = "scifi",
+        more = More.CHEVRON,
         label = R.string.look_scifi,
         palette = Palette(
             bg = Color(0xFF0A1219),
@@ -363,6 +369,7 @@ object Looks {
      */
     val Deco = Look(
         id = "deco",
+        more = More.DOUBLE,
         fx = Fx.GLINT,
         label = R.string.look_deco,
         palette = Palette(
@@ -393,6 +400,7 @@ object Looks {
      */
     val Glass = Look(
         id = "glass",
+        more = More.ARCH,
         fx = Fx.SHEEN,
         label = R.string.look_glass,
         palette = Palette(
@@ -476,6 +484,7 @@ object Looks {
      */
     val Starlight = Look(
         id = "starlight",
+        more = More.STAR,
         fx = Fx.TWINKLE,
         label = R.string.look_starlight,
         palette = Palette(
@@ -516,6 +525,7 @@ object Looks {
      */
     val Halloween = Look(
         id = "halloween",
+        more = More.CANDY_CORN,
         fx = Fx.WISP,
         label = R.string.look_halloween,
         palette = Palette(
@@ -555,6 +565,7 @@ object Looks {
      */
     val Christmas = Look(
         id = "christmas",
+        more = More.STAR,
         fx = Fx.LIGHTS,
         label = R.string.look_christmas,
         palette = Palette(
@@ -718,6 +729,8 @@ object Ink {
     val pattern: Color @Composable @ReadOnlyComposable get() = p.pattern.copy(alpha = p.pattern.alpha * LocalLook.current.texture)
     /** Ornaments such as a gold sparkle or a bow; never text. */
     val ornament: Color @Composable @ReadOnlyComposable get() = p.ornament
+    /** Behind an open dock tray: the board dimmed, so the tray stands out. */
+    val scrim: Color @Composable @ReadOnlyComposable get() = p.bg.copy(alpha = SCRIM)
     /** Thin lines that aren't controls, such as the ledger's baseline. */
     val line: Color @Composable @ReadOnlyComposable get() = p.frame
     val label: Color @Composable @ReadOnlyComposable get() = if (LocalLook.current.accentLabels) p.accent else p.dim

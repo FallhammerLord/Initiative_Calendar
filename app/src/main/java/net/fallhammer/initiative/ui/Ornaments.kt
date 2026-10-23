@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -416,3 +417,58 @@ private val WEB_BATS = listOf(0.78f to 0.25f, 0.18f to 0.62f, 0.85f to 0.72f)
 // Christmas's knit: one repeat of the bands.
 private val KNIT_W = 60.dp
 private val KNIT_H = 120.dp
+
+/**
+ * The mark on a dock slot that holds a tray, pointing up, [w] wide around [c]:
+ * a chevron in the look's style, a glass arch's tip, a candy corn, or a star.
+ * [tones] are the candy corn's base, middle, and tip.
+ */
+fun DrawScope.moreMark(kind: More, c: Offset, w: Float, color: Color, tones: List<Color>) {
+    val h = w * MORE_RISE
+    val line = w * MORE_LINE
+    fun chevron(dy: Float, cap: StrokeCap) {
+        val path = Path().apply {
+            moveTo(c.x - w / 2, c.y + h / 2 + dy)
+            lineTo(c.x, c.y - h / 2 + dy)
+            lineTo(c.x + w / 2, c.y + h / 2 + dy)
+        }
+        drawPath(path, color, style = Stroke(line, cap = cap, join = if (cap == StrokeCap.Round) StrokeJoin.Round else StrokeJoin.Miter))
+    }
+    when (kind) {
+        More.CHEVRON -> chevron(0f, StrokeCap.Butt)
+        More.ROUND -> chevron(0f, StrokeCap.Round)
+        More.DOUBLE -> {
+            chevron(-h * 0.35f, StrokeCap.Butt)
+            chevron(h * 0.45f, StrokeCap.Butt)
+        }
+        More.ARCH -> drawPath(
+            Path().apply {
+                moveTo(c.x, c.y - h * 0.7f)
+                cubicTo(c.x + w * 0.15f, c.y - h * 0.2f, c.x + w * 0.45f, c.y, c.x + w / 2, c.y + h * 0.7f)
+                lineTo(c.x - w / 2, c.y + h * 0.7f)
+                cubicTo(c.x - w * 0.45f, c.y, c.x - w * 0.15f, c.y - h * 0.2f, c.x, c.y - h * 0.7f)
+                close()
+            },
+            color,
+        )
+        More.CANDY_CORN -> listOf(1f, 0.66f, 0.33f).forEachIndexed { i, share ->
+            val top = c.y - h * 0.8f
+            val bottom = top + h * 1.6f * share
+            val half = w / 2 * share
+            drawPath(
+                Path().apply {
+                    moveTo(c.x, top)
+                    lineTo(c.x + half, bottom)
+                    lineTo(c.x - half, bottom)
+                    close()
+                },
+                tones.getOrElse(i) { color },
+            )
+        }
+        More.STAR -> drawPath(starPath(c, w * 0.55f), color)
+    }
+}
+
+/** A "more" mark's height and line, as shares of its width. */
+private const val MORE_RISE = 0.6f
+private const val MORE_LINE = 0.16f

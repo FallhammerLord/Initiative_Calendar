@@ -158,6 +158,15 @@
     <string name="dock_add">Add an app</string>
     <string name="dock_add_mark">+</string>
     <string name="dock_change">Change</string>
+    <string name="dock_tray">%1$s, opens a tray</string>
+    <string name="dock_tray_open">%1$s, tray open</string>
+    <string name="tray_full">This space is full</string>
+    <string name="tray_title">In this space</string>
+    <string name="tray_hint">Tap an app below to add it here.</string>
+    <string name="tray_own">%1$s, in the space</string>
+    <string name="tray_move_down">Move down</string>
+    <string name="tray_remove">Remove</string>
+    <string name="tray_label">Tray</string>
 
     <!-- Previously on (lapse recap) -->
     <string name="recap_title">Previously on</string>
@@ -594,6 +603,8 @@
     <string name="manual_around_1_does">Swipe up from the bottom, or tap the Apps button.</string>
     <string name="manual_around_2">The dock</string>
     <string name="manual_around_2_does">App slots on the board. Hold one to change it.</string>
+    <string name="manual_around_8">Trays</string>
+    <string name="manual_around_8_does">A slot can hold 4 more apps in a tray. Hold the slot, then tap apps to add them. A small mark shows a slot has a tray; tap the slot to slide it open. Tap outside, or Back, to shut it.</string>
     <string name="manual_around_3">Back</string>
     <string name="manual_around_3_does">Steps out one level.</string>
     <string name="manual_around_4">Home</string>

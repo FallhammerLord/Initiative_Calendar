@@ -25,9 +25,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import net.fallhammer.initiative.R
+import net.fallhammer.initiative.data.Apps
 import net.fallhammer.initiative.data.AppEntry
 
 /**
@@ -35,7 +37,9 @@ import net.fallhammer.initiative.data.AppEntry
  * and the system screen for switching back to another home app.
  *
  * With [picking], it's the dock's picker instead: tapping an app puts it in the
- * slot, [onClearSlot] empties the slot, and the exits are hidden.
+ * slot, [onClearSlot] empties the slot, and the exits are hidden. Opened by
+ * holding a filled slot, [slotApps] lists what the slot holds, its own app
+ * first, each to move nearer the slot or remove.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -51,6 +55,9 @@ fun AppDrawer(
     onManual: () -> Unit = {},
     picking: Boolean = false,
     onClearSlot: (() -> Unit)? = null,
+    slotApps: List<AppEntry> = emptyList(),
+    onRemove: (AppEntry) -> Unit = {},
+    onMoveDown: (Int) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val shown = apps.filter { it.label.contains(query.trim(), ignoreCase = true) }
@@ -97,6 +104,10 @@ fun AppDrawer(
         } else if (onClearSlot != null) {
             SecondaryButton(stringResource(R.string.pick_clear), onClearSlot, height = Tap.min)
         }
+        if (picking && slotApps.isNotEmpty()) {
+            Spacer(Modifier.height(Space.s))
+            SlotApps(slotApps, onRemove, onMoveDown)
+        }
         Spacer(Modifier.height(Space.s))
         // Each app is a button, like everything tappable.
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
@@ -121,5 +132,34 @@ fun AppDrawer(
             Spacer(Modifier.height(Space.xs))
             Strip { Text(stringResource(R.string.drawer_pin_hint), style = Type.caption, color = Ink.dim) }
         }
+    }
+}
+
+/**
+ * What a held slot holds: its own app, then its tray's, nearest the slot first.
+ * Move down brings one nearer; the nearest becomes the slot's own app.
+ */
+@Composable
+private fun SlotApps(apps: List<AppEntry>, onRemove: (AppEntry) -> Unit, onMoveDown: (Int) -> Unit) {
+    Card {
+        Text(stringResource(R.string.tray_title), style = Type.heading, color = Ink.text, modifier = Modifier.semantics { heading() })
+        apps.forEachIndexed { i, app ->
+            Spacer(Modifier.height(Space.inside))
+            Text(
+                if (i == 0) stringResource(R.string.tray_own, app.label) else app.label,
+                style = Type.body,
+                color = Ink.text,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                if (i > 0) QuietButton(stringResource(R.string.tray_move_down), { onMoveDown(i) }, color = Ink.accent)
+                QuietButton(stringResource(R.string.tray_remove), { onRemove(app) }, color = Ink.accent)
+            }
+        }
+        Spacer(Modifier.height(Space.inside))
+        Text(
+            stringResource(if (apps.size < Apps.TRAY_SIZE) R.string.tray_hint else R.string.tray_full),
+            style = Type.bodySmall,
+            color = Ink.dim,
+        )
     }
 }
