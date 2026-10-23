@@ -257,7 +257,7 @@ private val SQUARE_ICON = 40.dp
 
 /**
  * A slot's tray: an upright panel of the look's card shape on the dark surface,
- * holding the apps past the slot's own, nearest the slot at the bottom. No
+ * holding all the slot's apps, its own at the bottom, over the slot itself. No
  * words; each app is named for TalkBack.
  */
 @Composable
@@ -299,8 +299,9 @@ private val TRAY_WIDTH = 72.dp
 
 /**
  * The open tray over the board: the board dims, and the tray slides up out of
- * its slot (at [slotAt], in root coordinates); shut, it slides back down into
- * it. A tap outside it shuts it. With Android's animations off, it just appears.
+ * its slot (at [slotAt], in root coordinates), covering the slot so its own app
+ * is in the tray too; shut, it slides back down into it. Anything in the tray
+ * opens; a tap outside it shuts it. With Android's animations off, it just appears.
  */
 @Composable
 fun DockTrayLayer(
@@ -339,11 +340,12 @@ fun DockTrayLayer(
             )
         }
         val slot = slotAt[shown] ?: return@Box
-        val apps = slots.getOrNull(shown).orEmpty().drop(1)
+        val apps = slots.getOrNull(shown).orEmpty()
         val trayPx = with(density) { TRAY_WIDTH.toPx() }
         val x = (slot.center.x - origin.x - trayPx / 2).coerceIn(0f, (width - trayPx).coerceAtLeast(0f))
-        // Everything above the slot, clipped, so the tray rises out of the slot's top edge.
-        val above = with(density) { (slot.top - origin.y).coerceAtLeast(0f).toDp() }
+        // Everything down to the slot's bottom, clipped, so the tray rises out of the slot
+        // and its last app sits over the slot's own place.
+        val above = with(density) { (slot.bottom - origin.y).coerceAtLeast(0f).toDp() }
         Box(Modifier.fillMaxWidth().height(above).clipToBounds()) {
             AnimatedVisibility(
                 visible = open >= 0,

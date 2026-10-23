@@ -741,6 +741,12 @@ shot dock-tray-open
 adb shell input keyevent KEYCODE_BACK
 wait_gone "Contacts" exact || fail "Back should shut the tray"
 expect_front $PKG "Back shuts the tray and stays on the board"
+# The tray covers its slot, so the slot's own app is in it too, and opens.
+tap "Settings, opens a tray"
+wait_for "Contacts" exact || fail "the tray should open again"
+tap Settings exact
+expect_front com.android.settings "the slot's own app opens from its open tray"
+home
 tap "Settings, opens a tray"
 wait_for "Contacts" exact || fail "the tray should open again"
 tap Contacts exact

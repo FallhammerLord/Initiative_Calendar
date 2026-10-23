@@ -86,6 +86,15 @@ class DockTrayTest {
         compose.onNodeWithContentDescription("Maps").assertDoesNotExist()
     }
 
+    @Test fun theSlotsOwnAppIsInTheTrayToo() {
+        board()
+        compose.onNodeWithContentDescription("Mail, opens a tray").tap()
+        // Over the slot: the slot's own app, ready to tap, not hidden behind the dimmed board.
+        compose.onNodeWithContentDescription("Mail").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Mail").tap()
+        assertEquals(mail, launched)
+    }
+
     @Test fun aTapOutsideShutsIt() {
         board()
         compose.onNodeWithContentDescription("Mail, opens a tray").tap()
