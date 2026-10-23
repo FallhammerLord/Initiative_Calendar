@@ -228,7 +228,8 @@ start_now() {
 tap() {
   local xy end=$((SECONDS + 6))
   until xy=$(find_node "$1" "${2:-contains}"); do
-    [ $SECONDS -ge $end ] && fail "can't find '$1' to tap"
+    # Recorded once: the run goes on past a failure, so the loop must stop here.
+    [ $SECONDS -ge $end ] && { fail "can't find '$1' to tap"; return 1; }
     sleep 0.5
   done
   adb shell input tap $xy
@@ -747,7 +748,8 @@ expect_front "contacts" "an app in the tray opens"
 home
 wait_gone "Settings, tray open" exact 3 || fail "the tray should be shut after opening an app"
 pass "a tray fills from the picker, slides open, shuts, and opens its apps"
-read -r x1 y1 x2 y2 < <(node_bounds "Settings") || fail "Settings tile gone after Home"
+# With Contacts in its tray, the tile's name says so.
+read -r x1 y1 x2 y2 < <(node_bounds "Settings, opens a tray") || fail "Settings tile gone after Home"
 adb shell input swipe $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 )) 900
 wait_for "Empty this space" exact || fail "holding a tile should open the picker with Empty"
 tap "Empty this space" exact
