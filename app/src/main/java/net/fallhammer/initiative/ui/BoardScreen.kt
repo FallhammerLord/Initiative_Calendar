@@ -170,16 +170,18 @@ fun BoardScreen(vm: BoardViewModel) {
     val ping = rememberBluetoothGate { vm.pairs.ping() }
     val pair = rememberBluetoothGate { vm.pairs.startPairing() }
     val pairViews = peers.map { PairView(it, peeks[it.id]) }
-    // Today's shared times for each person shown with a line, at most three.
+    // Today's shared times for each person shown with a line, at most three. The lines
+    // stay while the pairmarks fold away, and one waiting on a first peek is drawn bare,
+    // so the panel's height, and everything hung under it, holds still.
     val palette = LocalLook.current.palette
-    val dialLines = if (!pairsShown) emptyList() else pairViews.filter { it.peer.showLine && it.peek != null }.take(MAX_LINES).map { p ->
+    val dialLines = pairViews.filter { it.peer.showLine }.take(MAX_LINES).map { p ->
         val today = ui.now.toLocalDate()
-        val spans = p.peek!!.items.filter { it.kind != Kind.MARK && it.start.toLocalDate() == today }
+        val spans = p.peek?.items.orEmpty().filter { it.kind != Kind.MARK && it.start.toLocalDate() == today }
         DialLine(
             p.peer.nickname,
             PairColors.of(p.peer.color, palette),
             spans.map { Triple(it.start, it.end, it.title) },
-            p.peek.probably(ui.now)?.let { it.start to it.end },
+            p.peek?.probably(ui.now)?.let { it.start to it.end },
         )
     }
     val recap by vm.recap.state.collectAsStateWithLifecycle()
@@ -448,6 +450,7 @@ fun BoardScreen(vm: BoardViewModel) {
                 slotApps = if (pickEditing) slots.getOrNull(pickSlot).orEmpty() else emptyList(),
                 onRemove = vm::removeFromSlot,
                 onMoveDown = vm::moveDownInSlot,
+                editing = pickEditing,
             )
         }
 
@@ -691,18 +694,8 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit, lines: List<DialLine> = e
                 QuietButton(stringResource(R.string.plan_ahead_button), onOpen, color = Ink.accent)
             }
             Spacer(Modifier.height(Space.xs))
+            // Each line under the dial is in its person's color, the same as their pairmark's edge.
             DayDial(ui, lines)
-            // A key for the lines under the dial: each person's color and nickname.
-            if (lines.isNotEmpty()) {
-                Row(Modifier.padding(top = Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-                    lines.forEach { l ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clearAndSetSemantics { }) {
-                            Box(Modifier.size(KEY_W, KEY_H).background(l.color))
-                            Text(l.name, style = Type.caption, color = Ink.dim, modifier = Modifier.padding(start = Space.xs))
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -1276,5 +1269,3 @@ private val LINE_SPAN = 3.dp
 private val LINE_BRIGHT = 4.dp
 private const val LINE_FAINT = 0.45f
 private const val LINE_SOLID = 0.75f
-private val KEY_W = 18.dp
-private val KEY_H = 4.dp

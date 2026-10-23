@@ -729,8 +729,10 @@ adb shell input tap $xy
 sleep 1
 adb shell input text Contacts
 tap Contacts exact
-wait_for "Move down" exact || fail "a tapped app should join the tray, and the picker stay open"
+# The picker stays open and clears the search; the slot's list shows once the keyboard is down.
+wait_for "Added Contacts" 3 || fail "a tapped app should join the tray, and say so"
 hide_keyboard
+wait_for "Move Contacts down" exact || fail "a tapped app should join the tray, and the picker stay open"
 shot dock-tray-picker
 tap Close exact
 wait_gone "Pick an app" exact || fail "Close should shut the picker"
@@ -940,12 +942,14 @@ done
 pass "Ping ended: $ping_end"
 wait_for "Hide pairs" exact 10 || fail "the board should be back after Ping"
 tap "Hide pairs" exact
-wait_gone "groceries" || fail "Hide pairs should clear the pairmark and the line"
+wait_gone "Partner, " || fail "the edge tab should fold the pairmark away"
+# The line under the dial stays, so nothing on the board moves.
+expect_text "groceries"
 shot pairs-hidden
 expect_text "Ping"
 tap "Show pairs" exact
-wait_for "groceries" || fail "Show pairs should bring them back"
-pass "a pairmark and dial line on the board, Ping, and pairs on and off"
+wait_for "Partner, " || fail "the edge tab should pull the pairmark back out"
+pass "a pairmark and dial line on the board, Ping, and the edge tab folds and pulls"
 # Settings offers Pair with someone; pairing itself needs two phones, tested by hand.
 open_settings
 scroll_to "Partner, " || fail "a pretend partner should show under Pairs"
@@ -1209,8 +1213,8 @@ crash_check
 home
 tap "dentist call" exact
 wait_for Type exact || fail "edit form didn't open"
-tap "Add a wait after" exact
-wait_for "Then wait 15m" exact 3 || fail "a tap should set a 15-minute wait on the step"
+tap "Add a wait after step 1" exact
+wait_for "Wait 15m after step 1, change" exact 3 || fail "a tap should set a 15-minute wait on the step"
 shot edit-wait
 tap Save exact
 expect_text "Saved"

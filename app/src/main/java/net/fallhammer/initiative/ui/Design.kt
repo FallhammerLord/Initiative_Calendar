@@ -1,5 +1,7 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.ui.draw.drawWithContent
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -978,19 +981,36 @@ fun ArrowButton(mark: String, label: String, onClick: () -> Unit, modifier: Modi
  * outlined on the surface like every button. TalkBack hears [label].
  */
 @Composable
-fun GlyphButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, glyph: DrawScope.(Color) -> Unit) {
+fun GlyphButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    text: String? = null,
+    glyph: DrawScope.(Color) -> Unit,
+) {
     val color = Ink.accent
     val blink = rememberBlink()
     val shape = LocalLook.current.buttonShape
     TextButton(
         onClick = { blink.play(); onClick() },
-        modifier = modifier.size(Tap.min).semantics { contentDescription = label }.tapFx(blink, shape),
+        modifier = modifier
+            .then(if (text == null) Modifier.size(Tap.min) else Modifier.heightIn(min = Tap.min).widthIn(min = Tap.min))
+            .semantics { contentDescription = label }
+            .tapFx(blink, shape),
         shape = shape,
         border = BorderStroke(Hairline, Ink.frame),
         colors = ButtonDefaults.textButtonColors(containerColor = Ink.surface),
         contentPadding = PaddingValues(Space.s),
     ) {
-        Box(Modifier.fillMaxSize().clearAndSetSemantics { }.drawBehind { glyph(color) })
+        if (text == null) {
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { }.drawBehind { glyph(color) })
+        } else {
+            // A glyph with a short word beside it, such as a wait's length.
+            Row(Modifier.clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(Space.xl).drawBehind { glyph(color) })
+                Text(text, style = Type.button, color = color, modifier = Modifier.padding(start = Space.xs))
+            }
+        }
     }
 }
 
@@ -1431,3 +1451,34 @@ fun Suggestions(typed: String, names: List<String>, onPick: (String) -> Unit, on
 }
 
 private const val FORGOT_MS = 4_000L
+
+/*
+ * When the words run past their space: a slim bar in the right margin, and a
+ * soft fade at each edge that has more past it, so it's clear there's more.
+ */
+fun Modifier.scrollHint(scroll: ScrollState, hint: Color, surface: Color): Modifier = drawWithContent {
+    drawContent()
+    val max = scroll.maxValue
+    if (max <= 0) return@drawWithContent
+    val shown = size.height
+    val thumb = shown * shown / (shown + max)
+    val top = (shown - thumb) * scroll.value / max
+    drawRect(hint.copy(alpha = HINT_ALPHA), Offset(size.width + SCROLL_INSET.toPx(), top), Size(SCROLL_WIDTH.toPx(), thumb))
+    val fade = FADE.toPx()
+    if (scroll.value > 0) {
+        drawRect(Brush.verticalGradient(listOf(surface, surface.copy(alpha = 0f)), startY = 0f, endY = fade), size = Size(size.width, fade))
+    }
+    if (scroll.value < max) {
+        drawRect(
+            Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface), startY = shown - fade, endY = shown),
+            topLeft = Offset(0f, shown - fade),
+            size = Size(size.width, fade),
+        )
+    }
+}
+
+/** The scroll hint's bar: its width, its gap from the words, and how strong; and the fade at each edge. */
+private val SCROLL_WIDTH = 3.dp
+private val SCROLL_INSET = 10.dp
+private const val HINT_ALPHA = 0.7f
+private val FADE = 24.dp

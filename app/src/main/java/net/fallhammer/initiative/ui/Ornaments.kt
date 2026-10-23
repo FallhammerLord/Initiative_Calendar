@@ -472,3 +472,41 @@ fun DrawScope.moreMark(kind: More, c: Offset, w: Float, color: Color, tones: Lis
 /** A "more" mark's height and line, as shares of its width. */
 private const val MORE_RISE = 0.6f
 private const val MORE_LINE = 0.16f
+
+/** Icon-button glyphs, drawn to fill their box: an arrow down, a cross, a clock. */
+fun DrawScope.arrowDown(color: Color) {
+    val w = size.width
+    val h = size.height
+    val line = w * GLYPH_STROKE
+    drawLine(color, Offset(w / 2, h * 0.15f), Offset(w / 2, h * 0.85f), line, StrokeCap.Round)
+    drawPath(
+        Path().apply {
+            moveTo(w * 0.22f, h * 0.55f)
+            lineTo(w / 2, h * 0.85f)
+            lineTo(w * 0.78f, h * 0.55f)
+        },
+        color,
+        style = Stroke(line, cap = StrokeCap.Round, join = StrokeJoin.Round),
+    )
+}
+
+fun DrawScope.cross(color: Color) {
+    val w = size.width
+    val h = size.height
+    val line = w * GLYPH_STROKE
+    drawLine(color, Offset(w * 0.22f, h * 0.22f), Offset(w * 0.78f, h * 0.78f), line, StrokeCap.Round)
+    drawLine(color, Offset(w * 0.78f, h * 0.22f), Offset(w * 0.22f, h * 0.78f), line, StrokeCap.Round)
+}
+
+fun DrawScope.clock(color: Color) {
+    val w = size.width
+    val h = size.height
+    val line = w * GLYPH_STROKE
+    val c = Offset(w / 2, h / 2)
+    drawCircle(color, w * 0.38f, c, style = Stroke(line))
+    drawLine(color, c, Offset(w / 2, h * 0.28f), line, StrokeCap.Round)
+    drawLine(color, c, Offset(w * 0.68f, h / 2), line, StrokeCap.Round)
+}
+
+/** A glyph's line, as a share of its box. */
+private const val GLYPH_STROKE = 0.1f

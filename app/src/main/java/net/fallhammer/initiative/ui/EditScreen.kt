@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -130,32 +133,48 @@ fun EditScreen(
             // A marker is context, not work: no steps.
             if (!draft.isMark) Part {
                 Text(stringResource(R.string.edit_steps), style = Type.bodySmall, color = Ink.text)
+                // One line per step: its text, then a clock for a wait after it and a cross to
+                // remove it. At large font sizes the two buttons sit under the text.
+                val large = LocalDensity.current.fontScale > LARGE_FONT
                 steps.forEachIndexed { i, line ->
                     val step = Steps.parse(line)
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        val last = i == steps.lastIndex
+                    val last = i == steps.lastIndex
+                    val field = @Composable { m: Modifier ->
                         Field(
                             stringResource(R.string.edit_step_n, i + 1),
                             step.title,
                             { text -> steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(title = text)) } },
                             singleLine = true,
-                            modifier = Modifier.weight(1f).then(if (last) Modifier.focusRequester(newStep) else Modifier),
+                            modifier = m.then(if (last) Modifier.focusRequester(newStep) else Modifier),
                             // Enter on the last step starts the next, so a list goes in without leaving the keyboard.
                             onNext = if (last) ({ focusNewStep = true; steps = steps + Steps.line(Step("")) }) else null,
                         )
-                        QuietButton(stringResource(R.string.edit_step_remove), { steps = steps.filterIndexed { j, _ -> j != i } })
                     }
-                    // A wait after the step (a washer's run): each tap steps to the next length, then back to none.
-                    val wait = step.waitMinutes
-                    QuietButton(
-                        if (wait == 0) stringResource(R.string.edit_step_wait_none)
-                        else stringResource(R.string.edit_step_wait, Formats.countdown(Duration.ofMinutes(wait.toLong()))),
-                        {
-                            val after = DURATIONS.firstOrNull { it > wait } ?: 0
-                            steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(waitMinutes = after)) }
-                        },
-                        color = if (wait == 0) Ink.dim else Ink.accent,
-                    )
+                    val buttons = @Composable {
+                        // A wait after the step (a washer's run): each tap steps to the next length, then back to none.
+                        val wait = step.waitMinutes
+                        val length = Formats.countdown(Duration.ofMinutes(wait.toLong()))
+                        GlyphButton(
+                            if (wait == 0) stringResource(R.string.edit_step_wait_add, i + 1) else stringResource(R.string.edit_step_wait_set, length, i + 1),
+                            {
+                                val after = DURATIONS.firstOrNull { it > wait } ?: 0
+                                steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(waitMinutes = after)) }
+                            },
+                            text = if (wait == 0) null else length,
+                        ) { clock(it) }
+                        Spacer(Modifier.width(Space.inside))
+                        GlyphButton(stringResource(R.string.edit_step_remove_n, i + 1), { steps = steps.filterIndexed { j, _ -> j != i } }) { cross(it) }
+                    }
+                    if (large) {
+                        field(Modifier.fillMaxWidth())
+                        Row(Modifier.padding(top = Space.xs)) { buttons() }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            field(Modifier.weight(1f))
+                            Spacer(Modifier.width(Space.inside))
+                            buttons()
+                        }
+                    }
                 }
                 SecondaryButton(
                     stringResource(R.string.edit_step_add),

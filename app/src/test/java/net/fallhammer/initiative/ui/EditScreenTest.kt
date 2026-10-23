@@ -24,6 +24,9 @@ import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,6 +73,18 @@ class EditScreenTest {
         compose.onNodeWithText("Type").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Add a step").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Remove").assertIsDisplayed()
+    }
+
+    @Test fun aStepIsOneLineWithAWaitAndARemove() {
+        show(dentist.copy(steps = listOf(initiative.core.Step("find the card"), initiative.core.Step("call"))))
+        compose.onNodeWithContentDescription("Add a wait after step 1").performScrollTo().tap()
+        compose.onNodeWithContentDescription("Wait 15m after step 1, change").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Remove step 2").performScrollTo().tap()
+        compose.onNodeWithContentDescription("Remove step 2").assertDoesNotExist()
+        // The step's text and its two buttons share a line.
+        val field = compose.onNodeWithText("find the card").getUnclippedBoundsInRoot()
+        val cross = compose.onNodeWithContentDescription("Remove step 1").getUnclippedBoundsInRoot()
+        assertTrue("the buttons should sit beside the step", cross.top < field.bottom && cross.left > field.left)
     }
 
     @Test fun everyDayMakesItRepeat() {

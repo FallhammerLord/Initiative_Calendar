@@ -228,33 +228,3 @@ private const val NOW_RISE = 6
 private const val ON_IT_SHARE = 2.4f
 private const val TOMORROW_SHARE = 1.5f
 
-// The Now card's scroll hint: the bar's width, its place in the margin, strength, and the fade.
-private val SCROLL_WIDTH = 3.dp
-private val SCROLL_INSET = 10.dp
-private const val HINT_ALPHA = 0.7f
-private val FADE = 24.dp
-
-/*
- * When the words run past their space: a slim bar in the right margin, and a
- * soft fade at each edge that has more past it, so it's clear there's more.
- */
-private fun Modifier.scrollHint(scroll: ScrollState, hint: Color, surface: Color): Modifier = drawWithContent {
-    drawContent()
-    val max = scroll.maxValue
-    if (max <= 0) return@drawWithContent
-    val shown = size.height
-    val thumb = shown * shown / (shown + max)
-    val top = (shown - thumb) * scroll.value / max
-    drawRect(hint.copy(alpha = HINT_ALPHA), Offset(size.width + SCROLL_INSET.toPx(), top), Size(SCROLL_WIDTH.toPx(), thumb))
-    val fade = FADE.toPx()
-    if (scroll.value > 0) {
-        drawRect(Brush.verticalGradient(listOf(surface, surface.copy(alpha = 0f)), startY = 0f, endY = fade), size = Size(size.width, fade))
-    }
-    if (scroll.value < max) {
-        drawRect(
-            Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface), startY = shown - fade, endY = shown),
-            topLeft = Offset(0f, shown - fade),
-            size = Size(size.width, fade),
-        )
-    }
-}

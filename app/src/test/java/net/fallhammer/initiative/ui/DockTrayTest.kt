@@ -19,6 +19,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
@@ -127,9 +129,32 @@ class DockTrayTest {
         compose.onNodeWithText("In this space").assertIsDisplayed()
         compose.onNodeWithText("Mail, in the space").assertIsDisplayed()
         compose.onNodeWithText("Tap an app below to add it here.").assertIsDisplayed()
-        compose.onAllNodesWithText("Move down")[1].tap()
+        // One line each: an arrow and a cross, named for TalkBack.
+        compose.onNodeWithContentDescription("Move Music down").tap()
         assertEquals(2, moved)
-        compose.onAllNodesWithText("Remove")[0].tap()
+        compose.onNodeWithContentDescription("Remove Mail").tap()
         assertEquals(mail, removed)
+        compose.onNodeWithContentDescription("Move Mail down").assertDoesNotExist()
+    }
+
+    @Test fun addingClearsTheSearchForTheNext() {
+        val picked = mutableListOf<AppEntry>()
+        val notes = app("Notes")
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                AppDrawer(
+                    apps = listOf(mail, maps, music, notes), pinned = emptyList(), onLaunch = { picked += it }, onTogglePin = {},
+                    onSettings = {}, onHomeChooser = {}, onAppSettings = {}, onClose = {},
+                    picking = true, onClearSlot = {}, slotApps = listOf(mail), editing = true,
+                )
+            }
+        }
+        compose.onNode(hasSetTextAction()).performTextInput("not")
+        compose.onNodeWithText("Maps").assertDoesNotExist()
+        compose.onNodeWithText("Notes").tap()
+        assertEquals(listOf(notes), picked)
+        compose.onNodeWithText("Added Notes").assertIsDisplayed()
+        // The search box is empty again, so the whole list is back.
+        compose.onNodeWithText("Maps").assertExists()
     }
 }

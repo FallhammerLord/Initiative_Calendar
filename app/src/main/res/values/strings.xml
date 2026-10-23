@@ -24,8 +24,6 @@
     <string name="card_ready">%1$s ready: %2$s</string>
     <string name="step_then_wait">%1$s · then wait %2$s</string>
     <string name="card_ready_plain">%1$s is ready</string>
-    <string name="edit_step_wait_none">Add a wait after</string>
-    <string name="edit_step_wait">Then wait %1$s</string>
     <string name="action_done">Done</string>
     <string name="action_skip">Later</string>
     <string name="action_tomorrow">Tomorrow</string>
@@ -164,8 +162,9 @@
     <string name="tray_title">In this space</string>
     <string name="tray_hint">Tap an app below to add it here.</string>
     <string name="tray_own">%1$s, in the space</string>
-    <string name="tray_move_down">Move down</string>
-    <string name="tray_remove">Remove</string>
+    <string name="tray_move_down_n">Move %1$s down</string>
+    <string name="tray_remove_n">Remove %1$s</string>
+    <string name="tray_added">Added %1$s</string>
     <string name="tray_label">Tray</string>
 
     <!-- Previously on (lapse recap) -->
@@ -368,7 +367,9 @@
     <string name="edit_steps">Steps</string>
     <string name="edit_step_n">Step %1$d</string>
     <string name="edit_step_add">Add a step</string>
-    <string name="edit_step_remove">Remove step</string>
+    <string name="edit_step_remove_n">Remove step %1$d</string>
+    <string name="edit_step_wait_add">Add a wait after step %1$d</string>
+    <string name="edit_step_wait_set">Wait %1$s after step %2$d, change</string>
     <string name="edit_put_back">Put back</string>
 
     <!-- The Log: planning beyond today -->
