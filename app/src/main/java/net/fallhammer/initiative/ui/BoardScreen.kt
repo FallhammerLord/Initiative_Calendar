@@ -872,7 +872,14 @@ private fun DayDial(ui: BoardUi, lines: List<DialLine> = emptyList()) {
                     lineTo(bx + tx * half * share, by + ty * half * share)
                     close()
                 }
-                if (inDay) drawPath(band, color) else if (share == 1f) drawPath(band, nowColor, style = Stroke(ARC_WIDTH.toPx() / 2))
+                if (inDay) {
+                    drawPath(band, color)
+                } else if (share == 1f) {
+                    drawPath(band, nowColor, style = Stroke(ARC_WIDTH.toPx() / 2))
+                } else {
+                    // Outside the day it's hollow, like the others; its band lines keep it a candy corn, not a plain triangle.
+                    drawLine(nowColor, Offset(bx - tx * half * share, by - ty * half * share), Offset(bx + tx * half * share, by + ty * half * share), ARC_WIDTH.toPx() / 2)
+                }
             }
         } else if (pointerKind == Pointer.SEED) {
             // A pomegranate seed: round at the back, coming to a point at now.
