@@ -54,8 +54,8 @@ class NowCardTest {
 
     private val tapped = mutableListOf<String>()
 
-    private fun show(item: Item, fontScale: Float = 1f, modifier: Modifier = Modifier) {
-        val ui = BoardUi(now = now, board = Board(NowPick(item, reason), next = null))
+    private fun show(item: Item, fontScale: Float = 1f, modifier: Modifier = Modifier, why: String = reason, keep: Boolean = false) {
+        val ui = BoardUi(now = now, board = Board(NowPick(item, why, keep), next = null))
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
@@ -105,10 +105,25 @@ class NowCardTest {
         compose.onNodeWithText("On it").assertDoesNotExist()
     }
 
-    @Test fun onItSinceLeadsTheReason() {
+    @Test fun onItSinceTakesTheReasonsPlace() {
+        // The reason was seen and accepted with On it; the line says when instead.
         show(underWay)
         compose.onNodeWithText("On it since 1:12", substring = true).assertIsDisplayed()
-        compose.onNodeWithText(reason, substring = true).assertIsDisplayed()
+        compose.onNodeWithText(reason, substring = true).assertDoesNotExist()
+    }
+
+    @Test fun aHeadsUpStaysOnceOnIt() {
+        val warning = "Runs into pickup's warning at 2:45 PM"
+        show(underWay, why = warning, keep = true)
+        compose.onNodeWithText("On it since 1:12", substring = true).assertIsDisplayed()
+        compose.onNodeWithText(warning, substring = true).assertIsDisplayed()
+    }
+
+    @Test fun tickedStepsSinkBelowOpenOnes() {
+        show(taxes.copy(steps = listOf(Step("find the forms", done = true), Step("sign them"), Step("post them"))))
+        val ticked = compose.onNodeWithText("find the forms").getUnclippedBoundsInRoot()
+        val open = compose.onNodeWithText("post them").getUnclippedBoundsInRoot()
+        assertTrue("ticked steps should sit below open ones", open.top < ticked.top)
     }
 
     @Test fun anchorUnderWayOffersDoneAndLater() {

@@ -3,6 +3,8 @@ package initiative.core
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -75,6 +77,17 @@ class DragNowTest {
         assertEquals("Runs into pickup's warning at 2:45 PM", engine.board(listOf(pickup, call), at(14, 30)).now.reason)
         val early = float(3, "bills", mins = 15).copy(pinnedSlot = at(13))
         assertEquals("Pinned to this slot", engine.board(listOf(pickup, early), at(13)).now.reason)
+    }
+
+    @Test fun headsUpsStayOnceOnItAndRankingReasonsGo() {
+        // A heads-up still matters after On it; why a task ranks doesn't.
+        val call = float(2, "call landlord").copy(pinnedSlot = at(14, 30))
+        assertTrue(engine.board(listOf(pickup, call), at(14, 30)).now.keep)
+        val early = float(3, "bills", mins = 15).copy(pinnedSlot = at(13))
+        assertFalse(engine.board(listOf(pickup, early), at(13)).now.keep)
+        assertFalse(engine.board(listOf(pickup, float(4, "taxes")), at(12)).now.keep)
+        val side = float(5, "call landlord", mins = 15).copy(side = true, waitUntil = at(15, 30), notBefore = at(15, 30))
+        assertTrue(engine.board(listOf(pickup, side), at(15, 31)).now.keep)
     }
 
     @Test fun nothingToSetAsideWhenNothingWasNow() {

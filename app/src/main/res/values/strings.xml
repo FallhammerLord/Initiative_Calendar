@@ -576,7 +576,7 @@
     <string name="manual_pairs_3">What you share</string>
     <string name="manual_pairs_3_does">Everything, Ticked only, or Nothing, set for each person.</string>
     <string name="manual_pairs_4">Pairmarks</string>
-    <string name="manual_pairs_4_does">Top left: their name and what they\'re probably doing. Tap a tab to bring someone to the front.</string>
+    <string name="manual_pairs_4_does">Top left: their name and what they\'re doing. In grey, it\'s from an earlier Ping. Tap a tab to bring someone to the front.</string>
     <string name="manual_pairs_5">The edge tab</string>
     <string name="manual_pairs_5_does">The small tab on the left edge, by the pairmarks. Tap it to fold them away, or pull them out again. A swipe from that edge is Back, so tap.</string>
     <string name="manual_pairs_6">Unpair</string>

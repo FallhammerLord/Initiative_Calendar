@@ -5,6 +5,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import initiative.core.Kind
 import initiative.core.Peek
@@ -50,6 +51,18 @@ class PairmarkRowTest {
         show()
         // Lit (a minute old): what they're doing, plainly.
         compose.onNodeWithContentDescription("Partner, now: groceries").assertIsDisplayed()
+    }
+
+    @Test fun anOlderPeekShowsTheTaskWithoutProbably() {
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                PairmarkRow(listOf(kid), front = 2, now = now, shown = true, onFront = {}, onShown = {})
+            }
+        }
+        // On screen: the task's own name, greyed; TalkBack still hears it's a guess.
+        compose.onNodeWithText("school", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("probably", substring = true, useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("probably school", substring = true).assertIsDisplayed()
     }
 
     @Test fun aTabBringsSomeoneForward() {

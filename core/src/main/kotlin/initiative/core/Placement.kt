@@ -15,7 +15,12 @@ data class Gap(
     operator fun contains(t: LocalDateTime): Boolean = !t.isBefore(start) && t.isBefore(end)
 }
 
-data class NowPick(val item: Item?, val reason: String)
+/**
+ * Now, and why. [keep] marks a reason that still matters once the task is On it,
+ * a heads-up rather than why it ranks: running into an appointment's warning,
+ * a side task, a task back from a wait. Other reasons give way to "On it since".
+ */
+data class NowPick(val item: Item?, val reason: String, val keep: Boolean = false)
 
 /** [until] is when a float's window as Now closes: the end of its gap. Null for anchors and Free time. */
 /** What the board shows: Now, what comes next, and, for a task that's Next, when it's set to start. */
@@ -88,7 +93,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
         var b = pick(items, now, order, held)
         // A task back from a wait says so, rather than why it ranks.
         b.now.item?.takeIf { it.ready(now) }?.let { back ->
-            b = b.copy(now = NowPick(back, if (back.side) SIDE_TASK else "Ready since ${Formats.clock(back.waitUntil!!)}"))
+            b = b.copy(now = NowPick(back, if (back.side) SIDE_TASK else "Ready since ${Formats.clock(back.waitUntil!!)}", keep = true))
         }
         val waits = items.filter { !it.isTemplate && it.isOpen && it.waitUntil != null && it.id != b.now.item?.id }.sortedBy { it.waitUntil }
         b = b.copy(waits = waits)
@@ -111,7 +116,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
             it.isAnchor && it.status == Status.DONE && it.start != null && !it.start.isAfter(now) && now.isBefore(it.anchorEnd!!)
         }?.let {
             live.firstOrNull { s -> s.side && s.isOpen && s.waitUntil != null }?.let { side ->
-                return Board(NowPick(side, SIDE_TASK), upcoming.firstOrNull())
+                return Board(NowPick(side, SIDE_TASK, keep = true), upcoming.firstOrNull())
             }
             return Board(NowPick(it, "Done · under way until ${Formats.clock(it.anchorEnd!!)}"), upcoming.firstOrNull())
         }
@@ -132,7 +137,7 @@ class Placement(private val window: DayWindow = DayWindow()) {
             // Chosen to do now even though it runs into an appointment's warning: said plainly.
             val warn = nextAnchor?.warnAt?.takeIf { it.isBefore(slot(pin).second) }
             val why = if (warn != null) "Runs into ${nextAnchor.title}'s warning at ${Formats.clock(warn)}" else "Pinned to this slot"
-            return Board(NowPick(pin, why), nextAnchor ?: after)
+            return Board(NowPick(pin, why, keep = warn != null), nextAnchor ?: after)
         }
 
         if (now.toLocalTime() !in window) {

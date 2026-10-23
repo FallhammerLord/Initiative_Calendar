@@ -131,17 +131,22 @@ internal fun NowCard(
                         Body(board.now.reason, Modifier.padding(start = Space.s))
                     }
                 } else {
-                    // On it, once tapped, leads the reason line, with when.
+                    // On it, once tapped, takes the reason line, with when: the reason was
+                    // seen and accepted. A heads-up (an appointment's warning, a side task, a
+                    // task back from a wait) still follows it, and an appointment keeps its own.
                     val since = item?.activeSince
                     if (item != null && item.status == Status.ACTIVE && since != null) {
                         val lead = stringResource(R.string.now_on_it, Formats.clock(since))
                         val join = stringResource(R.string.now_join)
                         val accent = Ink.accent
+                        val keep = board.now.keep || item.isAnchor
                         Text(
                             buildAnnotatedString {
                                 withStyle(SpanStyle(color = accent)) { append(lead) }
-                                append(join)
-                                append(board.now.reason)
+                                if (keep) {
+                                    append(join)
+                                    append(board.now.reason)
+                                }
                             },
                             style = Type.body,
                             color = Ink.dim,
@@ -162,7 +167,8 @@ internal fun NowCard(
             if (hasSteps) {
                 Spacer(Modifier.height(Space.s))
                 Column(scrolling) {
-                    item.steps.forEachIndexed { i, step ->
+                    // Open steps first, so the next thing to do is in view; ticked ones sink below.
+                    item.steps.withIndex().sortedBy { it.value.done }.forEach { (i, step) ->
                         // A step with a wait says so, so ticking it isn't a surprise.
                         val text = if (step.waitMinutes > 0 && !step.done) {
                             stringResource(R.string.step_then_wait, step.title, Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong())))

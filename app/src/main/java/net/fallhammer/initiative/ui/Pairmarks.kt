@@ -158,6 +158,9 @@ private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
     val lit = p.peek?.lit(now) == true
     val seen = seenText(p.peek, now)
     val doing = doingText(p.peek, now)
+    // From an earlier Ping, what they'd be doing is a guess: shown as the task's own
+    // name in grey, the light and "seen" already say how old. TalkBack still hears "probably".
+    val guess = p.peek?.takeIf { !lit }?.probably(now)?.title
     Row(
         modifier
             .heightIn(min = Tap.row)
@@ -178,7 +181,7 @@ private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
                 Box(Modifier.drawWithContent { drawContent(); if (flaring.playing) flare(flaring.t, color) }) { PairLight(p.peer, lit) }
                 Text(seen, style = Type.caption, color = Ink.dim, maxLines = 1)
             }
-            Text(doing, style = Type.bodySmall, color = Ink.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(guess ?: doing, style = Type.bodySmall, color = if (guess != null) Ink.dim else Ink.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
