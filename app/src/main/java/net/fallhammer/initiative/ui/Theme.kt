@@ -233,6 +233,57 @@ class ArchShape(private val rise: Dp) : Shape {
 }
 
 /**
+ * The pairmark row's pull tab: a half-tab square on the screen's left edge,
+ * its right end in the look's style, sized to its width: a chevron cut, a
+ * round end, steps, half a pointed arch, or a ribbon's notch.
+ */
+class EdgeTabShape(private val style: HandleStyle) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            moveTo(0f, 0f)
+            when (style) {
+                HandleStyle.CLAMP, HandleStyle.HAT -> {
+                    lineTo(w * TAB_SHOULDER, 0f)
+                    lineTo(w, h * TAB_CUT)
+                    lineTo(w, h * (1 - TAB_CUT))
+                    lineTo(w * TAB_SHOULDER, h)
+                }
+                HandleStyle.PILL, HandleStyle.CLOUD -> {
+                    val r = w * TAB_ROUND
+                    lineTo(w - r, 0f)
+                    quadraticTo(w, 0f, w, r)
+                    lineTo(w, h - r)
+                    quadraticTo(w, h, w - r, h)
+                }
+                HandleStyle.ZIGGURAT -> {
+                    lineTo(w * TAB_SHOULDER, 0f)
+                    lineTo(w * TAB_SHOULDER, h * TAB_STEP)
+                    lineTo(w, h * TAB_STEP)
+                    lineTo(w, h * (1 - TAB_STEP))
+                    lineTo(w * TAB_SHOULDER, h * (1 - TAB_STEP))
+                    lineTo(w * TAB_SHOULDER, h)
+                }
+                HandleStyle.COMPACT, HandleStyle.GIFT -> {
+                    lineTo(w, 0f)
+                    lineTo(w * TAB_NOTCH, h / 2)
+                    lineTo(w, h)
+                }
+                HandleStyle.LANCET -> {
+                    lineTo(w * TAB_ARCH, 0f)
+                    cubicTo(w, h * 0.25f, w, h * 0.4f, w, h / 2)
+                    cubicTo(w, h * 0.6f, w, h * 0.75f, w * TAB_ARCH, h)
+                }
+            }
+            lineTo(0f, h)
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
+
+/**
  * A waitmark's bookmark: square on the right, where it meets the screen's edge,
  * and pointing in on the left with its look's end: a chevron cut (Sci-fi), a
  * round end (Classic, Pastel), steps (Deco), half a pointed arch (Stained
@@ -293,6 +344,12 @@ class BookmarkShape(private val style: HandleStyle, private val fromLeft: Boolea
 // The bookmark's ends: the chevron's cut, the steps' size, and the arch's reach, as shares of its height.
 private const val BOOKMARK_CUT = 0.4f
 private const val SCRIM = 0.6f
+private const val TAB_SHOULDER = 0.5f
+private const val TAB_CUT = 0.22f
+private const val TAB_ROUND = 0.7f
+private const val TAB_STEP = 0.12f
+private const val TAB_NOTCH = 0.55f
+private const val TAB_ARCH = 0.4f
 private const val BOOKMARK_STEP = 0.18f
 private const val BOOKMARK_ARCH = 0.9f
 private const val BOOKMARK_NOTCH = 0.35f

@@ -1,5 +1,13 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +22,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -43,11 +54,11 @@ import java.time.LocalDateTime
 data class PairView(val peer: PeerRow, val peek: Peek?)
 
 /**
- * The pairmark row, up high on the left under the marker bubbles. The front
- * person's pairmark comes in from the left edge, pointing right: badge,
- * nickname, light, how fresh, and what they're probably doing. The others wait
- * as tabs beside it; a tap brings one to the front. On the right, Ping and the
- * pairs on/off toggle; with pairs off, only those two stay.
+ * The pairmark row, just under the Plan ahead panel on the left. The front
+ * person's pairmark points right: badge, nickname, light, how fresh, and what
+ * they're probably doing. The others wait as tabs beside it; a tap brings one
+ * to the front. A half-tab on the screen's left edge pulls the row out or folds
+ * it away into the edge; folded, the tab is all that stays.
  */
 @Composable
 fun PairmarkRow(
@@ -56,15 +67,20 @@ fun PairmarkRow(
     now: LocalDateTime,
     shown: Boolean,
     onFront: (Long) -> Unit,
-    onPing: () -> Unit,
     onShown: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val haptics = rememberHaptics()
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    val motion = rememberMotionOn()
+    BoxWithConstraints(modifier.fillMaxWidth().heightIn(min = Tap.min)) {
         val widest = maxWidth * PAIRMARK_SHARE
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (shown && pairs.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = shown && pairs.isNotEmpty(),
+            modifier = Modifier.align(Alignment.CenterStart),
+            enter = if (motion) slideInHorizontally(tween(SLIDE_MS)) { -it } + fadeIn(tween(SLIDE_MS)) else EnterTransition.None,
+            exit = if (motion) slideOutHorizontally(tween(SLIDE_MS)) { -it } + fadeOut(tween(SLIDE_MS)) else ExitTransition.None,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 val first = pairs.firstOrNull { it.peer.id == front } ?: pairs.first()
                 Front(first, now, Modifier.widthIn(max = widest))
                 pairs.filter { it.peer.id != first.peer.id }.forEach { p ->
@@ -72,18 +88,63 @@ fun PairmarkRow(
                     Tab(p, now) { haptics.tick(); onFront(p.peer.id) }
                 }
             }
-            Spacer(Modifier.weight(1f))
-            // Ping sends radar rings out from its button.
-            val radio = rememberBlink(RADAR_MS)
-            val ring = Ink.accent
-            Box(Modifier.drawWithContent { drawContent(); if (radio.playing) radar(radio.t, ring) }) {
-                GlyphButton(stringResource(R.string.pair_ping), { radio.play(); onPing() }) { bluetooth(it) }
-            }
-            Spacer(Modifier.padding(start = Space.s))
-            GlyphButton(stringResource(if (shown) R.string.pairs_hide else R.string.pairs_show), { haptics.toggle(!shown); onShown(!shown) }) {
-                eye(it, open = shown)
-            }
         }
+        // Over the row's start, in the board's side margin at the screen's edge.
+        EdgeTab(shown, Modifier.align(Alignment.CenterStart).offset(x = -Space.l)) { haptics.toggle(!shown); onShown(!shown) }
+    }
+}
+
+/**
+ * The pull tab: drawn [TAB_WIDTH] wide against the screen's edge, its mark
+ * pointing out while folded and back in while out. Its touch area is a full
+ * [Tap.min] square, reaching a little over the pairmark's padded start.
+ */
+@Composable
+private fun EdgeTab(shown: Boolean, modifier: Modifier, onTap: () -> Unit) {
+    val look = LocalLook.current
+    val shape = remember(look.handle) { EdgeTabShape(look.handle) }
+    val mark = Ink.accent
+    val label = stringResource(if (shown) R.string.pairs_hide else R.string.pairs_show)
+    Box(
+        modifier
+            .size(Tap.min)
+            .clickable(role = Role.Button, onClick = onTap)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            Modifier
+                .size(TAB_WIDTH, Tap.min)
+                .clip(shape)
+                .background(Ink.surface)
+                .border(look.came, mark, shape)
+                .drawBehind {
+                    // A chevron: out (right) to pull, back in (left) to fold.
+                    val cx = size.width * TAB_MARK_X
+                    val half = TAB_MARK.toPx()
+                    val dx = if (shown) -half / 2 else half / 2
+                    val path = Path().apply {
+                        moveTo(cx - dx, size.height / 2 - half)
+                        lineTo(cx + dx, size.height / 2)
+                        lineTo(cx - dx, size.height / 2 + half)
+                    }
+                    drawPath(path, mark, style = Stroke(GLYPH_LINE.toPx(), cap = StrokeCap.Round))
+                }
+                .clearAndSetSemantics { },
+        )
+    }
+}
+
+/**
+ * Ping, for the Plan ahead panel while anyone is paired: it sends radar rings
+ * out from its button as it looks for them nearby.
+ */
+@Composable
+fun PingButton(onPing: () -> Unit) {
+    val radio = rememberBlink(RADAR_MS)
+    val ring = Ink.accent
+    Box(Modifier.drawWithContent { drawContent(); if (radio.playing) radar(radio.t, ring) }) {
+        GlyphButton(stringResource(R.string.pair_ping), { radio.play(); onPing() }) { bluetooth(it) }
     }
 }
 
@@ -98,8 +159,6 @@ private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
     val doing = doingText(p.peek, now)
     Row(
         modifier
-            // Past the board's side margin, to the screen's edge.
-            .offset(x = -Space.l)
             .heightIn(min = Tap.row)
             .clip(shape)
             .background(Ink.surface)
@@ -175,23 +234,15 @@ private fun DrawScope.bluetooth(color: Color) {
     drawPath(p, color, style = Stroke(GLYPH_LINE.toPx(), cap = StrokeCap.Round))
 }
 
-/** An eye, open while pairs show; struck through while they're hidden. */
-private fun DrawScope.eye(color: Color, open: Boolean) {
-    val w = size.width
-    val h = size.height
-    val line = Stroke(GLYPH_LINE.toPx(), cap = StrokeCap.Round)
-    val lid = Path().apply {
-        moveTo(w * 0.1f, h * 0.5f)
-        quadraticTo(w * 0.5f, h * 0.1f, w * 0.9f, h * 0.5f)
-        quadraticTo(w * 0.5f, h * 0.9f, w * 0.1f, h * 0.5f)
-        close()
-    }
-    drawPath(lid, color, style = line)
-    drawCircle(color, w * 0.12f, Offset(w * 0.5f, h * 0.5f))
-    if (!open) drawLine(color, Offset(w * 0.15f, h * 0.85f), Offset(w * 0.85f, h * 0.15f), GLYPH_LINE.toPx(), StrokeCap.Round)
-}
-
 // The front pairmark's widest (a share of the board), its edge, and the glyphs' line.
 private const val PAIRMARK_SHARE = 0.72f
+
+/** The pull tab: as wide as the board's side margin; where its mark sits, and how big. */
+private val TAB_WIDTH = Space.l
+private const val TAB_MARK_X = 0.42f
+private val TAB_MARK = 5.dp
+
+/** How long the pairmarks take to slide out or fold away. */
+private const val SLIDE_MS = 260
 private val PAIRMARK_EDGE = 1.5.dp
 private val GLYPH_LINE = 2.dp

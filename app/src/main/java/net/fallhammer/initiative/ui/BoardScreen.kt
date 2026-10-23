@@ -16,6 +16,7 @@ import kotlin.math.sqrt
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.key
@@ -296,10 +297,14 @@ fun BoardScreen(vm: BoardViewModel) {
                     // and Skip stay in one place whatever the card holds.
                     // While typing, the board keeps only what typing needs: the panel
                     // goes, and the card shrinks to its title, so nothing is squeezed.
-                    if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog, lines = dialLines)
+                    if (!keyboardUp) PlanPanel(ui, onOpen = vm::openLog, lines = dialLines, onPing = if (peers.isNotEmpty()) ping else null)
                     val pairmarksShown = !keyboardUp && pairsShown && pairViews.any { it.peer.showMark }
+                    // The pairmark row hangs from the Plan ahead panel: just under it, or under
+                    // the marker bubbles on its edge when there are any. Measured from this box's
+                    // top, which sits a zone's gap below the panel.
+                    val pairmarkTop = (if (ui.marks.isNotEmpty()) BUBBLE / 2 + Space.inside else Space.inside) - Space.zone
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
-                      Column(Modifier.padding(top = if (pairmarksShown) pairmarkHeight + Space.inside * 2 else 0.dp)) {
+                      Column(Modifier.padding(top = if (pairmarksShown) (pairmarkTop + pairmarkHeight + Space.inside).coerceAtLeast(0.dp) else 0.dp)) {
                         // Items stepped aside for a wait: bookmarks from the screen's edge, above the card.
                         if (!keyboardUp) {
                             Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::tapWaitmark, onHold = vm::done)
@@ -328,11 +333,10 @@ fun BoardScreen(vm: BoardViewModel) {
                               now = ui.now,
                               shown = pairsShown,
                               onFront = vm::setPairFront,
-                              onPing = ping,
                               onShown = vm.pairs::setShown,
                               modifier = Modifier
                                   .align(Alignment.TopStart)
-                                  .padding(top = Space.inside)
+                                  .offset(y = pairmarkTop)
                                   .onSizeChanged { pairmarkHeight = with(density) { it.height.toDp() } },
                           )
                       }
@@ -662,7 +666,7 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
  * font sizes the date steps aside; the dial stays.
  */
 @Composable
-private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit, lines: List<DialLine> = emptyList()) {
+private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit, lines: List<DialLine> = emptyList(), onPing: (() -> Unit)? = null) {
     val label = stringResource(R.string.plan_ahead)
     val large = LocalDensity.current.fontScale > LARGE_FONT
     val now = ui.now
@@ -677,6 +681,11 @@ private fun PlanPanel(ui: BoardUi, onOpen: () -> Unit, lines: List<DialLine> = e
                         Text(Formats.clock(now), style = Type.title, color = Ink.text)
                         Text(Formats.longDay(now.toLocalDate()), style = Type.caption, color = Ink.dim)
                     }
+                }
+                // Ping, while anyone is paired, beside the way into the Log.
+                onPing?.let {
+                    PingButton(it)
+                    Spacer(Modifier.width(Space.inside))
                 }
                 // A button, like everything tappable; the whole panel opens the Log too.
                 QuietButton(stringResource(R.string.plan_ahead_button), onOpen, color = Ink.accent)

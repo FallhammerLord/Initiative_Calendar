@@ -18,7 +18,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDateTime
 
-/** The pairmark row, as a screen: the front person, tabs for the rest, and pairs on/off. */
+/** The pairmark row, as a screen: the front person, tabs for the rest, and the edge tab that folds it away. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class PairmarkRowTest {
@@ -41,7 +41,7 @@ class PairmarkRowTest {
     private fun show(pairsOn: Boolean = true) {
         compose.setContent {
             InitiativeTheme(Looks.SciFi) {
-                PairmarkRow(listOf(partner, kid), front = 1, now = now, shown = pairsOn, onFront = { front = it }, onPing = {}, onShown = { shown = it })
+                PairmarkRow(listOf(partner, kid), front = 1, now = now, shown = pairsOn, onFront = { front = it }, onShown = { shown = it })
             }
         }
     }
@@ -64,10 +64,12 @@ class PairmarkRowTest {
         assertEquals(false, shown)
     }
 
-    @Test fun hiddenLeavesOnlyTheButtons() {
+    @Test fun foldedLeavesOnlyTheTab() {
         show(pairsOn = false)
         compose.onNodeWithContentDescription("Partner, now: groceries").assertDoesNotExist()
-        compose.onNodeWithContentDescription("Show pairs").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Ping").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Show pairs").tap()
+        assertEquals(true, shown)
+        // Ping lives in the Plan ahead panel now, not on the row.
+        compose.onNodeWithContentDescription("Ping").assertDoesNotExist()
     }
 }

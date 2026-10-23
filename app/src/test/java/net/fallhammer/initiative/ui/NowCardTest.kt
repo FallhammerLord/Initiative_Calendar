@@ -21,6 +21,9 @@ import initiative.core.Status
 import initiative.core.Step
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.performScrollTo
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,14 +54,14 @@ class NowCardTest {
 
     private val tapped = mutableListOf<String>()
 
-    private fun show(item: Item, fontScale: Float = 1f) {
+    private fun show(item: Item, fontScale: Float = 1f, modifier: Modifier = Modifier) {
         val ui = BoardUi(now = now, board = Board(NowPick(item, reason), next = null))
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 InitiativeTheme(Looks.SciFi) {
                     NowCard(
-                        modifier = Modifier,
+                        modifier = modifier,
                         ui = ui,
                         flash = null,
                         onDone = { tapped += "done" },
@@ -120,6 +123,14 @@ class NowCardTest {
         show(taxes)
         compose.onNodeWithText("Now").assertDoesNotExist()
         compose.onNodeWithContentDescription("Now: taxes").assertIsDisplayed()
+    }
+
+    @Test fun titleAndReasonStayWhileTheStepsScroll() {
+        val steps = (1..14).map { Step("step $it") }
+        show(taxes.copy(steps = steps), modifier = Modifier.height(360.dp))
+        compose.onNodeWithText("step 14").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Now: taxes").assertIsDisplayed()
+        compose.onNodeWithText(reason).assertIsDisplayed()
     }
 
     @Test fun reasonSitsAboveTheSteps() {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -79,30 +81,11 @@ internal fun NowCard(
         if (wiping.playing) scanDown(wiping.t, hint, outlineOf(shape))
     }
     Card(modifier.then(effects), now = true, vertical = Space.l) {
-        Column(
-            Modifier
-                .weight(1f, fill = false)
-                // When the words run past the card: a slim bar in the right margin, and the
-                // last line fading out, so it's clear there's more below.
-                .drawWithContent {
-                    drawContent()
-                    val max = scroll.maxValue
-                    if (max <= 0) return@drawWithContent
-                    val shown = size.height
-                    val thumb = shown * shown / (shown + max)
-                    val top = (shown - thumb) * scroll.value / max
-                    drawRect(hint.copy(alpha = HINT_ALPHA), Offset(size.width + SCROLL_INSET.toPx(), top), Size(SCROLL_WIDTH.toPx(), thumb))
-                    if (scroll.value < max) {
-                        val fade = FADE.toPx()
-                        drawRect(
-                            Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface), startY = shown - fade, endY = shown),
-                            topLeft = Offset(0f, shown - fade),
-                            size = Size(size.width, fade),
-                        )
-                    }
-                }
-                .verticalScroll(scroll, enabled = scroll.maxValue > 0),
-        ) {
+        // With steps, the title and reason hold still and only the steps scroll; without
+        // them, the words scroll as a whole, in case a long title runs past at large font.
+        val hasSteps = !compact && !settled && item != null && item.steps.isNotEmpty()
+        val scrolling = Modifier.weight(1f, fill = false).scrollHint(scroll, hint, surface).verticalScroll(scroll, enabled = scroll.maxValue > 0)
+        Column(if (hasSteps) Modifier.weight(1f, fill = false) else scrolling) {
             // Tapping the title area opens the edit form; holding it starts focus,
             // with the Focus button, once on it, as the visible twin. TalkBack reads both actions.
             val editLabel = stringResource(R.string.edit_action)
@@ -176,16 +159,18 @@ internal fun NowCard(
                 }
             }
             // Steps tick off right here; Done asks about any left open.
-            if (!compact && !settled && item != null && item.steps.isNotEmpty()) {
+            if (hasSteps) {
                 Spacer(Modifier.height(Space.s))
-                item.steps.forEachIndexed { i, step ->
-                    // A step with a wait says so, so ticking it isn't a surprise.
-                    val text = if (step.waitMinutes > 0 && !step.done) {
-                        stringResource(R.string.step_then_wait, step.title, Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong())))
-                    } else {
-                        step.title
+                Column(scrolling) {
+                    item.steps.forEachIndexed { i, step ->
+                        // A step with a wait says so, so ticking it isn't a surprise.
+                        val text = if (step.waitMinutes > 0 && !step.done) {
+                            stringResource(R.string.step_then_wait, step.title, Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong())))
+                        } else {
+                            step.title
+                        }
+                        StepRow(text, step.done) { onStep(item, i) }
                     }
-                    StepRow(text, step.done) { onStep(item, i) }
                 }
             }
         }
@@ -248,3 +233,28 @@ private val SCROLL_WIDTH = 3.dp
 private val SCROLL_INSET = 10.dp
 private const val HINT_ALPHA = 0.7f
 private val FADE = 24.dp
+
+/*
+ * When the words run past their space: a slim bar in the right margin, and a
+ * soft fade at each edge that has more past it, so it's clear there's more.
+ */
+private fun Modifier.scrollHint(scroll: ScrollState, hint: Color, surface: Color): Modifier = drawWithContent {
+    drawContent()
+    val max = scroll.maxValue
+    if (max <= 0) return@drawWithContent
+    val shown = size.height
+    val thumb = shown * shown / (shown + max)
+    val top = (shown - thumb) * scroll.value / max
+    drawRect(hint.copy(alpha = HINT_ALPHA), Offset(size.width + SCROLL_INSET.toPx(), top), Size(SCROLL_WIDTH.toPx(), thumb))
+    val fade = FADE.toPx()
+    if (scroll.value > 0) {
+        drawRect(Brush.verticalGradient(listOf(surface, surface.copy(alpha = 0f)), startY = 0f, endY = fade), size = Size(size.width, fade))
+    }
+    if (scroll.value < max) {
+        drawRect(
+            Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface), startY = shown - fade, endY = shown),
+            topLeft = Offset(0f, shown - fade),
+            size = Size(size.width, fade),
+        )
+    }
+}

@@ -905,7 +905,8 @@ wait_gone "Quiet hours" exact || fail "Close should close settings"
 adb shell am start -n $PKG/.MainActivity --ez pretend_partner true > /dev/null
 sleep 2
 home
-# On the board: the pairmark under the markers, a line under the dial, Ping and the on/off.
+# On the board: the pairmark under the Plan ahead panel, a line under the dial,
+# Ping in the panel, and the edge tab that folds the pairmarks away.
 wait_for "Partner, " || fail "the pretend partner's pairmark should show on the board"
 expect_text "groceries"
 shot pairmark-board
@@ -935,6 +936,7 @@ wait_for "Hide pairs" exact 10 || fail "the board should be back after Ping"
 tap "Hide pairs" exact
 wait_gone "groceries" || fail "Hide pairs should clear the pairmark and the line"
 shot pairs-hidden
+expect_text "Ping"
 tap "Show pairs" exact
 wait_for "groceries" || fail "Show pairs should bring them back"
 pass "a pairmark and dial line on the board, Ping, and pairs on and off"

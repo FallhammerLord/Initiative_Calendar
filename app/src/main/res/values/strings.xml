@@ -571,13 +571,13 @@
     <string name="manual_pairs_1">Pair with someone</string>
     <string name="manual_pairs_1_does">In Settings, both phones side by side. Both show the same 6 digits; say yes on both.</string>
     <string name="manual_pairs_2">Ping</string>
-    <string name="manual_pairs_2_does">Tap it on both phones, close together. Each sends what it shares. Phones can only find each other during that minute.</string>
+    <string name="manual_pairs_2_does">The Bluetooth button by Plan ahead. Tap it on both phones, close together. Each sends what it shares. Phones can only find each other during that minute.</string>
     <string name="manual_pairs_3">What you share</string>
     <string name="manual_pairs_3_does">Everything, Ticked only, or Nothing, set for each person.</string>
     <string name="manual_pairs_4">Pairmarks</string>
     <string name="manual_pairs_4_does">Top left: their name and what they\'re probably doing. Tap a tab to bring someone to the front.</string>
-    <string name="manual_pairs_5">The eye</string>
-    <string name="manual_pairs_5_does">Shows or hides pairs on the board.</string>
+    <string name="manual_pairs_5">The edge tab</string>
+    <string name="manual_pairs_5_does">The small tab on the left edge, by the pairmarks. Tap it to fold them away, or pull them out again. A swipe from that edge is Back, so tap.</string>
     <string name="manual_pairs_6">Unpair</string>
     <string name="manual_pairs_6_does">On their page. It asks first.</string>
     <string name="manual_looks">Looks</string>
