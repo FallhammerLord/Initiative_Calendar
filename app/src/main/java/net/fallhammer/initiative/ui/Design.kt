@@ -1,5 +1,7 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.draw.drawWithContent
 import android.os.Build
@@ -1003,7 +1005,10 @@ fun GlyphButton(
         contentPadding = PaddingValues(Space.s),
     ) {
         if (text == null) {
-            Box(Modifier.fillMaxSize().clearAndSetSemantics { }.drawBehind { glyph(color) })
+            // Square in the middle, however wide the button is made.
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxHeight().aspectRatio(1f).drawBehind { glyph(color) })
+            }
         } else {
             // A glyph with a short word beside it, such as a wait's length.
             Row(Modifier.clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically) {

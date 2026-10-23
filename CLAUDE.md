@@ -64,6 +64,11 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
 - The emulator test leaves Idle effects off: steady motion keeps the screen
   from settling, and the screen reader (`uiautomator dump`) waits for it to settle.
 - Nothing depends on the real date or weekday: compute days relative to today.
+- To see a screen before pushing, render it locally: a scratch Robolectric test
+  with `@GraphicsMode(GraphicsMode.Mode.NATIVE)`, `createAndroidComposeRule<ComponentActivity>()`,
+  and a phone-sized `qualifiers` (add `-xxhdpi`); advance `mainClock`, then draw
+  `activity.window.decorView` into a `Bitmap` and save a PNG (`captureToImage`
+  times out on the looks' steady drawing). Delete the scratch test after.
 - See each new check fail once before trusting it (in `core`, run it with the
   expectation flipped; elsewhere, read its failure message path).
 
