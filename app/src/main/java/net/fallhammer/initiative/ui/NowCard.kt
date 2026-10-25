@@ -1,5 +1,6 @@
 package net.fallhammer.initiative.ui
 
+import net.fallhammer.initiative.data.PeerRow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -58,6 +59,7 @@ internal fun NowCard(
     onEdit: (Item) -> Unit,
     onStep: (Item, Int) -> Unit,
     compact: Boolean,
+    peers: List<PeerRow> = emptyList(),
     onOnIt: (Item) -> Unit = {},
 ) {
     val board = ui.board
@@ -161,6 +163,12 @@ internal fun NowCard(
                         stringResource(R.string.waitmark_next, back.title, Formats.clock(back.waitUntil!!)),
                         style = Type.bodySmall,
                     )
+                }
+                // A shared task: whose it is, and both boxes.
+                if (item != null && item.isShared && item.pairId != null) {
+                    Spacer(Modifier.height(Space.inside))
+                    val color = PairColors.of(peers.firstOrNull { it.id == item.pairId }?.color ?: 0, LocalLook.current.palette)
+                    SharedBoxes(item, sharedName(item, peers), color)
                 }
             }
             // Steps tick off right here; Done asks about any left open.

@@ -72,8 +72,34 @@ data class Item(
     val side: Boolean = false,
     /** Never shared with anyone paired, whatever the share level. */
     val neverShare: Boolean = false,
+    /**
+     * A shared task's lasting id, the same on both phones; null for one that isn't
+     * shared. A series' times carry their series' id; see [shareKey].
+     */
+    val uid: String? = null,
+    /** The paired person a shared task is shared with; null once unpaired, or never shared. */
+    val pairId: Long? = null,
+    /**
+     * Whether this phone's person made it, and so may change it. A shared task
+     * from the other person is theirs: done, ticked, and moved here, never edited.
+     */
+    val owned: Boolean = true,
+    /** The other person's box on a shared task: done on their side. */
+    val theirDone: Boolean = false,
 ) {
     val isTemplate: Boolean get() = recurrence != null
+
+    /** Shared with someone, or was, and from them: theirs to change. */
+    val isShared: Boolean get() = uid != null
+
+    /** From someone paired, and still theirs: no changes here, only doing it. */
+    val fromThem: Boolean get() = !owned
+
+    /**
+     * Which time of a shared task this is, on both phones: the task's id, or for a
+     * time of a series, the series' id and its day.
+     */
+    val shareKey: String? get() = uid?.let { if (templateId != null) "$it@$occurrenceDate" else it }
     val isOpen: Boolean get() = status == Status.PENDING || status == Status.ACTIVE
     val isAnchor: Boolean get() = kind == Kind.ANCHOR
     val isMark: Boolean get() = kind == Kind.MARK

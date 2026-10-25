@@ -54,7 +54,14 @@ class NowCardTest {
 
     private val tapped = mutableListOf<String>()
 
-    private fun show(item: Item, fontScale: Float = 1f, modifier: Modifier = Modifier, why: String = reason, keep: Boolean = false) {
+    private fun show(
+        item: Item,
+        fontScale: Float = 1f,
+        modifier: Modifier = Modifier,
+        why: String = reason,
+        keep: Boolean = false,
+        peers: List<net.fallhammer.initiative.data.PeerRow> = emptyList(),
+    ) {
         val ui = BoardUi(now = now, board = Board(NowPick(item, why, keep), next = null))
         compose.setContent {
             val density = LocalDensity.current
@@ -73,6 +80,7 @@ class NowCardTest {
                         onStep = { _, _ -> },
                         compact = false,
                         onOnIt = { tapped += "on it" },
+                        peers = peers,
                     )
                 }
             }
@@ -117,6 +125,12 @@ class NowCardTest {
         show(underWay, why = warning, keep = true)
         compose.onNodeWithText("On it since 1:12", substring = true).assertIsDisplayed()
         compose.onNodeWithText(warning, substring = true).assertIsDisplayed()
+    }
+
+    @Test fun aSharedTaskShowsBothBoxes() {
+        val air = net.fallhammer.initiative.data.PeerRow(id = 7, peerId = "a", nickname = "Air", initial = "A", color = 0)
+        show(taxes.copy(uid = "u-t", pairId = 7, owned = false, theirDone = true), peers = listOf(air))
+        compose.onNodeWithContentDescription("Shared · from Air. You: not yet. Air: done.").assertIsDisplayed()
     }
 
     @Test fun tickedStepsSinkBelowOpenOnes() {

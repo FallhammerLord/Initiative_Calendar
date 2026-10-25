@@ -62,6 +62,17 @@ class EditModel(
         set(item)
     }
 
+    /** A task from someone no longer paired, made this person's own. */
+    fun claim() {
+        val d = _draft.value ?: return
+        set(null)
+        parts.acted()
+        parts.scope.launch {
+            graph.repo.claim(d)
+            parts.show(Flash(parts.text(R.string.shared_claimed)))
+        }
+    }
+
     fun cancel() {
         cancelDupe()
         set(null)

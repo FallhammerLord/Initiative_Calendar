@@ -1,6 +1,7 @@
 package net.fallhammer.initiative.data
 
 import initiative.core.Item
+import initiative.core.SharedTasks
 import initiative.core.Learning
 import initiative.core.Parsed
 import initiative.core.Placement
@@ -127,6 +128,35 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         dao.deleteItems(listOf(item.id))
         dao.deleteEventsOf(item.id)
         dao.clearAlarm(item.id)
+    }
+
+    /** What this phone sends [peer] about the tasks they share: its own tasks, and which times it's done. */
+    suspend fun sharedOut(peer: Long, today: java.time.LocalDate): SharedTasks.Out =
+        SharedTasks.out(dao.all().map { it.toItem() }, peer, today)
+
+    /** Takes in what [peer] sent about shared tasks; see core's SharedTasks.apply. */
+    suspend fun applyShared(peer: Long, incoming: SharedTasks.Out, now: LocalDateTime) {
+        val changes = SharedTasks.apply(dao.all().map { it.toItem() }, peer, incoming, now.toLocalDate(), now)
+        write(changes)
+        ensureInstances(now)
+    }
+
+    /** Unpaired: sharing with [peer] stops; see core's SharedTasks.unpair. */
+    suspend fun unpairShared(peer: Long, today: java.time.LocalDate) {
+        write(SharedTasks.unpair(dao.all().map { it.toItem() }, peer, today))
+    }
+
+    /** A task from someone no longer paired, made this person's own. */
+    suspend fun claim(item: Item) {
+        update(item, SharedTasks.claim(item), note = "claimed")
+    }
+
+    private suspend fun write(changes: SharedTasks.Changes) {
+        changes.upserts.forEach { item -> if (item.id == 0L) dao.insert(item.toRow()) else dao.update(item.toRow()) }
+        if (changes.removals.isNotEmpty()) {
+            dao.deleteItems(changes.removals.map { it.id })
+            changes.removals.forEach { dao.clearAlarm(it.id) }
+        }
     }
 
     /** Items moved to tomorrow on [date], for that day's report. */

@@ -69,6 +69,14 @@ data class ItemRow(
     val neverShare: Boolean = false,
     /** A side task: see core's Item.side. */
     val side: Boolean = false,
+    /** A shared task's lasting id, the same on both phones; see core's SharedTasks. */
+    val uid: String? = null,
+    /** The paired person it's shared with. */
+    val pairId: Long? = null,
+    /** Made on this phone, so changeable here. */
+    val owned: Boolean = true,
+    /** The other person's box: done on their side. */
+    val theirDone: Boolean = false,
 )
 
 /**
@@ -305,7 +313,7 @@ interface ItemDao {
 
 @Database(
     entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class, PeerRow::class, ShareRow::class, PeekRow::class],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class InitiativeDb : RoomDatabase() {
@@ -375,9 +383,19 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        /** Shared tasks: their lasting id, who they're shared with, whose they are, and the other box. */
+        internal val ADD_SHARED = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `uid` TEXT")
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `pairId` INTEGER")
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `owned` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `theirDone` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE, ADD_SHARED)
                 .build()
                 .also { instance = it }
         }
@@ -417,6 +435,10 @@ fun Item.toRow() = ItemRow(
     icon = icon.name,
     neverShare = neverShare,
     side = side,
+    uid = uid,
+    pairId = pairId,
+    owned = owned,
+    theirDone = theirDone,
 )
 
 fun ItemRow.toItem() = Item(
@@ -455,4 +477,8 @@ fun ItemRow.toItem() = Item(
     icon = runCatching { MarkIcon.valueOf(icon) }.getOrDefault(MarkIcon.FLAG),
     neverShare = neverShare,
     side = side,
+    uid = uid,
+    pairId = pairId,
+    owned = owned,
+    theirDone = theirDone,
 )

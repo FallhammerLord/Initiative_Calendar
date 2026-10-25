@@ -260,7 +260,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     onStop = vm.recopy::stop,
                 )
             } else if (editing != null) {
-                EditScreen(editing, vm.edit, paired = peers.isNotEmpty(), names = names, onForget = vm.names::forget, onUnforget = vm.names::unforget)
+                EditScreen(editing, vm.edit, peers = peers, names = names, onForget = vm.names::forget, onUnforget = vm.names::unforget)
             } else if (reportOn != null) {
                 ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport, marks = reportMarks)
             } else if (logOpen) {
@@ -327,6 +327,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             onStep = vm::toggleStep,
                             compact = keyboardUp,
                             onOnIt = vm::onIt,
+                            peers = peers,
                         )
                       }
                       // Paired people, up high on the left, under the marker bubbles.

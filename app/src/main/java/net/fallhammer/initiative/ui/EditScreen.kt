@@ -1,5 +1,7 @@
 package net.fallhammer.initiative.ui
 
+import initiative.core.SharedTasks
+import net.fallhammer.initiative.data.PeerRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.alpha
@@ -67,11 +69,17 @@ import java.time.LocalTime
 fun EditScreen(
     draft: Item,
     edit: EditModel,
-    paired: Boolean = false,
+    peers: List<PeerRow> = emptyList(),
     names: List<String> = emptyList(),
     onForget: (String) -> Unit = {},
     onUnforget: (String) -> Unit = {},
 ) {
+    // A shared task from someone else is theirs to change: shown, done, or set aside here, never edited.
+    if (draft.fromThem) {
+        SharedFromThem(draft, peers, edit)
+        return
+    }
+    val paired = peers.isNotEmpty()
     val context = LocalContext.current
     val rule by edit.rule.collectAsStateWithLifecycle()
     val later by edit.later.collectAsStateWithLifecycle()
@@ -132,6 +140,18 @@ fun EditScreen(
             if (paired) {
                 Spacer(Modifier.height(Space.s))
                 SettingSwitch(stringResource(R.string.edit_never_share), draft.neverShare) { on -> edit.change { it.copy(neverShare = on) } }
+                // A shared task: both see it and each has a box. Set for a one-off, or a whole series,
+                // never one time of a series alone.
+                if (draft.templateId == null || later) {
+                    Spacer(Modifier.height(Space.s))
+                    val choices = listOf(stringResource(R.string.edit_only_me)) + peers.map { it.nickname }
+                    val at = peers.indexOfFirst { it.id == draft.pairId }.let { if (it < 0) 0 else it + 1 }
+                    ChoiceRow(stringResource(R.string.edit_shared_with), choices, at) { i ->
+                        edit.change {
+                            if (i == 0) it.copy(uid = null, pairId = null) else it.copy(uid = it.uid ?: SharedTasks.newUid(), pairId = peers[i - 1].id)
+                        }
+                    }
+                }
             }
             // A marker is context, not work: no steps.
             if (!draft.isMark) Part {

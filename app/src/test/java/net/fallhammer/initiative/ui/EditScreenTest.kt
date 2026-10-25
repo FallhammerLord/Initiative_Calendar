@@ -57,14 +57,48 @@ class EditScreenTest {
 
     @After fun stop() = scope.cancel()
 
-    private fun show(item: Item) {
+    private val air = net.fallhammer.initiative.data.PeerRow(id = 7, peerId = "a", nickname = "Air", initial = "A", color = 0)
+
+    private fun show(item: Item, peers: List<net.fallhammer.initiative.data.PeerRow> = emptyList()) {
         edit.open(item)
         compose.setContent {
             InitiativeTheme(Looks.SciFi) {
                 val draft by edit.draft.collectAsStateWithLifecycle()
-                draft?.let { EditScreen(it, edit) }
+                draft?.let { EditScreen(it, edit, peers = peers) }
             }
         }
+    }
+
+    @Test fun aTaskCanBeSharedWithSomeonePaired() {
+        show(dentist, listOf(air))
+        compose.onNodeWithText("Shared with").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Air").performScrollTo().tap()
+        val shared = edit.draft.value!!
+        assertEquals(7L, shared.pairId)
+        assertTrue(shared.uid != null)
+        compose.onNodeWithText("Only me").performScrollTo().tap()
+        assertEquals(null, edit.draft.value!!.uid)
+    }
+
+    @Test fun oneTimeOfASeriesCantBeSharedAlone() {
+        show(gym, listOf(air))
+        compose.onNodeWithText("Shared with").assertDoesNotExist()
+    }
+
+    @Test fun aTaskFromThemIsShownNotEdited() {
+        show(dentist.copy(uid = "u-d", pairId = 7, owned = false, theirDone = true), listOf(air))
+        compose.onNodeWithText("From Air").assertIsDisplayed()
+        compose.onNodeWithText("Only Air can change this", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Shared · from Air. You: not yet. Air: done.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Done").assertIsDisplayed()
+        compose.onNodeWithText("Remove for me").assertIsDisplayed()
+        compose.onNodeWithText("Save").assertDoesNotExist()
+    }
+
+    @Test fun noLongerSharedItCanBeClaimed() {
+        show(dentist.copy(uid = "u-d", pairId = null, owned = false))
+        compose.onNodeWithText("Claim it to make it yours", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Claim").assertIsDisplayed()
     }
 
     @Test fun offersTheFormsParts() {

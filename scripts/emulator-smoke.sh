@@ -958,6 +958,20 @@ shot pair-panel
 tap Close exact
 wait_gone "Partner's day report" || fail "Close should shut their panel"
 pass "the pairmark opens their panel, with their day report"
+# A shared task from them, tomorrow: theirs to change, so it opens to be done, not edited.
+tap "Plan ahead"
+wait_for "Day report" exact || fail "Plan ahead should open the Log"
+tap Later exact
+wait_for "school run" || fail "tomorrow should list Partner's shared task"
+tap "school run"
+wait_for "From Partner" exact || fail "their shared task should open as theirs"
+expect_text "Only Partner can change this"
+shot shared-from-them
+tap Cancel exact
+wait_gone "From Partner" exact || fail "Cancel should close their task"
+adb shell input keyevent KEYCODE_BACK
+wait_gone "Back to board" exact || fail "Back should close the Log"
+pass "a shared task from them opens as theirs, with both boxes"
 # Settings offers Pair with someone; pairing itself needs two phones, tested by hand.
 open_settings
 scroll_to "Partner, " || fail "a pretend partner should show under Pairs"

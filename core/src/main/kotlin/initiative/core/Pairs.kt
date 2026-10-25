@@ -18,8 +18,16 @@ data class SharedLine(val title: String, val time: LocalDateTime?, val outcome: 
 /**
  * What a peek brought back: the other person's shared days, as of [at]. Read-only.
  * [report] is their day report for [at]'s day, when they share it with you.
+ * [tasks] are the shared tasks they own, and [done] which shared times they've
+ * done; see [SharedTasks].
  */
-data class Peek(val at: LocalDateTime, val items: List<Shared>, val report: List<SharedLine>? = null) {
+data class Peek(
+    val at: LocalDateTime,
+    val items: List<Shared>,
+    val report: List<SharedLine>? = null,
+    val tasks: List<Item> = emptyList(),
+    val done: Map<String, LocalDateTime> = emptyMap(),
+) {
     /** What they're probably doing at [time]: the shared entry whose time covers it, the latest started first. */
     fun probably(time: LocalDateTime): Shared? =
         items.filter { it.kind != Kind.MARK && !it.start.isAfter(time) && it.end.isAfter(time) }.maxByOrNull { it.start }
@@ -93,13 +101,16 @@ object Sharing {
  * A peek as text, one entry per line after a version line, so phones on
  * different builds can tell when they can't read each other. From version 2, a
  * line of a kind this build doesn't know is skipped, so later additions don't
- * stop an older build reading the rest. Version 2 adds the day report.
+ * stop an older build reading the rest. Version 2 adds the day report and
+ * shared tasks.
  */
 object PeekFormat {
     const val VERSION = 2
     private const val HEAD = "initiative-peek"
     private const val TAB = '\t'
     private const val REPORT = "REPORT"
+    private const val TASK = "TASK"
+    private const val DONE = "DONE"
     private const val NO_TIME = "-"
 
     private fun clean(text: String) = text.replace(TAB, ' ').replace('\n', ' ')
@@ -115,7 +126,12 @@ object PeekFormat {
             append("$REPORT\n")
             lines.forEach { l -> append("$REPORT$TAB${l.time ?: NO_TIME}$TAB${l.outcome.name}$TAB${clean(l.title)}\n") }
         }
+        peek.tasks.forEach { append("$TASK$TAB${SharedTasks.encode(it)}\n") }
+        peek.done.forEach { (key, at) -> append("$DONE$TAB${clean(key)}$TAB$at\n") }
     }
+
+    /** The version a peek was written in; null when it isn't one. */
+    fun version(text: String): Int? = text.lineSequence().firstOrNull()?.split(' ')?.takeIf { it.size == 2 && it[0] == HEAD }?.get(1)?.toIntOrNull()
 
     /** The peek back; null when it isn't one, or comes from a newer version this build can't read. */
     fun decode(text: String): Peek? = runCatching {
@@ -125,7 +141,13 @@ object PeekFormat {
         val at = LocalDateTime.parse(lines[1].removePrefix("at$TAB"))
         val items = mutableListOf<Shared>()
         var report: MutableList<SharedLine>? = null
+        val tasks = mutableListOf<Item>()
+        val done = mutableMapOf<String, LocalDateTime>()
         lines.drop(2).forEach { line ->
+            if (line.startsWith("$TASK$TAB")) {
+                SharedTasks.decode(line.removePrefix("$TASK$TAB"), at)?.let { tasks += it }
+                return@forEach
+            }
             val parts = line.split(TAB, limit = 4)
             val kind = Kind.entries.firstOrNull { it.name == parts[0] }
             when {
@@ -137,9 +159,10 @@ object PeekFormat {
                         list += SharedLine(parts[3], time, Outcome.valueOf(parts[2]))
                     }
                 }
+                parts[0] == DONE && parts.size >= 3 -> done[parts[1]] = LocalDateTime.parse(parts[2])
                 // Anything else is from a later version: skipped.
             }
         }
-        Peek(at, items, report)
+        Peek(at, items, report, tasks, done)
     }.getOrNull()
 }

@@ -33,7 +33,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 object PairWire {
     const val VERSION = 1
-    private const val MAX_FRAME = 64 * 1024
+    private const val MAX_FRAME = 512 * 1024
     private val random = SecureRandom()
 
     /** One message: its length, then its bytes. */

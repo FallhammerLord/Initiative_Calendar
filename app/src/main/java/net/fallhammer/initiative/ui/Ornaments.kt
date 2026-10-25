@@ -490,6 +490,21 @@ fun DrawScope.arrowDown(color: Color) {
     )
 }
 
+/** A tick, for a box that's ticked. */
+fun DrawScope.tick(color: Color) {
+    val w = size.width
+    val h = size.height
+    drawPath(
+        Path().apply {
+            moveTo(w * 0.2f, h * 0.52f)
+            lineTo(w * 0.42f, h * 0.74f)
+            lineTo(w * 0.8f, h * 0.28f)
+        },
+        color,
+        style = Stroke(w * GLYPH_STROKE * 1.4f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+    )
+}
+
 fun DrawScope.cross(color: Color) {
     val w = size.width
     val h = size.height

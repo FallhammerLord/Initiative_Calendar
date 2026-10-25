@@ -13,6 +13,8 @@ import initiative.core.SharedLine
 import initiative.core.PeekFormat
 import initiative.core.ShareLevel
 import initiative.core.Shareable
+import java.time.LocalDate
+import initiative.core.SharedTasks
 import initiative.core.Shared
 import initiative.core.Sharing
 import kotlinx.coroutines.CompletableDeferred
@@ -29,6 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.PeekRow
+import net.fallhammer.initiative.data.toRow
 import net.fallhammer.initiative.data.PeerRow
 import net.fallhammer.initiative.data.Prefs
 import net.fallhammer.initiative.data.ShareRow
@@ -66,6 +69,7 @@ class PairsModel(
     private val dao get() = parts.graph.dao
     private val nearby get() = parts.graph.nearby
     private val keys get() = parts.graph.pairKeys
+    private val repo get() = parts.graph.repo
 
     private val _pairing = MutableStateFlow<Pairing?>(null)
     /** Pairing under way; null when not pairing. A Bluetooth meeting can't outlast the app, so it isn't saved. */
@@ -198,9 +202,19 @@ class PairsModel(
                     parts.show(Flash(parts.text(reasonFor(problem))))
                     return@launch
                 }
+                mismatch = null
                 val name = withContext(Dispatchers.IO) { met.socket.use { pingOver(met) } }
                 Log.i(TAG, if (name != null) "ping: swapped" else "ping: stranger")
-                parts.show(Flash(name?.let { parts.app.getString(R.string.pair_pinged, it) } ?: parts.text(R.string.pair_stranger)))
+                val update = mismatch
+                parts.show(
+                    Flash(
+                        when {
+                            name != null && update != null -> parts.app.getString(update, name)
+                            name != null -> parts.app.getString(R.string.pair_pinged, name)
+                            else -> parts.text(R.string.pair_stranger)
+                        },
+                    ),
+                )
             } catch (e: Exception) {
                 Log.i(TAG, "ping: dropped")
                 parts.show(Flash(parts.text(R.string.pairing_broke)))
@@ -218,19 +232,33 @@ class PairsModel(
         if (mine.isEmpty()) return null
         val now = LocalDateTime.now()
         val report = if (peers.any { it.shareReport }) todayReport() else emptyList()
+        // Read before the meeting: the wire asks for each person's text while it talks.
+        val shared = peers.associate { it.id to repo.sharedOut(it.id, now.toLocalDate()) }
         val got = PairWire.ping(met.socket.inputStream, met.socket.outputStream, mine, met.initiator) { id ->
             val peer = peers.first { it.id == id }
             val theirs = ticked[id].orEmpty()
             val day = if (peer.shareReport) Sharing.report(report, levelOf(peer), theirs) else null
-            PeekFormat.encode(Peek(now, Sharing.outgoing(shareable(), levelOf(peer), theirs), day))
+            val tasks = shared.getValue(id)
+            // Tasks shared with them are on their own board already, so they aren't on your line too.
+            val seen = shareable().filter { it.item.pairId != id }
+            PeekFormat.encode(Peek(now, Sharing.outgoing(seen, levelOf(peer), theirs), day, tasks.tasks, tasks.done))
         } ?: return null
         val peer = peers.firstOrNull { it.id == got.peer } ?: return null
+        // Different builds can't share tasks safely: said, so both can update.
+        val theirVersion = PeekFormat.version(got.text)
+        if (theirVersion != PeekFormat.VERSION) {
+            mismatch = theirVersion?.let { if (it > PeekFormat.VERSION) R.string.pair_update_mine else R.string.pair_update_theirs }
+        }
         // Kept only if it reads; one this build can't read waits for an update.
-        PeekFormat.decode(got.text) ?: return null
+        val peek = PeekFormat.decode(got.text) ?: return null
         dao.putPeek(PeekRow(peer.id, got.text))
         dao.updatePeer(peer.copy(seenAt = now.toString()))
+        if (theirVersion == PeekFormat.VERSION) repo.applyShared(peer.id, SharedTasks.Out(peek.tasks, peek.done), now)
         return peer.nickname
     }
+
+    /** Set by a ping with a phone on another build: which side should update. */
+    @StringRes private var mismatch: Int? = null
 
     @StringRes
     private fun reasonFor(problem: Nearby.Problem?): Int = when (problem) {
@@ -274,6 +302,8 @@ class PairsModel(
     /** Unpairs at once on this phone: the person, their keys, their ticks, and their last peek go. */
     override fun unpair(peer: Long) {
         parts.scope.launch(Dispatchers.IO) {
+            // Shared tasks stop: this phone's own stay its own, theirs wait to be claimed.
+            repo.unpairShared(peer, LocalDate.now())
             dao.peers().firstOrNull { it.id == peer }?.let { keys.delete(it.peerId) }
             dao.deleteSharesOf(peer)
             dao.deletePeekOf(peer)
@@ -303,10 +333,19 @@ class PairsModel(
                 ),
             )
             dao.putPeek(PeekRow(id, PeekFormat.encode(peek)))
+            // A shared task of theirs, tomorrow, so today's board stays as the test expects.
+            val tomorrow = now.toLocalDate().plusDays(1).atTime(10, 0)
+            dao.insert(
+                Item(
+                    title = parts.text(R.string.pair_pretend_shared), kind = Kind.ANCHOR, start = tomorrow, end = tomorrow.plusMinutes(30),
+                    uid = PRETEND_SHARED, pairId = id, owned = false, createdAt = now,
+                ).toRow(),
+            )
         }
     }
 
     companion object {
+        const val PRETEND_SHARED = "pretend-shared"
         const val PRETEND = "pretend-partner"
         const val MAX_PAIRS = 3
         private const val PAIR_MS = 120_000L
