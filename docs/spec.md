@@ -557,7 +557,30 @@ After v0.1, built:
 - *Adding.* "halloween oct 31 all day", with "yearly" to repeat. The "anchor, float, or marker?" question offers Marker. In the edit form, Type has Marker, with its day, an optional last day, its icon, and how far ahead it shows.
 - *Elsewhere.* Plan ahead lists a marker first on each day it spans, as "All day"; the month grid marks its days with a dot beside the fixed-time diamond. The day report opens with "Today: Halloween".
 
+**Marker pages and prep tasks (planned).** A marker can hand out the work that gets you ready for it, like a quest giver; the work still goes through the board, never around it.
+- *Simple markers stay simple.* "It's 4th of July!" with no tasks works as now: bubble, label, note. It never needs a page.
+- *Its own page.* A marker with tasks has a page, opened from its panel: its days, its note, its heads-up days, and its tasks with plain ticks (no counts), and a line to add one. Any marker's panel offers **Add a prep task**, which is how a simple one gains a page.
+- *Tasks wait for the heads-up.* Before the heads-up window opens, a prep task lives only on the marker's page: not in Plan ahead, the forecast, or the dial. When the window opens, it joins the board as any task (on the dial, in the day's order, on Now), tagged "for Birthday", and Plan ahead lists it on its day. In the model: not before the window's first day, by the marker's day.
+- *A heads-up to work in.* Prep tasks need days to happen in, so the first one added sets a heads-up if the marker has none (3 days, say), which can be changed.
+- *Repeating markers.* A yearly marker's prep tasks belong to the series: each time its window opens, it hands out fresh copies, so the same prep comes back each year.
+- *Removing the marker.* Its open prep tasks stay as ordinary tasks; Undo restores the link.
+- *Sharing.* The marker shares as markers do. Its tasks follow the usual sharing, and aren't shared with it automatically.
+- *One level.* Marker, then its tasks; each task can have steps, as every task can. A marker has no steps of its own: work kept on a page you have to open is work that waits for you to remember it, and the board exists so it doesn't.
+- *Needs.* A database change (a task's link to its marker), a mockup first, emulator steps, and a manual line.
+
 **Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
+
+**Next: friction fixes (planned, from use).**
+
+1. *Add for them.* The keyboard covers the line on their panel. The panel shrinks to the space above the keyboard and scrolls to the line when it opens.
+2. *A person's page ends with Done.* Changes save as you go, so the bottom (where Save would be) gets **Done**, which closes the page, over a small line "Changes save as you go." Unpair moves into its own card above, "Stop sharing with Air", still asking first.
+3. *What they see: a fixed box.* About 7 rows tall, with its own scroll and scrollbar, inside the page's scroll.
+4. *A series is one row.* A repeating item shows once, with how it repeats ("Every Monday, 3:00 PM"), worded as the Log's Repeats list; its tick covers every time.
+5. *What goes in that list.* Leave out anything already over (sharing only looks ahead; today's past travels in the day report), done or removed items, shared tasks (already on their board), and never-share items. Tasks without a set time only for today. Ticked first, then soonest first. The next 7 days by default; **Show the rest of the month** opens the rest. Ticking still covers the month.
+6. *Marker taps.* First tap: the label. Second: the panel. A tap outside, or on the marker, closes it all; Close stays.
+7. *Marker pages and prep tasks.* See Markers above.
+
+Later, its own step: per-kind sharing ("Always share my appointments", "Always share my markers", ticks for tasks only), so the list is rarely needed.
 
 **v0.3 — Polish**
 
