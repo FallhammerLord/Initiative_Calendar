@@ -54,6 +54,8 @@ class PairScreenTest {
         override fun setShowMark(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(showMark = on) }
         override fun setShowLine(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(showLine = on) }
         override fun setShowMarks(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(showMarks = on) }
+        override fun setSyncBluetooth(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(syncBluetooth = on) }
+        override fun setSyncWifi(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(syncWifi = on) }
         override fun tick(peer: Long, item: Item, on: Boolean) { ticked = if (on) ticked + Sharing.tickKey(item) else ticked - Sharing.tickKey(item) }
         override fun unpair(peer: Long) { unpaired = true }
     }
@@ -93,5 +95,23 @@ class PairScreenTest {
         // The question's own Unpair button: the only one left.
         compose.onNodeWithText("Unpair").performScrollTo().tap()
         assertTrue(unpaired && closed)
+    }
+
+    @Test fun syncAlwaysTurnsOnForEachWay() {
+        var asked = 0
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                PairScreen(peer, null, now, shareable, ticked, edits, onClose = {}, bluetoothReady = false, onAskBluetooth = { asked++ })
+            }
+        }
+        compose.onNodeWithText("On the same Wi-Fi, never the internet", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Sync over Bluetooth, always").performScrollTo().tap()
+        assertTrue(peer.syncBluetooth)
+        // Bluetooth not ready: it asks, and offers to again.
+        assertEquals(1, asked)
+        compose.onNodeWithText("Allow Bluetooth").performScrollTo().tap()
+        assertEquals(2, asked)
+        compose.onNodeWithText("Sync at home over Wi-Fi").performScrollTo().tap()
+        assertTrue(peer.syncWifi)
     }
 }

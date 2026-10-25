@@ -16,8 +16,8 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Pairs: Bluetooth, only while someone taps Pair or Ping, to meet a phone
-         close by. Scanning is never used for location. No internet permission:
-         Bluetooth needs none, so Initiative stays offline. Android 12 and later. -->
+         close by, and for one minute in ten with Sync over Bluetooth, always.
+         Scanning is never used for location. Android 12 and later. -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
@@ -26,6 +26,18 @@
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="false" />
+
+    <!-- Sync at home over Wi-Fi: sockets need Android's network permission, which
+         also covers the internet. Initiative only ever reaches or lets in local
+         addresses (see LocalNet), and makes no internet requests. The Wi-Fi's
+         state, and multicast for finding the other phone on it (mDNS). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+    <!-- The always-on syncs keep going in the background, with a quiet notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
 
     <!-- Lets the app drawer list every installed app (Android 11+). -->
     <queries>
@@ -72,6 +84,11 @@
             android:showWhenLocked="true"
             android:taskAffinity=""
             android:turnScreenOn="true" />
+
+        <service
+            android:name=".pairs.SyncService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <receiver
             android:name=".alarms.TickReceiver"

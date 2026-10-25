@@ -68,6 +68,9 @@ class MigrationTest {
             dao.share(ShareRow(peer, 1))
             dao.putPeek(PeekRow(peer, "initiative-peek 1"))
             assertEquals(listOf(ShareRow(peer, 1)), dao.shares())
+            // Version 8: sync always is off until both people turn it on.
+            assertEquals(false, dao.peers().single().syncBluetooth)
+            assertEquals(false, dao.peers().single().syncWifi)
             val second = dao.insert(dao.all().single().copy(id = 0, title = "taxes", titleKey = "taxes"))
             assertEquals(2L, second)
         }

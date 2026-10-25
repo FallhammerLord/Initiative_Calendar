@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 8,
-    "identityHash": "b757181a672c861742448a49ebb77b4c",
+    "identityHash": "9f6746c742f6eca5df7a7df1f00b7ba0",
     "entities": [
       {
         "tableName": "items",
@@ -350,7 +350,7 @@
       },
       {
         "tableName": "peers",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `peerId` TEXT NOT NULL, `nickname` TEXT NOT NULL, `initial` TEXT NOT NULL, `color` INTEGER NOT NULL, `level` TEXT NOT NULL, `shareReport` INTEGER NOT NULL, `showMark` INTEGER NOT NULL, `showLine` INTEGER NOT NULL, `showMarks` INTEGER NOT NULL, `seenAt` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `peerId` TEXT NOT NULL, `nickname` TEXT NOT NULL, `initial` TEXT NOT NULL, `color` INTEGER NOT NULL, `level` TEXT NOT NULL, `shareReport` INTEGER NOT NULL, `showMark` INTEGER NOT NULL, `showLine` INTEGER NOT NULL, `showMarks` INTEGER NOT NULL, `seenAt` TEXT, `syncBluetooth` INTEGER NOT NULL, `syncWifi` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -416,6 +416,18 @@
             "fieldPath": "seenAt",
             "columnName": "seenAt",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "syncBluetooth",
+            "columnName": "syncBluetooth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncWifi",
+            "columnName": "syncWifi",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -477,7 +489,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b757181a672c861742448a49ebb77b4c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9f6746c742f6eca5df7a7df1f00b7ba0')"
     ]
   }
 }

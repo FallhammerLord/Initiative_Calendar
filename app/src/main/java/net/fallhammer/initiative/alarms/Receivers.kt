@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import net.fallhammer.initiative.pairs.SyncService
 import android.util.Log
 import initiative.core.Status
 import initiative.core.AlarmState
@@ -43,6 +44,8 @@ class SystemEventReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = async {
         Log.i(TAG, "re-arming after ${intent.action}")
         Scheduler.sync(context)
+        // The always-on syncs start again after a restart or an update.
+        SyncService.update(context)
     }
 }
 

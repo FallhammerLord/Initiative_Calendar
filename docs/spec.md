@@ -14,7 +14,7 @@ Design rules:
 - **Interrupt rarely, and only when it matters.** Fixed commitments can interrupt. Flexible tasks never do.
 - **No guilt state.** No overdue counters, red badges, or streaks.
 - **One thing at a time.** The board shows one card. Everything else is one tap or swipe away.
-- **Owned end to end.** Local data, no accounts, no Google services, no internet traffic by design. The only network use is sync with your own desktop on home Wi-Fi.
+- **Owned end to end.** Local data, no accounts, no Google services, no internet traffic by design. The only network use is on the home Wi-Fi: sync with a paired phone (Sync at home over Wi-Fi), and later with your own desktop.
 - **Updates by hand.** Settings ends with About: the build number and an **Update Initiative** button, which opens the newest build's page on GitHub in the browser. The browser downloads it and Android installs it over the old one; the list, settings, and dock stay. The app itself still makes no internet requests.
 
 Success looks like this after 90 days: still installed, hard commitments reliably hit, and lapses end with a return to the board.
@@ -429,7 +429,7 @@ Up to three other people's Initiative (a partner, and each daughter once she has
 **Double-booked.** When one of your anchors and a shared anchor from someone else overlap, the board shows it, worked out fresh each time and never saved: a marker with two overlapping blocks ("Double-booked: dentist and pickup"), dim up to a week ahead, and on the day a lit bookmark beside the Now card ("Double-booked · 3:00 PM"). A tap opens the choice, each person's own: **Keep both** (it stops showing), **Skip theirs, for me** (theirs is removed from your board only, with Undo), **Move mine** (your anchor's form), or **Not now**. Moving either one makes it a new double-booking, so it shows again if they still overlap.
 7. **Day report.** Sharing a day's report is its own opt-in, per person.
 
-**Bluetooth, not Wi-Fi.** Bluetooth connections don't need Android's internet permission, so Initiative stays offline by the OS's own rule (to confirm before building). Practices, to avoid dead ends:
+**Bluetooth first.** Pair and Ping use Bluetooth, which needs no internet permission. Practices, to avoid dead ends:
 
 - Permissions: Nearby devices (scan, connect, advertise), with scanning marked never for location, so no location permission.
 - Scans in short sessions filtered to Initiative's own ID; never more than five starts in 30 seconds, or Android silently stops returning results.
@@ -438,6 +438,10 @@ Up to three other people's Initiative (a partner, and each daughter once she has
 - Phones rotate their Bluetooth address, so identity lives in the app (ID and key), never the address.
 - The data: a Bluetooth stream channel (Android 10 and later) first; a small Bluetooth service, sending in chunks, as the fallback. A week of shared plan is a few KB.
 - Background: Initiative is the home app, so its process is usually alive; a peek runs as a short foreground task. Waking on nearness (Android's companion device tools) is for later.
+
+**Sync always.** Two opt-ins on a person's page, each off until turned on, and each working only when both phones have it on for each other: **Sync over Bluetooth, always**, and **Sync at home over Wi-Fi**. While either is on for anyone, a background service keeps going with a quiet notification ("Sync is on"), as Android requires. In the first minute of every ten by the clock, the phone is findable and looking (Bluetooth, the Wi-Fi, or both), so two phones meet in the same minute without staying on; the rest of the time it's neither. A meeting runs the same sync as Ping (peek, day report, shared tasks), only with people it's on for, then alarms re-arm for any shared anchors that came or moved. It starts again after a restart or an update, and when the board opens. Turning Bluetooth's on asks for Nearby devices if needed.
+
+**Wi-Fi, local only.** Sockets on Wi-Fi need Android's network permission (INTERNET), which can't be limited to the home network, so the app enforces it: each phone announces Initiative on the local network (mDNS) and looks for the other, and only private, link-local, or unique-local addresses are reached or let in; anything else is turned away. The exchange is the same paired proof and sealed text as Bluetooth, so a stranger on the Wi-Fi learns nothing. The app still makes no internet requests. StrictMode's network check covers the main thread only; all of this runs off it.
 
 **How it talks** (core PairWire, tested over pipes). Pairing: a fresh elliptic-curve key agreement (P-256), the connecting phone committing to its key before seeing the other's, so a phone in the middle can't search for keys that give both screens the same code; the 6-digit code comes from the whole exchange; both must say yes. Out come two keys (one to prove which pair, one to seal what's shared), kept in Android's key store. Ping: each side proves which pair it is without naming itself, then each sends what it shares, sealed (AES-GCM). A phone that isn't paired learns nothing. Finding each other: Bluetooth Low Energy advertising and one filtered scan per meeting, then a Bluetooth channel (L2CAP); the lower random number connects. Needs Android 12 or later.
 

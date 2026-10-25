@@ -101,6 +101,10 @@ data class PeerRow(
     val showLine: Boolean = true,
     val showMarks: Boolean = true,
     val seenAt: String? = null,
+    /** Sync with them over Bluetooth whenever close by; works when both phones have it on. */
+    val syncBluetooth: Boolean = false,
+    /** Sync with them on the same Wi-Fi, local network only; works when both phones have it on. */
+    val syncWifi: Boolean = false,
 )
 
 /** An item ticked to share with one person. */
@@ -393,6 +397,8 @@ abstract class InitiativeDb : RoomDatabase() {
                 db.execSQL("ALTER TABLE `items` ADD COLUMN `owned` INTEGER NOT NULL DEFAULT 1")
                 db.execSQL("ALTER TABLE `items` ADD COLUMN `theirDone` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `items` ADD COLUMN `forThem` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `peers` ADD COLUMN `syncBluetooth` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `peers` ADD COLUMN `syncWifi` INTEGER NOT NULL DEFAULT 0")
             }
         }
 

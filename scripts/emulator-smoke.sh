@@ -961,7 +961,9 @@ tap "Add for Partner" exact
 wait_for "What for Partner?" || fail "Add for them should open a line to type"
 adb shell input text "water%splants"
 sleep 1
-tap Add exact
+# Enter adds, as the field's Done key; the Add button may sit under the keyboard.
+adb shell input keyevent KEYCODE_ENTER
+hide_keyboard
 wait_for "ater plants" || fail "a task added for them should list on their panel"
 expect_text "Just for Partner"
 shot pair-panel-for
@@ -985,6 +987,7 @@ pass "a shared task from them opens as theirs, with both boxes"
 # One of mine at the same time as theirs tomorrow: a double-booking marker,
 # dim a day ahead. A tap shows its label; a tap on that opens the choice.
 quick_add "vet tomorrow 10am"
+hide_keyboard
 wait_for "Double-booked: " || fail "mine against theirs should show a double-booking marker"
 tap "Double-booked: "
 tap "Double-booked: "
@@ -1006,6 +1009,18 @@ shot pairs-settings
 tap "Partner, "
 wait_for "What you share with Partner" || fail "a paired person's page should open"
 shot pair-page
+# Sync at home over Wi-Fi: on, the background sync starts with its quiet
+# notification; off again, it stops. Bluetooth's asks for permission, so it's
+# a screen test (PairScreenTest); a real sync needs two phones, tested by hand.
+scroll_to "Sync at home over Wi-Fi" exact || fail "their page should offer Sync at home over Wi-Fi"
+tap "Sync at home over Wi-Fi" exact
+sync_running() { adb shell dumpsys activity services $PKG | grep -q "SyncService"; }
+for _ in 1 2 3 4 5; do sync_running && break; sleep 1; done
+sync_running && pass "Sync at home over Wi-Fi starts the background sync" || fail "Sync at home over Wi-Fi should start the background sync"
+shot pair-sync
+tap "Sync at home over Wi-Fi" exact
+for _ in 1 2 3 4 5; do sync_running || break; sleep 1; done
+sync_running && fail "turning the sync off should stop it" || pass "turning the sync off stops it"
 # Sharing levels, ticks, and Unpair asking first are checked as a screen test
 # (PairScreenTest); here, only that Unpair works on the phone.
 scroll_to "Unpair" exact || fail "the page should end with Unpair"

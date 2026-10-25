@@ -8,8 +8,10 @@ import net.fallhammer.initiative.data.InitiativeDb
 import net.fallhammer.initiative.data.Prefs
 import net.fallhammer.initiative.data.Repository
 import net.fallhammer.initiative.data.Setup
+import net.fallhammer.initiative.pairs.LocalNet
 import net.fallhammer.initiative.pairs.Nearby
 import net.fallhammer.initiative.pairs.PairKeys
+import net.fallhammer.initiative.pairs.PairSync
 
 /**
  * The app's single set of services. Created once in [InitiativeApp]; screens,
@@ -25,7 +27,9 @@ class AppGraph(context: Context) {
     val apps = Apps(context)
     val setup = Setup(context)
     val nearby = Nearby(context)
+    val localNet = LocalNet(context)
     val pairKeys = PairKeys()
+    val pairSync = PairSync(dao, repo, placement, prefs, pairKeys::load)
 }
 
 val Context.graph: AppGraph get() = (applicationContext as InitiativeApp).graph

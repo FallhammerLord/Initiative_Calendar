@@ -201,7 +201,7 @@ object Backup {
     private fun peerJson(p: PeerRow): JSONObject = JSONObject()
         .set("id", p.id).set("peerId", p.peerId).set("nickname", p.nickname).set("initial", p.initial).set("color", p.color)
         .set("level", p.level).set("shareReport", p.shareReport).set("showMark", p.showMark).set("showLine", p.showLine)
-        .set("showMarks", p.showMarks).set("seenAt", p.seenAt)
+        .set("showMarks", p.showMarks).set("seenAt", p.seenAt).set("syncBluetooth", p.syncBluetooth).set("syncWifi", p.syncWifi)
 
     private fun peerRow(o: JSONObject) = PeerRow(
         id = o.getLong("id"),
@@ -215,6 +215,8 @@ object Backup {
         showLine = o.getBoolean("showLine"),
         showMarks = o.getBoolean("showMarks"),
         seenAt = o.str("seenAt"),
+        syncBluetooth = o.optBoolean("syncBluetooth", false),
+        syncWifi = o.optBoolean("syncWifi", false),
     )
 
     /** A short name for the chosen folder, for the settings screen. */

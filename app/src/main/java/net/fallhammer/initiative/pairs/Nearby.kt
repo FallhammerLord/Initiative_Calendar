@@ -28,7 +28,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Finding another Initiative close by, over Bluetooth Low Energy, and opening a
- * stream to it. Only while someone taps Pair or Ping: the phone is findable and
+ * stream to it. Only while someone taps Pair or Ping, or, with Sync over
+ * Bluetooth always on, for one minute in every ten: the phone is findable and
  * searching for that minute, then neither.
  *
  * Each side listens on a Bluetooth channel (L2CAP, Android 10 and later), and
@@ -51,7 +52,9 @@ class Nearby(private val context: Context) {
     enum class Problem { NO_BLUETOOTH, OFF, NOT_ALLOWED, NOT_FOUND }
 
     /** A meeting's result: an open stream, and whether this phone made the connection. */
-    class Met(val socket: BluetoothSocket, val initiator: Boolean)
+    class Met(val socket: BluetoothSocket, val initiator: Boolean) {
+        fun link() = Link(socket.inputStream, socket.outputStream, initiator) { socket.close() }
+    }
 
     fun allowed(): Boolean = PERMISSIONS.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
@@ -153,6 +156,9 @@ class Nearby(private val context: Context) {
     companion object {
         const val PAIR: Byte = 1
         const val PING: Byte = 2
+
+        /** The always-on sync's meetings, apart from Ping's, so a tap and a background sync don't meet. */
+        const val SYNC: Byte = 3
 
         /** Initiative's own Bluetooth service ID. */
         private val SERVICE = ParcelUuid(UUID.fromString("7a1c0e52-4b1d-4f0e-9c3a-1e2b5d6f8a90"))

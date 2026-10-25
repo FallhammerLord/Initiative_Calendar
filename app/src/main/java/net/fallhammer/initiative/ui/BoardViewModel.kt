@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.fallhammer.initiative.R
+import net.fallhammer.initiative.pairs.SyncService
 import net.fallhammer.initiative.alarms.AlarmActions
 import net.fallhammer.initiative.alarms.Scheduler
 import net.fallhammer.initiative.data.AppEntry
@@ -102,11 +103,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val backup = BackupModel(parts)
     val settings = SettingsModel(parts)
     val names = NamesModel(parts, repo.items)
-    // What could be shared is read when a ping happens, from the board as it stands then.
-    val pairs = PairsModel(parts, { shareable.value }) {
-        val today = LocalDate.now()
-        Report.of(items, today, today, repo.movedOn(today, items))
-    }
+    val pairs = PairsModel(parts)
     val launcher = LauncherModel(parts)
     val log = LogModel(parts, saved, repo.items, clock)
     val clash = ClashModel(parts, saved, repo.items, clock, edit)
@@ -320,6 +317,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 recap.load(prefs, now)
                 _focus.value = prefs.focus
                 launcher.load()
+                // The always-on syncs, if anyone has one on: started here while the board is in front.
+                SyncService.update(getApplication())
             }
         }
         if (instancesFor != now.toLocalDate()) {

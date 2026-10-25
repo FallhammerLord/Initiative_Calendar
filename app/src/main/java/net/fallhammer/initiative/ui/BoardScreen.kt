@@ -1,5 +1,7 @@
 package net.fallhammer.initiative.ui
 
+import net.fallhammer.initiative.graph
+import androidx.compose.runtime.mutableIntStateOf
 import android.Manifest
 import android.util.Log
 import android.app.TimePickerDialog
@@ -171,6 +173,10 @@ fun BoardScreen(vm: BoardViewModel) {
     // Pair and Ping ask for Nearby devices, and for Bluetooth on, first.
     val ping = rememberBluetoothGate { vm.pairs.ping() }
     val pair = rememberBluetoothGate { vm.pairs.startPairing() }
+    // For the always-on Bluetooth sync: asked once it's turned on, then checked again.
+    var bluetoothAsked by remember { mutableIntStateOf(0) }
+    val askBluetooth = rememberBluetoothGate { bluetoothAsked++ }
+    val nearby = LocalContext.current.graph.nearby
     val pairViews = peers.map { PairView(it, peeks[it.id]) }
     // Today's shared times for each person shown with a line, at most three. The lines
     // stay while the pairmarks fold away, and one waiting on a first peek is drawn bare,
@@ -536,7 +542,11 @@ fun BoardScreen(vm: BoardViewModel) {
                     onClose = vm.pairs::cancelPairing,
                 )
             } else if (openPeer != null) {
-                PairScreen(openPeer, peeks[openPeer.id], ui.now, shareable, ticks[openPeer.id].orEmpty(), vm.pairs, onClose = vm::closePair)
+                val bluetoothReady = remember(bluetoothAsked, openPeer.syncBluetooth) { nearby.problem() == null }
+                PairScreen(
+                    openPeer, peeks[openPeer.id], ui.now, shareable, ticks[openPeer.id].orEmpty(), vm.pairs, onClose = vm::closePair,
+                    bluetoothReady = bluetoothReady, onAskBluetooth = askBluetooth,
+                )
             } else SettingsScreen(
                 unlock = unlock,
                 onBoardOnUnlock = vm.settings::setBoardOnUnlock,

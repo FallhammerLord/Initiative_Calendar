@@ -57,6 +57,8 @@ interface PairEdits {
     fun setShowMark(peer: PeerRow, on: Boolean)
     fun setShowLine(peer: PeerRow, on: Boolean)
     fun setShowMarks(peer: PeerRow, on: Boolean)
+    fun setSyncBluetooth(peer: PeerRow, on: Boolean)
+    fun setSyncWifi(peer: PeerRow, on: Boolean)
     fun tick(peer: Long, item: Item, on: Boolean)
     fun unpair(peer: Long)
 }
@@ -163,6 +165,8 @@ fun PairScreen(
     ticked: Set<Long>,
     pairs: PairEdits,
     onClose: () -> Unit,
+    bluetoothReady: Boolean = true,
+    onAskBluetooth: () -> Unit = {},
 ) {
     var name by rememberSaveable(peer.id) { mutableStateOf(peer.nickname) }
     var unpairing by rememberSaveable(peer.id) { mutableStateOf(false) }
@@ -244,6 +248,22 @@ fun PairScreen(
                 SettingSwitch(stringResource(R.string.pair_show_line), peer.showLine) { pairs.setShowLine(peer, it) }
                 Spacer(Modifier.height(Space.s))
                 SettingSwitch(stringResource(R.string.pair_share_report), peer.shareReport) { pairs.setShareReport(peer, it) }
+            }
+            Spacer(Modifier.height(Space.panel))
+            // Always-on syncs: each works only when both phones have it on for each other.
+            Card(inner = Space.l) {
+                Label(stringResource(R.string.pair_sync_heading))
+                SettingSwitch(stringResource(R.string.pair_sync_bluetooth), peer.syncBluetooth) { on ->
+                    pairs.setSyncBluetooth(peer, on)
+                    if (on && !bluetoothReady) onAskBluetooth()
+                }
+                Body(stringResource(R.string.pair_sync_bluetooth_hint, peer.nickname), style = Type.bodySmall)
+                if (peer.syncBluetooth && !bluetoothReady) {
+                    QuietButton(stringResource(R.string.pair_sync_allow), onAskBluetooth, color = Ink.accent)
+                }
+                Spacer(Modifier.height(Space.s))
+                SettingSwitch(stringResource(R.string.pair_sync_wifi), peer.syncWifi) { pairs.setSyncWifi(peer, it) }
+                Body(stringResource(R.string.pair_sync_wifi_hint, peer.nickname), style = Type.bodySmall)
             }
             Spacer(Modifier.height(Space.panel))
             Card(inner = Space.l) {

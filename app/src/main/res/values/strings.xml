@@ -474,6 +474,16 @@
     <string name="shared_remove_mine">Remove for me</string>
     <string name="pair_update_mine">Synced with %1$s, but their Initiative is newer. Update to share tasks.</string>
     <string name="pair_update_theirs">Synced with %1$s, but their Initiative is older. They need to update to share tasks.</string>
+    <string name="pair_sync_heading">Sync</string>
+    <string name="pair_sync_bluetooth">Sync over Bluetooth, always</string>
+    <string name="pair_sync_bluetooth_hint">While on, a quiet notification stays, and you sync whenever you\'re near. Works when %1$s has it on too.</string>
+    <string name="pair_sync_allow">Allow Bluetooth</string>
+    <string name="pair_sync_wifi">Sync at home over Wi-Fi</string>
+    <string name="pair_sync_wifi_hint">On the same Wi-Fi, never the internet. Works when %1$s has it on too.</string>
+    <string name="channel_sync">Sync</string>
+    <string name="channel_sync_about">Shown while an always-on sync is on.</string>
+    <string name="sync_note_title">Sync is on</string>
+    <string name="sync_note_text">Syncs with paired people when near or on the same Wi-Fi.</string>
     <string name="pair_panel_for">Just for %1$s</string>
     <string name="pair_panel_add">Add for %1$s</string>
     <string name="pair_panel_add_field">What for %1$s?</string>
@@ -635,6 +645,8 @@
     <string name="manual_pairs_9_does">On their panel, Add for them. It goes to their phone at the next sync, and stays off your board.</string>
     <string name="manual_pairs_10">Double-booked</string>
     <string name="manual_pairs_10_does">When one of yours and one of theirs share a time, a marker shows ahead and a bookmark on the day. Tap for Keep both, Skip theirs, or Move mine.</string>
+    <string name="manual_pairs_11">Sync always</string>
+    <string name="manual_pairs_11_does">On their page: over Bluetooth, or at home over Wi-Fi. Works when both phones have it on. A quiet notification shows while it\'s on.</string>
     <string name="manual_looks">Looks</string>
     <string name="manual_looks_1">Theme</string>
     <string name="manual_looks_1_does">Chosen in Settings. Your colors lets you pick a color.</string>
