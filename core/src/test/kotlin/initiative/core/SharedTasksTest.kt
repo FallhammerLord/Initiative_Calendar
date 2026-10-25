@@ -117,4 +117,14 @@ class SharedTasksTest {
         assertTrue(claimed.owned)
         assertFalse(claimed.isShared)
     }
+
+    @Test fun unpairedJustForThemStopsAndStaysOffMyBoard() {
+        val water = trash.copy(id = 5, uid = "u-water", title = "water plants", forThem = true)
+        val after = SharedTasks.unpair(listOf(water), air, day).upserts.single()
+        assertEquals(Status.DROPPED, after.status)
+        assertTrue(after.forThem)
+        assertFalse(after.isShared)
+        // Still off the board's work either way.
+        assertTrue(listOf(after).work().isEmpty())
+    }
 }

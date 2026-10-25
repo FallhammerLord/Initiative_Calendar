@@ -300,6 +300,9 @@ fun BoardScreen(vm: BoardViewModel) {
                 Screen(
                     pulse = { glow.value.takeIf { it < 1f }?.let { Pulse(cardCenter, it) } },
                     modifier = Modifier
+                        // Under their panel or a double-booking's choice, the board is out of
+                        // TalkBack's reach, so it reads only what's open.
+                        .then(if (pairPanel >= 0 || clashKey.isNotEmpty()) Modifier.clearAndSetSemantics { } else Modifier)
                         .onGloballyPositioned { boardAt = it.positionInRoot() }
                         .pointerInput(Unit) {
                             awaitEachGesture {

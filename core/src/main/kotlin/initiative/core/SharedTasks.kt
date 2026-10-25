@@ -146,8 +146,11 @@ object SharedTasks {
         val removals = mutableListOf<Item>()
         shared.forEach { item ->
             when {
-                // A task just for them, unpaired, is simply this person's own again.
-                item.owned -> upserts += item.copy(uid = null, pairId = null, theirDone = false, forThem = false)
+                // A task just for them was never this person's to do: it stops, kept in the record.
+                item.owned && item.forThem -> upserts += item.copy(
+                    uid = null, pairId = null, theirDone = false, status = if (item.isOpen) Status.DROPPED else item.status,
+                )
+                item.owned -> upserts += item.copy(uid = null, pairId = null, theirDone = false)
                 item.isTemplate -> upserts += item.copy(pairId = null, theirDone = false, status = Status.DROPPED)
                 item.templateId != null && item.isOpen && item.occurrenceDate?.isAfter(today) == true -> removals += item
                 else -> upserts += item.copy(pairId = null, theirDone = false, templateId = null)

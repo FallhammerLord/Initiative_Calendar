@@ -962,8 +962,10 @@ wait_for "What for Partner?" || fail "Add for them should open a line to type"
 adb shell input text "water%splants"
 sleep 1
 # Enter adds, as the field's Done key; the Add button may sit under the keyboard.
+# The line closes with it, and the keyboard goes by itself: no Back, which would
+# close the panel if it landed after the keyboard had gone.
 adb shell input keyevent KEYCODE_ENTER
-hide_keyboard
+sleep 2
 wait_for "ater plants" || fail "a task added for them should list on their panel"
 expect_text "Just for Partner"
 shot pair-panel-for
