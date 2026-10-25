@@ -43,11 +43,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import initiative.core.Clashes
 import initiative.core.Formats
 import initiative.core.Item
 import initiative.core.MarkIcon
 import initiative.core.Marks
 import net.fallhammer.initiative.R
+import java.time.LocalDate
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -58,8 +60,16 @@ import kotlin.math.sin
  * away, is dim. At most [MAX_MARKS] show; past that, a "…" opens Plan ahead.
  */
 @Composable
-fun MarkHud(marks: List<Marks.Shown>, onEdit: (Item) -> Unit, onMore: () -> Unit, modifier: Modifier = Modifier) {
-    if (marks.isEmpty()) return
+fun MarkHud(
+    marks: List<Marks.Shown>,
+    onEdit: (Item) -> Unit,
+    onMore: () -> Unit,
+    modifier: Modifier = Modifier,
+    clashes: List<Clashes.Clash> = emptyList(),
+    today: LocalDate = LocalDate.now(),
+    onClash: (Clashes.Clash) -> Unit = {},
+) {
+    if (marks.isEmpty() && clashes.isEmpty()) return
     // Which marker's label is out, and whether its note is open; by a key that
     // holds for a series' later times too, which have no id yet.
     var open by rememberSaveable { mutableStateOf<String?>(null) }
@@ -67,7 +77,40 @@ fun MarkHud(marks: List<Marks.Shown>, onEdit: (Item) -> Unit, onMore: () -> Unit
     fun keyOf(s: Marks.Shown) = "${s.item.id}:${s.item.templateId}:${s.item.start}"
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Space.xs), verticalAlignment = Alignment.CenterVertically) {
-            marks.take(MAX_MARKS).forEach { shown ->
+            // Double-bookings first: made fresh, never saved. Tap for the label;
+            // tap the label for the choice.
+            val clashesShown = clashes.take(MAX_MARKS)
+            clashesShown.forEach { clash ->
+                val key = "clash:${clash.key}"
+                val out = open == key
+                val ahead = java.time.temporal.ChronoUnit.DAYS.between(today, clash.day).toInt().coerceAtLeast(0)
+                val named = stringResource(R.string.clash_label, clash.mine.title, clash.theirs.title)
+                val label = if (ahead == 0) named else stringResource(R.string.mark_ahead, named, pluralStringResource(R.plurals.days, ahead, ahead))
+                Row(
+                    Modifier
+                        .heightIn(min = Tap.min)
+                        .clickable {
+                            if (out) {
+                                open = null
+                                onClash(clash)
+                            } else {
+                                open = key
+                                note = false
+                            }
+                        }
+                        .semantics { contentDescription = label },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MarkBubble(MarkIcon.FLAG, dim = ahead > 0, clash = true)
+                    AnimatedVisibility(
+                        visible = out,
+                        enter = expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
+                        exit = shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
+                    ) { HudLabel(label, dim = ahead > 0) }
+                }
+            }
+            val room = MAX_MARKS - clashesShown.size
+            marks.take(room).forEach { shown ->
                 val key = keyOf(shown)
                 val out = open == key
                 val spoken = stringResource(R.string.mark_spoken, shown.item.title)
@@ -95,23 +138,10 @@ fun MarkHud(marks: List<Marks.Shown>, onEdit: (Item) -> Unit, onMore: () -> Unit
                         visible = out,
                         enter = expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
                         exit = shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
-                    ) {
-                        Text(
-                            label,
-                            style = Type.caption,
-                            color = if (shown.ahead > 0) Ink.dim else Ink.text,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .clip(LocalLook.current.buttonShape)
-                                .background(Ink.surface)
-                                .border(1.dp, Ink.frame, LocalLook.current.buttonShape)
-                                .padding(horizontal = Space.m, vertical = Space.s),
-                        )
-                    }
+                    ) { HudLabel(label, dim = shown.ahead > 0) }
                 }
             }
-            if (marks.size > MAX_MARKS) {
+            if (marks.size > room) {
                 val more = stringResource(R.string.mark_more)
                 Box(
                     Modifier
@@ -156,13 +186,31 @@ fun MarkHud(marks: List<Marks.Shown>, onEdit: (Item) -> Unit, onMore: () -> Unit
     }
 }
 
+/** A HUD bubble's label, slid out beside it. */
+@Composable
+private fun HudLabel(label: String, dim: Boolean) {
+    Text(
+        label,
+        style = Type.caption,
+        color = if (dim) Ink.dim else Ink.text,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clip(LocalLook.current.buttonShape)
+            .background(Ink.surface)
+            .border(1.dp, Ink.frame, LocalLook.current.buttonShape)
+            .padding(horizontal = Space.m, vertical = Space.s),
+    )
+}
+
 /**
  * A marker's bubble in the look's own shape: a hexagon (Sci-fi), a circle
  * (Classic), a medallion with a stepped rim (Deco), a jewel roundel (Stained
  * glass), a sweet (Pastel), a cut gem (Starlight). [dim] for a heads-up: faded, with a dashed rim.
+ * [clash] draws two overlapping blocks in place of the icon, for a double-booking.
  */
 @Composable
-fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
+fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier, clash: Boolean = false) {
     val look = LocalLook.current
     val style = look.bubble
     val accent = Ink.accent
@@ -237,7 +285,7 @@ fun MarkBubble(icon: MarkIcon, dim: Boolean, modifier: Modifier = Modifier) {
                     }
                 }
                 val g = size.minDimension * GLYPH_SHARE
-                translate(c.x - g / 2, c.y - g / 2) { drawGlyphIn(icon, glyph, g) }
+                translate(c.x - g / 2, c.y - g / 2) { if (clash) drawClashIn(glyph, g) else drawGlyphIn(icon, glyph, g) }
             },
     )
 }
@@ -285,6 +333,14 @@ private fun DrawScope.drawGlyphIn(icon: MarkIcon, color: Color, side: Float) {
             drawPath(path(5f to 4f, 18f to 4f, 15f to 8.5f, 18f to 13f, 5f to 13f), color, style = line)
         }
     }
+}
+
+/** A double-booking's icon: two blocks, overlapping, on the same 24-unit grid. */
+fun DrawScope.drawClashIn(color: Color, side: Float) {
+    val unit = side / 24f
+    val line = Stroke(width = 2f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    drawRect(color, Offset(2f * unit, 4f * unit), Size(13f * unit, 10f * unit), style = line)
+    drawRect(color, Offset(9f * unit, 10f * unit), Size(13f * unit, 10f * unit), style = line)
 }
 
 /** Markers shown at once along the panel's edge; the rest wait behind "…". */

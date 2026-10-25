@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 8,
-    "identityHash": "6b8a49fc2fdf55b3f963bd655e8704de",
+    "identityHash": "b757181a672c861742448a49ebb77b4c",
     "entities": [
       {
         "tableName": "items",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `titleKey` TEXT NOT NULL, `notes` TEXT NOT NULL, `kind` TEXT NOT NULL, `start` TEXT, `end` TEXT, `wall` TEXT NOT NULL, `leadMinutes` INTEGER NOT NULL, `durationMinutes` INTEGER NOT NULL, `earliestStart` TEXT, `deadline` TEXT, `priority` TEXT NOT NULL, `effort` TEXT NOT NULL, `skipCount` INTEGER NOT NULL, `pinnedSlot` TEXT, `notBefore` TEXT, `recFreq` TEXT, `recInterval` INTEGER NOT NULL, `recDays` TEXT NOT NULL, `templateId` INTEGER, `missPolicy` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `doneAt` TEXT, `activeSince` TEXT, `steps` TEXT NOT NULL, `waitUntil` TEXT, `workedMinutes` INTEGER NOT NULL, `icon` TEXT NOT NULL, `neverShare` INTEGER NOT NULL, `side` INTEGER NOT NULL, `uid` TEXT, `pairId` INTEGER, `owned` INTEGER NOT NULL, `theirDone` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `titleKey` TEXT NOT NULL, `notes` TEXT NOT NULL, `kind` TEXT NOT NULL, `start` TEXT, `end` TEXT, `wall` TEXT NOT NULL, `leadMinutes` INTEGER NOT NULL, `durationMinutes` INTEGER NOT NULL, `earliestStart` TEXT, `deadline` TEXT, `priority` TEXT NOT NULL, `effort` TEXT NOT NULL, `skipCount` INTEGER NOT NULL, `pinnedSlot` TEXT, `notBefore` TEXT, `recFreq` TEXT, `recInterval` INTEGER NOT NULL, `recDays` TEXT NOT NULL, `templateId` INTEGER, `missPolicy` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `doneAt` TEXT, `activeSince` TEXT, `steps` TEXT NOT NULL, `waitUntil` TEXT, `workedMinutes` INTEGER NOT NULL, `icon` TEXT NOT NULL, `neverShare` INTEGER NOT NULL, `side` INTEGER NOT NULL, `uid` TEXT, `pairId` INTEGER, `owned` INTEGER NOT NULL, `theirDone` INTEGER NOT NULL, `forThem` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -208,6 +208,12 @@
           {
             "fieldPath": "theirDone",
             "columnName": "theirDone",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "forThem",
+            "columnName": "forThem",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -471,7 +477,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6b8a49fc2fdf55b3f963bd655e8704de')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b757181a672c861742448a49ebb77b4c')"
     ]
   }
 }

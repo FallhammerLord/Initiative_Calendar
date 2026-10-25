@@ -60,6 +60,7 @@ class MigrationTest {
             assertEquals(null, dao.all().single().pairId)
             assertEquals(true, dao.all().single().owned)
             assertEquals(false, dao.all().single().theirDone)
+            assertEquals(false, dao.all().single().forThem)
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
             // The pairs tables work: a person, a tick, and a peek.

@@ -537,4 +537,4 @@ class Placement(private val window: DayWindow = DayWindow()) {
 }
 
 /** Everything but markers: the items the day's rules work with. */
-fun List<Item>.work(): List<Item> = filter { !it.isMark }
+fun List<Item>.work(): List<Item> = filter { !it.isMark && !it.forThem }

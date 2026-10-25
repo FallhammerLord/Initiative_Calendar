@@ -8,12 +8,15 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInput
+import initiative.core.Item
 import initiative.core.Kind
 import initiative.core.Outcome
 import initiative.core.Peek
 import initiative.core.Shared
 import initiative.core.SharedLine
 import net.fallhammer.initiative.data.PeerRow
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -88,5 +91,28 @@ class PairPanelTest {
         compose.onNodeWithText("Close").performScrollTo().tap()
         assertTrue(pinged)
         assertTrue(closed)
+    }
+
+    @Test fun addForThemTypesALineAndListsWhatsTheirs() {
+        val added = mutableListOf<String>()
+        var edited: Item? = null
+        val water = Item(id = 9, title = "Water plants", kind = Kind.FLOAT, createdAt = now, uid = "u", pairId = 1, forThem = true)
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                PairPanel(
+                    PairView(air, Peek(now.minusMinutes(5), items, report)), now, onPing = {}, onClose = {},
+                    forThem = listOf(water), onAddFor = { added += it; true }, onEditFor = { edited = it },
+                )
+            }
+        }
+        compose.onNodeWithText("Just for Air").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Water plants").performScrollTo().tap()
+        assertEquals(water, edited)
+        compose.onNodeWithText("Add for Air").performScrollTo().tap()
+        compose.onNodeWithText("What for Air?").performScrollTo().performTextInput("feed the cat")
+        compose.onNodeWithText("Add").performScrollTo().tap()
+        assertEquals(listOf("feed the cat"), added)
+        // Added: the line closes, back to the button.
+        compose.onNodeWithText("Add for Air").performScrollTo().assertIsDisplayed()
     }
 }

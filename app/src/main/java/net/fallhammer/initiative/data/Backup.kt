@@ -152,7 +152,7 @@ object Backup {
         .set("status", r.status).set("createdAt", r.createdAt).set("doneAt", r.doneAt).set("activeSince", r.activeSince)
         .set("steps", r.steps).set("waitUntil", r.waitUntil).set("workedMinutes", r.workedMinutes).set("icon", r.icon)
         .set("neverShare", r.neverShare).set("side", r.side)
-        .set("uid", r.uid).set("pairId", r.pairId).set("owned", r.owned).set("theirDone", r.theirDone)
+        .set("uid", r.uid).set("pairId", r.pairId).set("owned", r.owned).set("theirDone", r.theirDone).set("forThem", r.forThem)
 
     fun itemRow(o: JSONObject) = ItemRow(
         id = o.getLong("id"),
@@ -195,6 +195,7 @@ object Backup {
         pairId = if (o.isNull("pairId") || !o.has("pairId")) null else o.getLong("pairId"),
         owned = o.optBoolean("owned", true),
         theirDone = o.optBoolean("theirDone", false),
+        forThem = o.optBoolean("forThem", false),
     )
 
     private fun peerJson(p: PeerRow): JSONObject = JSONObject()

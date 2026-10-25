@@ -22,6 +22,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import net.fallhammer.initiative.data.PeerRow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -87,7 +90,8 @@ fun LogScreen(
     names: List<String> = emptyList(),
     onForget: (String) -> Unit = {},
     onUnforget: (String) -> Unit = {},
-) {
+    peers: List<PeerRow> = emptyList(),
+) = CompositionLocalProvider(LocalPeers provides peers) {
     // The Repeats list, in place of the days: every running series, to change or stop.
     var showRepeats by rememberSaveable { mutableStateOf(false) }
     val view by model.view.collectAsStateWithLifecycle()
@@ -369,6 +373,11 @@ private fun EntryText(entry: LogEntry, title: String, modifier: Modifier = Modif
             style = Type.bodySmall.copy(fontWeight = if (item.isAnchor) FontWeight.Bold else FontWeight.Normal),
             color = if (item.isOpen) Ink.text else Ink.dim,
         )
+        // Just for someone paired: theirs to do, kept here for the record.
+        if (item.forThem) {
+            val name = LocalPeers.current.firstOrNull { it.id == item.pairId }?.nickname ?: stringResource(R.string.shared_someone)
+            Text(stringResource(R.string.for_them_tag, name), style = Type.caption, color = Ink.dim)
+        }
         if (!entry.projected) {
             item.steps.forEach { s ->
                 Text(
@@ -380,6 +389,9 @@ private fun EntryText(entry: LogEntry, title: String, modifier: Modifier = Modif
         }
     }
 }
+
+/** Who's paired, for naming who a task is just for. */
+private val LocalPeers = staticCompositionLocalOf { emptyList<PeerRow>() }
 
 /**
  * Quick-add for the day in view, in place of the search box: read as quick-add

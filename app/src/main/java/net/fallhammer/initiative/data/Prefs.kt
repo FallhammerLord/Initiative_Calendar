@@ -76,6 +76,11 @@ class Prefs(private val context: Context) {
         get() = prefs.getStringSet(FORGOTTEN_NAMES, null)?.toSet() ?: emptySet()
         set(value) = prefs.edit().putStringSet(FORGOTTEN_NAMES, value).apply()
 
+    /** Double-bookings answered Keep both, by their keys (see Clashes.Clash.key). */
+    var keptClashes: Set<String>
+        get() = prefs.getStringSet(KEPT_CLASHES, null)?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEPT_CLASHES, value).apply()
+
     /** This Initiative's own random ID, made once; how paired phones know it. */
     val instanceId: String
         get() = prefs.getString(INSTANCE_ID, null) ?: java.util.UUID.randomUUID().toString().also {
@@ -241,6 +246,7 @@ class Prefs(private val context: Context) {
         const val HOLIDAY_LOOKS = "holiday_looks"
         const val HOLIDAYS = "holidays"
         const val FORGOTTEN_NAMES = "forgotten_names"
+        const val KEPT_CLASHES = "kept_clashes"
         const val PAIRS_SHOWN = "pairs_shown"
         const val INSTANCE_ID = "instance_id"
         const val DEFAULT_TEXTURE = 50

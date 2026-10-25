@@ -148,8 +148,13 @@ fun EditScreen(
                     val at = peers.indexOfFirst { it.id == draft.pairId }.let { if (it < 0) 0 else it + 1 }
                     ChoiceRow(stringResource(R.string.edit_shared_with), choices, at) { i ->
                         edit.change {
-                            if (i == 0) it.copy(uid = null, pairId = null) else it.copy(uid = it.uid ?: SharedTasks.newUid(), pairId = peers[i - 1].id)
+                            if (i == 0) it.copy(uid = null, pairId = null, forThem = false) else it.copy(uid = it.uid ?: SharedTasks.newUid(), pairId = peers[i - 1].id)
                         }
+                    }
+                    // Shared, it can be theirs alone: it goes to them and stays off this board.
+                    peers.firstOrNull { it.id == draft.pairId }?.let { peer ->
+                        Spacer(Modifier.height(Space.s))
+                        SettingSwitch(stringResource(R.string.edit_for_them, peer.nickname), draft.forThem) { on -> edit.change { it.copy(forThem = on) } }
                     }
                 }
             }

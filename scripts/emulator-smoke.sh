@@ -955,6 +955,16 @@ tap "Partner, "
 wait_for "Partner's day report" || fail "a tap on the pairmark should open their panel"
 expect_text "walk the dog"
 shot pair-panel
+# Add for them: a line, read as quick-add; it lists under Just for them, off this board.
+scroll_to "Add for Partner" exact || fail "their panel should offer Add for them"
+tap "Add for Partner" exact
+wait_for "What for Partner?" || fail "Add for them should open a line to type"
+adb shell input text "water%splants"
+sleep 1
+tap Add exact
+wait_for "ater plants" || fail "a task added for them should list on their panel"
+expect_text "Just for Partner"
+shot pair-panel-for
 tap Close exact
 wait_gone "Partner's day report" || fail "Close should shut their panel"
 pass "the pairmark opens their panel, with their day report"
@@ -972,6 +982,22 @@ wait_gone "From Partner" exact || fail "Cancel should close their task"
 adb shell input keyevent KEYCODE_BACK
 wait_gone "Back to board" exact || fail "Back should close the Log"
 pass "a shared task from them opens as theirs, with both boxes"
+# One of mine at the same time as theirs tomorrow: a double-booking marker,
+# dim a day ahead. A tap shows its label; a tap on that opens the choice.
+quick_add "vet tomorrow 10am"
+wait_for "Double-booked: " || fail "mine against theirs should show a double-booking marker"
+tap "Double-booked: "
+tap "Double-booked: "
+wait_for "Keep both" exact || fail "the double-booking should open its choice"
+expect_text "From Partner"
+shot clash-sheet
+# Move mine opens my vet to change; removing it clears the double-booking.
+tap "Move mine" exact
+wait_for "Cancel" exact || fail "Move mine should open mine to change"
+scroll_to "Remove" exact || fail "my vet's form should offer Remove"
+tap Remove exact
+wait_gone "Double-booked: " || fail "removing mine should clear the double-booking"
+pass "a double-booking shows, opens its choice, and clears"
 # Settings offers Pair with someone; pairing itself needs two phones, tested by hand.
 open_settings
 scroll_to "Partner, " || fail "a pretend partner should show under Pairs"

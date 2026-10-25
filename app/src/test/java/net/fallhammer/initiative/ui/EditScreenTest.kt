@@ -76,8 +76,13 @@ class EditScreenTest {
         val shared = edit.draft.value!!
         assertEquals(7L, shared.pairId)
         assertTrue(shared.uid != null)
+        // Shared, it can be just for them: off this board.
+        compose.onNodeWithText("Just for Air, not on my board").performScrollTo().tap()
+        assertTrue(edit.draft.value!!.forThem)
         compose.onNodeWithText("Only me").performScrollTo().tap()
         assertEquals(null, edit.draft.value!!.uid)
+        assertEquals(false, edit.draft.value!!.forThem)
+        compose.onNodeWithText("Just for Air, not on my board").assertDoesNotExist()
     }
 
     @Test fun oneTimeOfASeriesCantBeSharedAlone() {

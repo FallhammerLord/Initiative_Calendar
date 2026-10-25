@@ -63,7 +63,7 @@ object Marks {
     fun on(items: List<Item>, today: LocalDate): List<Shown> {
         val most = items.filter { it.isMark && it.status != Status.DROPPED }.maxOfOrNull { it.headsUpDays } ?: 0
         return Log.entries(items, today, today.plusDays(most.toLong()), today)
-            .filter { it.item.isMark && it.item.status != Status.DROPPED }
+            .filter { it.item.isMark && it.item.status != Status.DROPPED && !it.item.forThem }
             .groupBy { it.item.id.takeIf { id -> id != 0L } ?: (it.item.templateId ?: 0L) * 100_000 + it.date.toEpochDay() }
             .mapNotNull { (_, entries) ->
                 val first = entries.minOf { it.date }

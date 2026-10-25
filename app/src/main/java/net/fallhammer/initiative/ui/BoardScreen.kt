@@ -112,6 +112,7 @@ import kotlinx.coroutines.delay
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.ViewCompat
 import androidx.compose.ui.platform.LocalView
+import initiative.core.Clashes
 import initiative.core.Formats
 import initiative.core.Kind
 import initiative.core.Item
@@ -190,6 +191,9 @@ fun BoardScreen(vm: BoardViewModel) {
     val recopyItem by vm.recopy.item.collectAsStateWithLifecycle()
     val backup by vm.backup.state.collectAsStateWithLifecycle()
     val draft by vm.edit.draft.collectAsStateWithLifecycle()
+    val forThem by vm.forThem.collectAsStateWithLifecycle()
+    val clashes by vm.clash.clashes.collectAsStateWithLifecycle()
+    val clashKey by vm.clash.openKey.collectAsStateWithLifecycle()
     val look = LocalLook.current
     val opened by vm.opened.collectAsStateWithLifecycle()
     val confirming by vm.confirming.collectAsStateWithLifecycle()
@@ -221,6 +225,7 @@ fun BoardScreen(vm: BoardViewModel) {
         when {
             trayOpen >= 0 -> vm.closeTray()
             pairPanel >= 0 -> vm.closePairPanel()
+            clashKey.isNotEmpty() -> vm.clash.close()
             overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen || reportDay != null -> vm.back()
             expanded -> expanded = false
         }
@@ -279,6 +284,7 @@ fun BoardScreen(vm: BoardViewModel) {
                     names = names,
                     onForget = vm.names::forget,
                     onUnforget = vm.names::unforget,
+                    peers = peers,
                 )
             } else if (focusView != null) {
                 FocusScreen(focusView, ui.now, onDone = vm::doneWithIt, onEnd = vm::endFocus)
@@ -306,11 +312,15 @@ fun BoardScreen(vm: BoardViewModel) {
                     // The pairmark row hangs from the Plan ahead panel: just under it, or under
                     // the marker bubbles on its edge when there are any. Measured from this box's
                     // top, which sits a zone's gap below the panel.
-                    val pairmarkTop = (if (ui.marks.isNotEmpty()) BUBBLE / 2 + Space.inside else Space.inside) - Space.zone
+                    val pairmarkTop = (if (ui.marks.isNotEmpty() || clashes.isNotEmpty()) BUBBLE / 2 + Space.inside else Space.inside) - Space.zone
                     Box(Modifier.weight(1f).fillMaxWidth().padding(top = Space.zone), contentAlignment = Alignment.BottomCenter) {
                       Column(Modifier.padding(top = if (pairmarksShown) (pairmarkTop + pairmarkHeight + Space.inside).coerceAtLeast(0.dp) else 0.dp)) {
                         // Items stepped aside for a wait: bookmarks from the screen's edge, above the card.
                         if (!keyboardUp) {
+                            // Today's double-bookings wait here too, beside the card.
+                            val todays = clashes.filter { it.day == ui.now.toLocalDate() }
+                            ClashMarks(todays, onTap = vm.clash::open)
+                            if (todays.isNotEmpty()) Spacer(Modifier.height(Space.inside))
                             Waitmarks(ui.board?.waits.orEmpty(), ui.now, onTap = vm::tapWaitmark, onHold = vm::done)
                             if (ui.board?.waits.orEmpty().isNotEmpty()) Spacer(Modifier.height(Space.inside))
                         }
@@ -352,6 +362,9 @@ fun BoardScreen(vm: BoardViewModel) {
                               ui.marks,
                               onEdit = vm.edit::open,
                               onMore = vm::openLog,
+                              clashes = clashes,
+                              today = ui.now.toLocalDate(),
+                              onClash = vm.clash::open,
                               modifier = Modifier.align(Alignment.TopStart).offset(y = -(Space.zone + BUBBLE / 2)).padding(start = Space.m),
                           )
                       }
@@ -434,7 +447,23 @@ fun BoardScreen(vm: BoardViewModel) {
 
         // A paired person's panel, from a tap on their pairmark, over the dimmed board.
         pairViews.firstOrNull { it.peer.id == pairPanel }?.let { view ->
-            PairPanel(view, ui.now, onPing = ping, onClose = vm::closePairPanel)
+            PairPanel(
+                view, ui.now, onPing = ping, onClose = vm::closePairPanel,
+                forThem = forThem.filter { it.pairId == view.peer.id },
+                onAddFor = { text -> vm.addFor(view.peer.id, text) },
+                onEditFor = { item -> vm.closePairPanel(); vm.edit.open(item) },
+            )
+        }
+
+        // A double-booking's choice, over the dimmed board.
+        clashes.firstOrNull { it.key == clashKey }?.let { clash ->
+            ClashSheet(
+                clash, peers,
+                onKeep = vm.clash::keepBoth,
+                onSkip = vm.clash::skipTheirs,
+                onMove = vm.clash::moveMine,
+                onClose = vm.clash::close,
+            )
         }
 
         // A dock slot's tray, over the dimmed board.
@@ -662,6 +691,61 @@ private fun Waitmarks(waits: List<Item>, now: LocalDateTime, onTap: (Item) -> Un
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Today's double-bookings, as bookmarks from the screen's edge like the
+ * waitmarks, lit, with two overlapping blocks. A tap opens the choice.
+ */
+@Composable
+private fun ClashMarks(clashes: List<Clashes.Clash>, onTap: (Clashes.Clash) -> Unit) {
+    if (clashes.isEmpty()) return
+    val look = LocalLook.current
+    val shape = remember(look.handle) { BookmarkShape(look.handle) }
+    val haptics = rememberHaptics()
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val widest = maxWidth * BOOKMARK_SHARE
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(Space.xs)) {
+            clashes.take(MAX_WAITMARKS).forEach { clash ->
+                key(clash.key) {
+                    val ink = Ink.onAccent
+                    val text = stringResource(R.string.clash_waitmark, Formats.clock(clash.at))
+                    val named = stringResource(R.string.clash_label, clash.mine.title, clash.theirs.title)
+                    Row(
+                        Modifier
+                            .offset(x = Space.l)
+                            .widthIn(max = widest)
+                            .heightIn(min = Tap.min)
+                            .clip(shape)
+                            .background(Ink.accent)
+                            .clickable(onClickLabel = stringResource(R.string.clash_open, named)) {
+                                haptics.tick()
+                                onTap(clash)
+                            }
+                            .semantics { contentDescription = "$named, ${Formats.clock(clash.at)}" }
+                            .padding(start = Space.xxl, end = Space.xl),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(BOOKMARK_ICON).drawBehind { drawClashIn(ink, size.minDimension) })
+                        Text(
+                            text,
+                            style = Type.label,
+                            color = ink,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false).padding(start = Space.s).clearAndSetSemantics { },
+                        )
+                        Text(
+                            stringResource(R.string.waitmark_mark),
+                            style = Type.body,
+                            color = ink,
+                            modifier = Modifier.padding(start = Space.xs).clearAndSetSemantics { },
+                        )
                     }
                 }
             }

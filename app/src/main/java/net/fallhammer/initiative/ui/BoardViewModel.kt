@@ -17,6 +17,7 @@ import initiative.core.LedgerMark
 import initiative.core.Parsed
 import initiative.core.Marks
 import initiative.core.Parser
+import initiative.core.SharedTasks
 import initiative.core.Report
 import initiative.core.Shareable
 import initiative.core.Sharing
@@ -108,6 +109,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     }
     val launcher = LauncherModel(parts)
     val log = LogModel(parts, saved, repo.items, clock)
+    val clash = ClashModel(parts, saved, repo.items, clock, edit)
 
     private val _focus = MutableStateFlow<Focus?>(null)
 
@@ -205,6 +207,11 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
 
     /** The paired person whose panel is open over the board; -1 when none is. Kept across a restart. */
     val pairPanel: StateFlow<Long> = saved.getStateFlow(PAIR_PANEL, -1L)
+
+    /** Tasks added just for a paired person, still to do: on their panel, never on this board. */
+    val forThem: StateFlow<List<Item>> = repo.items.map { all ->
+        all.filter { it.forThem && it.isOpen && it.templateId == null }.sortedWith(compareBy({ it.start == null }, { it.start }, { it.createdAt }))
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun openPairPanel(id: Long) {
         saved[PAIR_PANEL] = id
@@ -305,6 +312,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 settings.load(prefs, now.toLocalDate())
                 pairs.load(prefs)
                 names.load(prefs)
+                clash.load(prefs)
                 hold.value = prefs.hold
                 order.value = prefs.taskOrder
                 backup.load(prefs)
@@ -519,6 +527,23 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         return true
     }
 
+    /**
+     * Added from a paired person's panel, just for them: it goes to their phone
+     * at the next sync and stays off this board. Read as for quick-add; a line
+     * that would ask "anchor or float?" becomes a task. True when understood.
+     */
+    fun addFor(peer: Long, text: String): Boolean {
+        val parsed = Parser.parse(text, LocalDateTime.now()) ?: return false
+        val item = parsed.item.copy(uid = SharedTasks.newUid(), pairId = peer, forThem = true)
+        val name = pairs.peers.value.firstOrNull { it.id == peer }?.nickname.orEmpty()
+        acted()
+        viewModelScope.launch {
+            repo.add(parsed.copy(item = item), LocalDateTime.now())
+            show(Flash(getApplication<Application>().getString(R.string.pair_panel_added, name, item.title)))
+        }
+        return true
+    }
+
     fun answerFloat() {
         _ask.value?.let(::save)
         _ask.value = null
@@ -558,6 +583,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         if (pairs.pairing.value != null) pairs.cancelPairing()
         closeTray()
         closePairPanel()
+        clash.close()
         saved[OVERLAY] = Overlay.NONE
     }
 

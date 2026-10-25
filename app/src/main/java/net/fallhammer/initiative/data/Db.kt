@@ -77,6 +77,8 @@ data class ItemRow(
     val owned: Boolean = true,
     /** The other person's box: done on their side. */
     val theirDone: Boolean = false,
+    /** Just for the other person: not on this board. */
+    val forThem: Boolean = false,
 )
 
 /**
@@ -390,6 +392,7 @@ abstract class InitiativeDb : RoomDatabase() {
                 db.execSQL("ALTER TABLE `items` ADD COLUMN `pairId` INTEGER")
                 db.execSQL("ALTER TABLE `items` ADD COLUMN `owned` INTEGER NOT NULL DEFAULT 1")
                 db.execSQL("ALTER TABLE `items` ADD COLUMN `theirDone` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `forThem` INTEGER NOT NULL DEFAULT 0")
             }
         }
 
@@ -439,6 +442,7 @@ fun Item.toRow() = ItemRow(
     pairId = pairId,
     owned = owned,
     theirDone = theirDone,
+    forThem = forThem,
 )
 
 fun ItemRow.toItem() = Item(
@@ -481,4 +485,5 @@ fun ItemRow.toItem() = Item(
     pairId = pairId,
     owned = owned,
     theirDone = theirDone,
+    forThem = forThem,
 )

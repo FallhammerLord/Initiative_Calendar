@@ -61,7 +61,8 @@ object Sharing {
         val today = now.toLocalDate()
         val from = today.atStartOfDay()
         val until = today.plusDays(DAYS + 1).atStartOfDay()
-        val live = items.filter { !it.isTemplate && !it.neverShare && it.status != Status.DROPPED }
+        // A task just for someone is theirs to show, not this phone's.
+        val live = items.filter { !it.isTemplate && !it.neverShare && !it.forThem && it.status != Status.DROPPED }
         val anchors = live.filter { it.isAnchor && it.start != null && !it.start.isBefore(from) && it.start.isBefore(until) }
             .map { Shareable(it, Shared(Kind.ANCHOR, it.title, it.start!!, it.anchorEnd!!)) }
         val marks = live.mapNotNull { m ->

@@ -1,6 +1,13 @@
 package net.fallhammer.initiative.ui
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.paneTitle
+import initiative.core.Clashes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -127,5 +134,72 @@ fun SharedFromThem(draft: Item, peers: List<PeerRow>, edit: EditModel) {
     }
 }
 
+/**
+ * A double-booking's choice, over the dimmed board: both anchors, whose each
+ * is, and what to do. Each person chooses for themselves; nothing here
+ * changes the other phone.
+ */
+@Composable
+fun ClashSheet(
+    clash: Clashes.Clash,
+    peers: List<PeerRow>,
+    onKeep: () -> Unit,
+    onSkip: () -> Unit,
+    onMove: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val title = stringResource(R.string.clash_title)
+    val name = sharedName(clash.theirs, peers)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Ink.scrim)
+            .pointerInput(Unit) { detectTapGestures { onClose() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            Modifier
+                .padding(horizontal = Space.l)
+                .fillMaxWidth()
+                .pointerInput(Unit) { detectTapGestures { } }
+                .semantics { paneTitle = title },
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val accent = Ink.accent
+                    Box(Modifier.size(Space.xl).drawBehind { drawClashIn(accent, size.minDimension) })
+                    Spacer(Modifier.width(Space.s))
+                    Title(title, style = Type.heading)
+                }
+                Spacer(Modifier.height(Space.zone))
+                ClashRow(clash.mine, stringResource(R.string.clash_mine, Formats.wall(clash.mine.wall)))
+                Spacer(Modifier.height(Space.inside))
+                ClashRow(clash.theirs, stringResource(R.string.clash_theirs, name, Formats.wall(clash.theirs.wall)))
+                Spacer(Modifier.height(Space.inside))
+                Body(stringResource(R.string.clash_hint), style = Type.bodySmall)
+                Spacer(Modifier.height(Space.zone))
+                Column(verticalArrangement = Arrangement.spacedBy(Space.inside)) {
+                    PrimaryButton(stringResource(R.string.clash_keep), onKeep, Modifier.fillMaxWidth())
+                    SecondaryButton(stringResource(R.string.clash_skip), onSkip, Modifier.fillMaxWidth())
+                    SecondaryButton(stringResource(R.string.clash_move), onMove, Modifier.fillMaxWidth())
+                    QuietButton(stringResource(R.string.clash_not_now), onClose, Modifier.fillMaxWidth())
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClashRow(item: Item, whose: String) {
+    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.Top) {
+        Text(item.start?.let(Formats::clock).orEmpty(), style = Type.caption, color = Ink.dim, modifier = Modifier.width(CLASH_TIME))
+        Column(Modifier.weight(1f)) {
+            Text(item.title, style = Type.body, color = Ink.text)
+            Text(whose, style = Type.caption, color = Ink.dim)
+        }
+    }
+}
+
+private val CLASH_TIME = 84.dp
 private val BOX = Space.l
 private val BOX_EDGE = 2.dp

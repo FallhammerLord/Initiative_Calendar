@@ -19,6 +19,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import initiative.core.Item
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,8 +61,9 @@ import java.time.LocalDateTime
  * One paired person's panel, from a tap on their pairmark, over the dimmed
  * board: who, how fresh, Ping; their day report, when they share it; and their
  * month, with a mark on each day that holds something, a tap listing that day.
- * All of it from their last sync, read-only. [extra] is room for what more
- * there is to do with them, below the month.
+ * All of it from their last sync, read-only. Below, what's just for them:
+ * tasks added here for them, off this board, and Add for them. [extra] is room
+ * for what more there is to do with them.
  */
 @Composable
 fun PairPanel(
@@ -60,6 +71,9 @@ fun PairPanel(
     now: LocalDateTime,
     onPing: () -> Unit,
     onClose: () -> Unit,
+    forThem: List<Item> = emptyList(),
+    onAddFor: ((String) -> Boolean)? = null,
+    onEditFor: (Item) -> Unit = {},
     extra: @Composable () -> Unit = {},
 ) {
     val title = stringResource(R.string.pair_panel_title, view.peer.nickname)
@@ -83,6 +97,10 @@ fun PairPanel(
                 Report(view, now)
                 Spacer(Modifier.height(Space.zone))
                 Month(view, now.toLocalDate())
+                if (onAddFor != null) {
+                    Spacer(Modifier.height(Space.zone))
+                    ForThem(view.peer.nickname, forThem, now, onAddFor, onEditFor)
+                }
                 extra()
             }
         }
@@ -238,6 +256,61 @@ private fun DayCell(date: LocalDate, held: Boolean, picked: Boolean, today: Bool
         // A dot in their color for a day that holds something; no counts.
         Box(Modifier.size(DOT).clip(MarkDot).then(if (held) Modifier.background(if (picked) Ink.onAccent else dot) else Modifier))
     }
+}
+
+/**
+ * Tasks just for them, added here: they go to their phone at the next sync and
+ * stay off this board. A tap opens one to change; Add opens a line to type,
+ * read as quick-add reads it.
+ */
+@Composable
+private fun ForThem(name: String, items: List<Item>, now: LocalDateTime, onAdd: (String) -> Boolean, onEdit: (Item) -> Unit) {
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var text by rememberSaveable { mutableStateOf("") }
+    if (items.isNotEmpty()) {
+        Text(stringResource(R.string.pair_panel_for, name), style = Type.bodySmall, color = Ink.dim, modifier = Modifier.semantics { heading() })
+        Spacer(Modifier.height(Space.inside))
+        items.forEach { item ->
+            val time = item.start?.takeIf { item.isAnchor }?.let { if (it.toLocalDate() == now.toLocalDate()) Formats.clock(it) else Formats.day(it.toLocalDate()) }
+                ?: stringResource(R.string.report_any_time)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = Tap.min).clickable { onEdit(item) }.semantics(mergeDescendants = true) { },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(time, style = Type.caption, color = Ink.dim, modifier = Modifier.width(TIME_COLUMN))
+                Text(item.title, style = Type.body, color = Ink.text, modifier = Modifier.weight(1f))
+            }
+        }
+        Spacer(Modifier.height(Space.inside))
+    }
+    if (!adding) {
+        PrimaryButton(stringResource(R.string.pair_panel_add, name), { adding = true }, Modifier.fillMaxWidth())
+        return
+    }
+    val cursor = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { cursor.requestFocus() } }
+    fun submit() {
+        if (onAdd(text)) {
+            text = ""
+            adding = false
+        }
+    }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        singleLine = true,
+        label = { Text(stringResource(R.string.pair_panel_add_field, name), style = Type.bodySmall) },
+        textStyle = Type.body.copy(color = Ink.text),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { submit() }),
+        colors = fieldColors(),
+        modifier = Modifier.fillMaxWidth().focusRequester(cursor),
+    )
+    Spacer(Modifier.height(Space.inside))
+    ActionRow(
+        Action(2f) { PrimaryButton(stringResource(R.string.pair_panel_add_go), ::submit, it) },
+        Action { QuietButton(stringResource(R.string.edit_cancel), { text = ""; adding = false }, it) },
+    )
 }
 
 private const val DAYS_A_WEEK = 7

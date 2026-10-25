@@ -105,6 +105,8 @@ private val PARTS = listOf(
             R.string.manual_pairs_6 to R.string.manual_pairs_6_does,
             R.string.manual_pairs_7 to R.string.manual_pairs_7_does,
             R.string.manual_pairs_8 to R.string.manual_pairs_8_does,
+            R.string.manual_pairs_9 to R.string.manual_pairs_9_does,
+            R.string.manual_pairs_10 to R.string.manual_pairs_10_does,
         ),
     ),
     Part(

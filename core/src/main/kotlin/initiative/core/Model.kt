@@ -86,6 +86,11 @@ data class Item(
     val owned: Boolean = true,
     /** The other person's box on a shared task: done on their side. */
     val theirDone: Boolean = false,
+    /**
+     * Shared just for the other person to do: on their board, not on this one's,
+     * though it stays in this one's Log and day report.
+     */
+    val forThem: Boolean = false,
 ) {
     val isTemplate: Boolean get() = recurrence != null
 
