@@ -579,6 +579,13 @@ After v0.1, built:
 5. *What goes in that list.* Leave out anything already over (sharing only looks ahead; today's past travels in the day report), done or removed items, shared tasks (already on their board), and never-share items. Tasks without a set time only for today. Ticked first, then soonest first. The next 7 days by default; **Show the rest of the month** opens the rest. Ticking still covers the month.
 6. *Marker taps.* First tap: the label. Second: the panel. A tap outside, or on the marker, closes it all; Close stays.
 7. *Marker pages and prep tasks.* See Markers above.
+8. *Fields above the keyboard, everywhere.* A new step's line in the edit form scrolls into view above the keyboard; check the Log's **+ Add** line at 200% font, and naming someone after pairing.
+9. *Just for them, kept short.* The panel's "Just for Air" list gets the fixed box of item 3, and a timed task just for them passes once its time is over (it never settles on your phone, since your alarms skip it), so it leaves the list.
+10. *Repeats, trimmed.* The Log's Repeats list shows running series; stopped ones leave it.
+11. *A double-booking that repeats is one.* Two series that overlap every day show as one bubble ("Double-booked: pickup and school run, daily") and one choice covering every time, not a bubble per day.
+12. *Settings ends with Done.* As a person's page: **Done** at the bottom, where Save would be; Update Initiative moves into the About card above it.
+13. *Questions that stay.* Check on the phone whether the ask chips ("anchor, float, or marker?") and "already repeats" should close with a tap outside, or stay until answered, as questions.
+14. *Sync you can see.* A person's page says whether each always-on sync works: "Air has it on too" or "Not on Air's phone yet" (each phone's settings travel in its peek), and "Bluetooth isn't allowed" when it isn't. When the two builds differ, the always-on sync says so on the page, since it has no screen to say it on.
 
 Later, its own step: per-kind sharing ("Always share my appointments", "Always share my markers", ticks for tasks only), so the list is rarely needed.
 
