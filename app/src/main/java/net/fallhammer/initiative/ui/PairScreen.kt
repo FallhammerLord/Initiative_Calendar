@@ -1,5 +1,7 @@
 package net.fallhammer.initiative.ui
 
+import initiative.core.Sharing
+import initiative.core.Item
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,7 +57,7 @@ interface PairEdits {
     fun setShowMark(peer: PeerRow, on: Boolean)
     fun setShowLine(peer: PeerRow, on: Boolean)
     fun setShowMarks(peer: PeerRow, on: Boolean)
-    fun tick(peer: Long, item: Long, on: Boolean)
+    fun tick(peer: Long, item: Item, on: Boolean)
     fun unpair(peer: Long)
 }
 
@@ -225,7 +227,7 @@ fun PairScreen(
                     shareable.forEach { s ->
                         val whenText = whenOf(s, now.toLocalDate())
                         if (level == ShareLevel.TICKED) {
-                            CheckRow(s.shared.title, whenText, s.item.id in ticked) { pairs.tick(peer.id, s.item.id, it) }
+                            CheckRow(s.shared.title, whenText, Sharing.isTicked(s.item, ticked)) { pairs.tick(peer.id, s.item, it) }
                         } else {
                             Column(Modifier.fillMaxWidth().heightIn(min = Tap.min).padding(vertical = Space.xs)) {
                                 Text(s.shared.title, style = Type.bodySmall, color = Ink.text)

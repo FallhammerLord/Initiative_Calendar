@@ -65,6 +65,17 @@ class PairmarkRowTest {
         compose.onNodeWithContentDescription("probably school", substring = true).assertIsDisplayed()
     }
 
+    @Test fun aTapOnTheFrontOpensTheirPanel() {
+        var opened = -1L
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                PairmarkRow(listOf(partner, kid), front = 1, now = now, shown = true, onFront = {}, onShown = {}, onOpen = { opened = it })
+            }
+        }
+        compose.onNodeWithContentDescription("Partner, now: groceries").tap()
+        assertEquals(1L, opened)
+    }
+
     @Test fun aTabBringsSomeoneForward() {
         show()
         compose.onNodeWithContentDescription("Kid, ", substring = true).tap()

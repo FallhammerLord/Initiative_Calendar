@@ -70,6 +70,7 @@ fun PairmarkRow(
     onFront: (Long) -> Unit,
     onShown: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    onOpen: (Long) -> Unit = {},
 ) {
     val haptics = rememberHaptics()
     val motion = rememberMotionOn()
@@ -83,7 +84,7 @@ fun PairmarkRow(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val first = pairs.firstOrNull { it.peer.id == front } ?: pairs.first()
-                Front(first, now, Modifier.widthIn(max = widest))
+                Front(first, now, Modifier.widthIn(max = widest)) { onOpen(first.peer.id) }
                 pairs.filter { it.peer.id != first.peer.id }.forEach { p ->
                     Spacer(Modifier.padding(start = Space.xs))
                     Tab(p, now) { haptics.tick(); onFront(p.peer.id) }
@@ -149,9 +150,9 @@ fun PingButton(onPing: () -> Unit) {
     }
 }
 
-/** The front pairmark, from the screen's left edge. */
+/** The front pairmark, from the screen's left edge. A tap opens their panel. */
 @Composable
-private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
+private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier, onOpen: () -> Unit) {
     val look = LocalLook.current
     val shape = remember(look.handle) { BookmarkShape(look.handle, fromLeft = true) }
     val color = PairColors.of(p.peer.color, look.palette)
@@ -161,12 +162,14 @@ private fun Front(p: PairView, now: LocalDateTime, modifier: Modifier) {
     // From an earlier Ping, what they'd be doing is a guess: shown as the task's own
     // name in grey, the light and "seen" already say how old. TalkBack still hears "probably".
     val guess = p.peek?.takeIf { !lit }?.probably(now)?.title
+    val openLabel = stringResource(R.string.pair_panel_open, p.peer.nickname)
     Row(
         modifier
             .heightIn(min = Tap.row)
             .clip(shape)
             .background(Ink.surface)
             .border(PAIRMARK_EDGE, color, shape)
+            .clickable(onClickLabel = openLabel, role = Role.Button, onClick = onOpen)
             .semantics { contentDescription = "${p.peer.nickname}, $seen: $doing" }
             .padding(start = Space.xl, end = Space.xxl, top = Space.xs, bottom = Space.xs),
         verticalAlignment = Alignment.CenterVertically,

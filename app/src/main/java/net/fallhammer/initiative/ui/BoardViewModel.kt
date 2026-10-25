@@ -102,7 +102,10 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     val settings = SettingsModel(parts)
     val names = NamesModel(parts, repo.items)
     // What could be shared is read when a ping happens, from the board as it stands then.
-    val pairs = PairsModel(parts) { shareable.value }
+    val pairs = PairsModel(parts, { shareable.value }) {
+        val today = LocalDate.now()
+        Report.of(items, today, today, repo.movedOn(today, items))
+    }
     val launcher = LauncherModel(parts)
     val log = LogModel(parts, saved, repo.items, clock)
 
@@ -198,6 +201,17 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
 
     fun setPairFront(id: Long) {
         saved[PAIR_FRONT] = id
+    }
+
+    /** The paired person whose panel is open over the board; -1 when none is. Kept across a restart. */
+    val pairPanel: StateFlow<Long> = saved.getStateFlow(PAIR_PANEL, -1L)
+
+    fun openPairPanel(id: Long) {
+        saved[PAIR_PANEL] = id
+    }
+
+    fun closePairPanel() {
+        saved[PAIR_PANEL] = -1L
     }
 
     fun openPair(id: Long) {
@@ -543,6 +557,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         closePair()
         if (pairs.pairing.value != null) pairs.cancelPairing()
         closeTray()
+        closePairPanel()
         saved[OVERLAY] = Overlay.NONE
     }
 
@@ -751,6 +766,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val PICK_SLOT = "pick_slot"
         const val PICK_EDIT = "pick_edit"
         const val TRAY = "tray"
+        const val PAIR_PANEL = "pair_panel"
         const val CONFIRM = "confirm_done"
         const val NONE = -1L
     }

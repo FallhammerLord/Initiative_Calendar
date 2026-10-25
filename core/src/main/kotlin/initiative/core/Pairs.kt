@@ -12,8 +12,14 @@ data class Shared(val kind: Kind, val title: String, val start: LocalDateTime, v
 /** A shareable entry and the item it came from, for the What they see list. */
 data class Shareable(val item: Item, val shared: Shared)
 
-/** What a peek brought back: the other person's shared days, as of [at]. Read-only. */
-data class Peek(val at: LocalDateTime, val items: List<Shared>) {
+/** One line of someone's day report as it travels: what it was, when, and what became of it. */
+data class SharedLine(val title: String, val time: LocalDateTime?, val outcome: Outcome)
+
+/**
+ * What a peek brought back: the other person's shared days, as of [at]. Read-only.
+ * [report] is their day report for [at]'s day, when they share it with you.
+ */
+data class Peek(val at: LocalDateTime, val items: List<Shared>, val report: List<SharedLine>? = null) {
     /** What they're probably doing at [time]: the shared entry whose time covers it, the latest started first. */
     fun probably(time: LocalDateTime): Shared? =
         items.filter { it.kind != Kind.MARK && !it.start.isAfter(time) && it.end.isAfter(time) }.maxByOrNull { it.start }
@@ -28,11 +34,19 @@ data class Peek(val at: LocalDateTime, val items: List<Shared>) {
 
 /**
  * What leaves the phone. Only titles and times of anchors, today's placed tasks,
- * and markers, for today and the next [DAYS] days; never notes or steps. An
- * item marked never share stays home whatever the level.
+ * and markers, for today and the next [DAYS] days (a month); never notes or
+ * steps. An item marked never share stays home whatever the level.
  */
 object Sharing {
-    const val DAYS = 7L
+    const val DAYS = 31L
+
+    /**
+     * What a tick is kept against: a repeating item's series, so every time of it is
+     * shared, not just the one ticked; any other item, itself.
+     */
+    fun tickKey(item: Item): Long = item.templateId ?: item.id
+
+    fun isTicked(item: Item, ticked: Set<Long>): Boolean = item.id in ticked || item.templateId in ticked
 
     /** Everything that could be shared, in time order, before anyone's choices. */
     fun shareable(items: List<Item>, forecast: Forecast, now: LocalDateTime): List<Shareable> {
@@ -55,25 +69,51 @@ object Sharing {
     /** What goes to one person: all of it, only what's ticked for them, or nothing. */
     fun outgoing(shareable: List<Shareable>, level: ShareLevel, ticked: Set<Long>): List<Shared> = when (level) {
         ShareLevel.EVERYTHING -> shareable.map { it.shared }
-        ShareLevel.TICKED -> shareable.filter { it.item.id in ticked }.map { it.shared }
+        ShareLevel.TICKED -> shareable.filter { isTicked(it.item, ticked) }.map { it.shared }
         ShareLevel.NOTHING -> emptyList()
     }
+
+    /**
+     * A day report as it goes to one person: the same items they'd see in a peek,
+     * by the same level and ticks, with what became of each. Never-share items stay home.
+     */
+    fun report(lines: List<ReportLine>, level: ShareLevel, ticked: Set<Long>): List<SharedLine> =
+        lines.filter { !it.item.neverShare }
+            .filter {
+                when (level) {
+                    ShareLevel.EVERYTHING -> true
+                    ShareLevel.TICKED -> isTicked(it.item, ticked)
+                    ShareLevel.NOTHING -> false
+                }
+            }
+            .map { SharedLine(it.item.title, it.time, it.outcome) }
 }
 
 /**
  * A peek as text, one entry per line after a version line, so phones on
- * different builds can tell when they can't read each other.
+ * different builds can tell when they can't read each other. From version 2, a
+ * line of a kind this build doesn't know is skipped, so later additions don't
+ * stop an older build reading the rest. Version 2 adds the day report.
  */
 object PeekFormat {
-    const val VERSION = 1
+    const val VERSION = 2
     private const val HEAD = "initiative-peek"
     private const val TAB = '\t'
+    private const val REPORT = "REPORT"
+    private const val NO_TIME = "-"
+
+    private fun clean(text: String) = text.replace(TAB, ' ').replace('\n', ' ')
 
     fun encode(peek: Peek): String = buildString {
         append("$HEAD $VERSION\n")
         append("at$TAB${peek.at}\n")
         peek.items.forEach { s ->
-            append("${s.kind.name}$TAB${s.start}$TAB${s.end}$TAB${s.title.replace(TAB, ' ').replace('\n', ' ')}\n")
+            append("${s.kind.name}$TAB${s.start}$TAB${s.end}$TAB${clean(s.title)}\n")
+        }
+        peek.report?.let { lines ->
+            // A header line even when empty, so "shared, nothing yet" differs from "not shared".
+            append("$REPORT\n")
+            lines.forEach { l -> append("$REPORT$TAB${l.time ?: NO_TIME}$TAB${l.outcome.name}$TAB${clean(l.title)}\n") }
         }
     }
 
@@ -83,10 +123,23 @@ object PeekFormat {
         val head = lines.first().split(' ')
         if (head.size != 2 || head[0] != HEAD || head[1].toInt() > VERSION) return null
         val at = LocalDateTime.parse(lines[1].removePrefix("at$TAB"))
-        val items = lines.drop(2).map { line ->
-            val (kind, start, end, title) = line.split(TAB, limit = 4)
-            Shared(Kind.valueOf(kind), title, LocalDateTime.parse(start), LocalDateTime.parse(end))
+        val items = mutableListOf<Shared>()
+        var report: MutableList<SharedLine>? = null
+        lines.drop(2).forEach { line ->
+            val parts = line.split(TAB, limit = 4)
+            val kind = Kind.entries.firstOrNull { it.name == parts[0] }
+            when {
+                kind != null -> items += Shared(kind, parts[3], LocalDateTime.parse(parts[1]), LocalDateTime.parse(parts[2]))
+                parts[0] == REPORT -> {
+                    val list = report ?: mutableListOf<SharedLine>().also { report = it }
+                    if (parts.size == 4) {
+                        val time = parts[1].takeIf { it != NO_TIME }?.let(LocalDateTime::parse)
+                        list += SharedLine(parts[3], time, Outcome.valueOf(parts[2]))
+                    }
+                }
+                // Anything else is from a later version: skipped.
+            }
         }
-        Peek(at, items)
+        Peek(at, items, report)
     }.getOrNull()
 }

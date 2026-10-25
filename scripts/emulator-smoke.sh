@@ -950,6 +950,14 @@ expect_text "Ping"
 tap "Show pairs" exact
 wait_for "Partner, " || fail "the edge tab should pull the pairmark back out"
 pass "a pairmark and dial line on the board, Ping, and the edge tab folds and pulls"
+# A tap on the pairmark opens their panel: their day report and their month.
+tap "Partner, "
+wait_for "Partner's day report" || fail "a tap on the pairmark should open their panel"
+expect_text "walk the dog"
+shot pair-panel
+tap Close exact
+wait_gone "Partner's day report" || fail "Close should shut their panel"
+pass "the pairmark opens their panel, with their day report"
 # Settings offers Pair with someone; pairing itself needs two phones, tested by hand.
 open_settings
 scroll_to "Partner, " || fail "a pretend partner should show under Pairs"

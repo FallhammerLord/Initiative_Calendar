@@ -146,6 +146,7 @@ fun BoardScreen(vm: BoardViewModel) {
     val slots by vm.launcher.slots.collectAsStateWithLifecycle()
     val trayOpen by vm.trayOpen.collectAsStateWithLifecycle()
     val pickEditing by vm.pickEditing.collectAsStateWithLifecycle()
+    val pairPanel by vm.pairPanel.collectAsStateWithLifecycle()
     // Where each dock slot sits, so its tray rises from it.
     val slotAt = remember { mutableStateMapOf<Int, Rect>() }
     val unlock by vm.settings.unlock.collectAsStateWithLifecycle()
@@ -219,6 +220,7 @@ fun BoardScreen(vm: BoardViewModel) {
     BackHandler {
         when {
             trayOpen >= 0 -> vm.closeTray()
+            pairPanel >= 0 -> vm.closePairPanel()
             overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen || reportDay != null -> vm.back()
             expanded -> expanded = false
         }
@@ -336,6 +338,7 @@ fun BoardScreen(vm: BoardViewModel) {
                               shown = pairsShown,
                               onFront = vm::setPairFront,
                               onShown = vm.pairs::setShown,
+                              onOpen = vm::openPairPanel,
                               modifier = Modifier
                                   .align(Alignment.TopStart)
                                   .offset(y = pairmarkTop)
@@ -426,6 +429,11 @@ fun BoardScreen(vm: BoardViewModel) {
                     )
                 }
             }
+        }
+
+        // A paired person's panel, from a tap on their pairmark, over the dimmed board.
+        pairViews.firstOrNull { it.peer.id == pairPanel }?.let { view ->
+            PairPanel(view, ui.now, onPing = ping, onClose = vm::closePairPanel)
         }
 
         // A dock slot's tray, over the dimmed board.

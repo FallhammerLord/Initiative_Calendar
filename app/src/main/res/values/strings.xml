@@ -447,6 +447,7 @@
     <string name="pair_pretend_name">Partner</string>
     <string name="pair_pretend_task">groceries</string>
     <string name="pair_pretend_anchor">pick up the girls</string>
+    <string name="pair_pretend_done">walk the dog</string>
     <string name="pair_ping">Ping</string>
     <string name="pairs_hide">Hide pairs</string>
     <string name="pairs_show">Show pairs</string>
@@ -454,6 +455,13 @@
     <string name="pair_no_peek">No peek yet</string>
     <string name="pair_nothing_now">Nothing shared for now</string>
     <string name="pair_probably">probably %1$s</string>
+    <string name="pair_panel_title">%1$s\'s panel</string>
+    <string name="pair_panel_open">Open %1$s\'s panel</string>
+    <string name="pair_panel_report">%1$s\'s day report</string>
+    <string name="pair_panel_report_on">%1$s\'s day report · %2$s</string>
+    <string name="pair_panel_no_report">%1$s doesn\'t share a day report.</string>
+    <string name="pair_panel_day_empty">Nothing shared on this day.</string>
+    <string name="pair_panel_day_held">%1$s, has something shared</string>
     <string name="dial_pair_line">%1$s\'s line: %2$s.</string>
     <string name="edit_never_share">Never share with pairs</string>
     <string name="pair_with">Pair with someone</string>
@@ -576,7 +584,7 @@
     <string name="manual_pairs_3">What you share</string>
     <string name="manual_pairs_3_does">Everything, Ticked only, or Nothing, set for each person.</string>
     <string name="manual_pairs_4">Pairmarks</string>
-    <string name="manual_pairs_4_does">Top left: their name and what they\'re doing. In grey, it\'s from an earlier Ping. Tap a tab to bring someone to the front.</string>
+    <string name="manual_pairs_4_does">Top left: their name and what they\'re doing. In grey, it\'s from an earlier Ping. Tap a tab to bring someone to the front; tap the front one for their panel: their day report and their month.</string>
     <string name="manual_pairs_5">The edge tab</string>
     <string name="manual_pairs_5_does">The small tab on the left edge, by the pairmarks. Tap it to fold them away, or pull them out again. A swipe from that edge is Back, so tap.</string>
     <string name="manual_pairs_6">Unpair</string>

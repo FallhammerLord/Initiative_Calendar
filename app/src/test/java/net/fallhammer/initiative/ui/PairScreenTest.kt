@@ -15,6 +15,7 @@ import initiative.core.Kind
 import initiative.core.ShareLevel
 import initiative.core.Shareable
 import initiative.core.Shared
+import initiative.core.Sharing
 import net.fallhammer.initiative.data.PeerRow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -53,7 +54,7 @@ class PairScreenTest {
         override fun setShowMark(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(showMark = on) }
         override fun setShowLine(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(showLine = on) }
         override fun setShowMarks(peer: PeerRow, on: Boolean) { this@PairScreenTest.peer = peer.copy(showMarks = on) }
-        override fun tick(peer: Long, item: Long, on: Boolean) { ticked = if (on) ticked + item else ticked - item }
+        override fun tick(peer: Long, item: Item, on: Boolean) { ticked = if (on) ticked + Sharing.tickKey(item) else ticked - Sharing.tickKey(item) }
         override fun unpair(peer: Long) { unpaired = true }
     }
 

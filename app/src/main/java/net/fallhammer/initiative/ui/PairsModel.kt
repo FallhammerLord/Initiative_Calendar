@@ -5,7 +5,11 @@ import android.util.Log
 import androidx.annotation.StringRes
 import initiative.core.Kind
 import initiative.core.PairWire
+import initiative.core.ReportLine
+import initiative.core.Item
 import initiative.core.Peek
+import initiative.core.Outcome
+import initiative.core.SharedLine
 import initiative.core.PeekFormat
 import initiative.core.ShareLevel
 import initiative.core.Shareable
@@ -53,7 +57,12 @@ sealed interface Pairing {
  * The people paired with this phone: pairing them, in person over Bluetooth,
  * how each is shown, what's shared with each, and Ping for their peeks.
  */
-class PairsModel(private val parts: BoardParts, private val shareable: () -> List<Shareable>) : PairEdits {
+class PairsModel(
+    private val parts: BoardParts,
+    private val shareable: () -> List<Shareable>,
+    /** Today's report, read when a ping happens, for whoever it's shared with. */
+    private val todayReport: suspend () -> List<ReportLine> = { emptyList() },
+) : PairEdits {
     private val dao get() = parts.graph.dao
     private val nearby get() = parts.graph.nearby
     private val keys get() = parts.graph.pairKeys
@@ -208,9 +217,12 @@ class PairsModel(private val parts: BoardParts, private val shareable: () -> Lis
         val mine = peers.mapNotNull { keys.load(it.peerId, it.id) }
         if (mine.isEmpty()) return null
         val now = LocalDateTime.now()
+        val report = if (peers.any { it.shareReport }) todayReport() else emptyList()
         val got = PairWire.ping(met.socket.inputStream, met.socket.outputStream, mine, met.initiator) { id ->
             val peer = peers.first { it.id == id }
-            PeekFormat.encode(Peek(now, Sharing.outgoing(shareable(), levelOf(peer), ticked[id].orEmpty())))
+            val theirs = ticked[id].orEmpty()
+            val day = if (peer.shareReport) Sharing.report(report, levelOf(peer), theirs) else null
+            PeekFormat.encode(Peek(now, Sharing.outgoing(shareable(), levelOf(peer), theirs), day))
         } ?: return null
         val peer = peers.firstOrNull { it.id == got.peer } ?: return null
         // Kept only if it reads; one this build can't read waits for an update.
@@ -246,8 +258,17 @@ class PairsModel(private val parts: BoardParts, private val shareable: () -> Lis
 
     override fun setShowMarks(peer: PeerRow, on: Boolean) = save(peer.copy(showMarks = on))
 
-    override fun tick(peer: Long, item: Long, on: Boolean) {
-        parts.scope.launch(Dispatchers.IO) { if (on) dao.share(ShareRow(peer, item)) else dao.unshare(peer, item) }
+    /** A tick is kept against a repeating item's series, so every time of it is shared. */
+    override fun tick(peer: Long, item: Item, on: Boolean) {
+        val key = Sharing.tickKey(item)
+        parts.scope.launch(Dispatchers.IO) {
+            if (on) {
+                dao.share(ShareRow(peer, key))
+            } else {
+                dao.unshare(peer, key)
+                dao.unshare(peer, item.id)
+            }
+        }
     }
 
     /** Unpairs at once on this phone: the person, their keys, their ticks, and their last peek go. */
@@ -274,6 +295,11 @@ class PairsModel(private val parts: BoardParts, private val shareable: () -> Lis
                 listOf(
                     Shared(Kind.FLOAT, parts.text(R.string.pair_pretend_task), now.minusMinutes(10), now.plusMinutes(20)),
                     Shared(Kind.ANCHOR, parts.text(R.string.pair_pretend_anchor), now.plusMinutes(40), now.plusMinutes(70)),
+                ),
+                // Their day report too, so the panel shows one.
+                listOf(
+                    SharedLine(parts.text(R.string.pair_pretend_done), now.minusHours(2), Outcome.DONE),
+                    SharedLine(parts.text(R.string.pair_pretend_task), null, Outcome.OPEN),
                 ),
             )
             dao.putPeek(PeekRow(id, PeekFormat.encode(peek)))
