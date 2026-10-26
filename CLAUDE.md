@@ -4,6 +4,21 @@ An Android home screen that runs the day like a GM runs a session. Private,
 sideloaded, no Google services, no internet. The plan and every rule live in
 `docs/spec.md`; read its **Standards** section before changing code.
 
+## Nothing is built without the owner's go
+
+This comes before everything below, in every session.
+
+- A request, an idea, a friction note, a list item, or "look at this" is planning.
+  Discuss it, mock it up, or add it to the spec's Next list, then stop and wait.
+- Code, tests, merges, and pushes of code wait for a plain go in the chat for that
+  work ("go", "build it", "do it", "merge it"). A go covers what it names, not the
+  rest of the list. "Look at it first" means report back and wait.
+- Saving the plan is the one exception: when the owner asks, notes to `docs/spec.md`
+  may be pushed alone, with `[skip ci]`.
+- Another session's branch or commit is never merged or built on without a go,
+  after a report of what it does.
+- When unsure whether something is a go, ask in one line.
+
 ## Layout
 
 - `core/`: the scheduling engine in plain Kotlin (placement, priority, alarms
