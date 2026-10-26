@@ -4,20 +4,23 @@ An Android home screen that runs the day like a GM runs a session. Private,
 sideloaded, no Google services, no internet. The plan and every rule live in
 `docs/spec.md`; read its **Standards** section before changing code.
 
-## Nothing is built without the owner's go
+## Plan mode and build mode
 
-This comes before everything below, in every session.
+This comes before everything below, in every session. The owner sets the mode;
+when it isn't clear which one a message means, ask in one line.
 
-- A request, an idea, a friction note, a list item, or "look at this" is planning.
-  Discuss it, mock it up, or add it to the spec's Next list, then stop and wait.
-- Code, tests, merges, and pushes of code wait for a plain go in the chat for that
-  work ("go", "build it", "do it", "merge it"). A go covers what it names, not the
-  rest of the list. "Look at it first" means report back and wait.
-- Saving the plan is the one exception: when the owner asks, notes to `docs/spec.md`
-  may be pushed alone, with `[skip ci]`.
-- Another session's branch or commit is never merged or built on without a go,
-  after a report of what it does.
-- When unsure whether something is a go, ask in one line.
+- **Plan mode** (gathering friction, ideas, "look at this"): talk, mock up, and add
+  to the spec's Next list, then stop. No code, tests, merges, or pushes of code
+  unless the owner asks for that piece. Saving the plan to `docs/spec.md` when asked
+  is fine, pushed alone with `[skip ci]`.
+- **Build mode** (the owner has said go on a piece of work): build it all the way
+  to a release ready to install. That includes fixing what CI finds, test glitches
+  too, and re-running or pushing again until it's green, within what was asked.
+- **Either way, keep the dialogue open.** Say what you decided and why as you go,
+  not after: a rule you invented, a change from a mockup, a skipped check-in, a
+  merge. Report every CI result, pass or fail.
+- Another session's branch or commit is never merged or built on without a report
+  of what it does and the owner's go.
 
 ## Layout
 
@@ -125,7 +128,8 @@ Most CI failures so far were the tests, not the app. These rules keep them sturd
   Fetch its screenshots from a release's `screens-N.zip`, or a `failed-N`
   pre-release when it fails.
 - A new push cancels any run still going on the branch, and only the newest
-  commit is released. Every failed CI run emails the owner. Batch fixes into one validated push;
+  commit is released. Even a `[skip ci]` push during a run stops that run from
+  releasing, since its commit is no longer the newest: wait for the run to end. Every failed CI run emails the owner. Batch fixes into one validated push;
   use `[skip ci]` in the commit message for docs-only changes.
 - The owner reads with dyslexia: keep replies and on-screen copy short, plain,
   and direct.

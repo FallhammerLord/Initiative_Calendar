@@ -269,16 +269,18 @@ quick_add() {
 }
 
 # What the quick-add field holds right now.
+# The last field by default (quick-add sits at the bottom); "first" for a form's title.
 field_text() {
   ui > "$OUT/field.xml"
-  python3 - "$OUT/field.xml" <<'PY'
+  python3 - "$OUT/field.xml" "${1:-last}" <<'PY'
 import sys, xml.etree.ElementTree as ET
 try:
     root = ET.parse(sys.argv[1]).getroot()
 except Exception:
     sys.exit(0)
 fields = [n for n in root.iter("node") if n.get("class") == "android.widget.EditText"]
-print(fields[-1].get("text") or "" if fields else "")
+pick = fields[0] if sys.argv[2] == "first" else fields[-1] if fields else None
+print(pick.get("text") or "" if pick is not None else "")
 PY
 }
 
@@ -1160,11 +1162,21 @@ xy=$(find_node "dentist" field) || fail "no title field holding 'dentist'"
 adb shell input tap $xy
 # Add to the end: the field capitalizes a sentence's first letter, so retyping
 # from empty would give "Dentist call".
-adb shell input keyevent KEYCODE_MOVE_END
 # The space as its own key: a space leading typed text was sometimes dropped (run 78).
-adb shell input keyevent KEYCODE_SPACE
-adb shell input text "call"
-wait_for "dentist call" field || fail "couldn't rename in the title field"
+# The emulator still drops a key now and then (run 130: "dentistcall"), so check the
+# field and, if a key went missing, take back what was typed and type it again.
+for _ in 1 2 3; do
+  adb shell input keyevent KEYCODE_MOVE_END
+  adb shell input keyevent KEYCODE_SPACE
+  adb shell input text "call"
+  wait_for "dentist call" field 4 && break
+  held=$(field_text first)
+  log "note: title holds '$held', not 'dentist call'; retyping"
+  adb shell input keyevent KEYCODE_MOVE_END
+  # Back to "dentist": whatever follows it goes.
+  adb shell input keyevent $(printf 'KEYCODE_DEL %.0s' $(seq $(( ${#held} > 7 ? ${#held} - 7 : 1 ))))
+done
+wait_for "dentist call" field 2 || fail "couldn't rename in the title field"
 hide_keyboard
 tap "Every day" exact
 shot edit-repeat
