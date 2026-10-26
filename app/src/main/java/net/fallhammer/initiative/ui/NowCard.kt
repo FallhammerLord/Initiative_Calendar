@@ -2,6 +2,8 @@ package net.fallhammer.initiative.ui
 
 import net.fallhammer.initiative.data.PeerRow
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.animateBounds
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,6 +21,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.LookaheadScope
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -174,18 +184,7 @@ internal fun NowCard(
             // Steps tick off right here; Done asks about any left open.
             if (hasSteps) {
                 Spacer(Modifier.height(Space.s))
-                Column(scrolling) {
-                    // Open steps first, so the next thing to do is in view; ticked ones sink below.
-                    item.steps.withIndex().sortedBy { it.value.done }.forEach { (i, step) ->
-                        // A step with a wait says so, so ticking it isn't a surprise.
-                        val text = if (step.waitMinutes > 0 && !step.done) {
-                            stringResource(R.string.step_then_wait, step.title, Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong())))
-                        } else {
-                            step.title
-                        }
-                        StepRow(text, step.done) { onStep(item, i) }
-                    }
-                }
+                NowSteps(item, scrolling) { i -> onStep(item, i) }
             }
         }
         Column(Modifier.padding(top = if (compact && flash == null) Space.xs else Space.m)) {
@@ -234,6 +233,60 @@ internal fun NowCard(
 }
 
 // The Now title's change: in, out, and how far it rises (a share of its height).
+/**
+ * The Now card's steps, open ones first so the next thing to do is in view.
+ * A ticked step dims where it is, holds a moment so the tick is seen, then
+ * slides below the open ones; a second, softer tap says it landed. With
+ * "Remove animations" on, it moves at once.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun NowSteps(item: Item, modifier: Modifier, onStep: (Int) -> Unit) {
+    val haptics = rememberHaptics()
+    val motion = rememberMotionOn()
+    val target = item.steps.indices.sortedBy { item.steps[it].done }
+    var shown by remember(item.id) { mutableStateOf(target) }
+    LaunchedEffect(target) {
+        if (shown == target) return@LaunchedEffect
+        // A step added or taken away elsewhere: no tick to show, so just follow.
+        if (!motion || shown.toSet() != target.toSet()) {
+            shown = target
+            return@LaunchedEffect
+        }
+        val ticked = shown.zip(target).any { (was, now) -> was != now && item.steps[was].done }
+        delay(STEP_HOLD_MS)
+        shown = target
+        if (ticked) {
+            delay(STEP_SLIDE_MS.toLong())
+            haptics.settle()
+        }
+    }
+    // Steps added or taken away show at once, so no stale step is ever drawn.
+    val order = if (shown.toSet() == target.toSet()) shown else target
+    LookaheadScope {
+        Column(modifier) {
+            order.forEach { i ->
+                key(i) {
+                    val step = item.steps[i]
+                    // A step with a wait says so, so ticking it isn't a surprise.
+                    val text = if (step.waitMinutes > 0 && !step.done) {
+                        stringResource(R.string.step_then_wait, step.title, Formats.countdown(Duration.ofMinutes(step.waitMinutes.toLong())))
+                    } else {
+                        step.title
+                    }
+                    StepRow(
+                        text,
+                        step.done,
+                        Modifier.animateBounds(this@LookaheadScope, boundsTransform = { _, _ -> tween(STEP_SLIDE_MS) }),
+                    ) { onStep(i) }
+                }
+            }
+        }
+    }
+}
+
+private const val STEP_HOLD_MS = 450L
+private const val STEP_SLIDE_MS = 300
 private const val NOW_IN_MS = 260
 private const val NOW_OUT_MS = 120
 private const val NOW_RISE = 6

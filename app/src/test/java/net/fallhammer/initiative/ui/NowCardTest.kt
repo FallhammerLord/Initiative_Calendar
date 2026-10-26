@@ -1,6 +1,9 @@
 package net.fallhammer.initiative.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
@@ -138,6 +141,29 @@ class NowCardTest {
         val ticked = compose.onNodeWithText("find the forms").getUnclippedBoundsInRoot()
         val open = compose.onNodeWithText("post them").getUnclippedBoundsInRoot()
         assertTrue("ticked steps should sit below open ones", open.top < ticked.top)
+    }
+
+    @Test fun aTickedStepHoldsItsPlaceThenSinks() {
+        // Seen ticked where it was tapped first, then slid below the open ones.
+        var item by mutableStateOf(taxes.copy(steps = listOf(Step("find the forms"), Step("sign them"))))
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                NowCard(
+                    modifier = Modifier,
+                    ui = BoardUi(now = now, board = Board(NowPick(item, reason), next = null)),
+                    flash = null, onDone = {}, onSkip = {}, onTomorrow = {}, onUndo = {}, onFocus = {}, onEdit = {},
+                    onStep = { it, i -> item = it.copy(steps = it.steps.mapIndexed { j, s -> if (j == i) s.copy(done = !s.done) else s }) },
+                    compact = false,
+                )
+            }
+        }
+        fun top(text: String) = compose.onNodeWithText(text).getUnclippedBoundsInRoot().top
+        compose.onNodeWithText("find the forms").tap()
+        compose.mainClock.advanceTimeBy(100)
+        assertTrue("a ticked step should hold its place at first", top("find the forms") < top("sign them"))
+        compose.mainClock.advanceTimeBy(2_000)
+        assertTrue("then sink below the open one", top("sign them") < top("find the forms"))
     }
 
     @Test fun anchorUnderWayOffersDoneAndLater() {

@@ -1183,11 +1183,11 @@ fun ChoiceRow(label: String?, options: List<String>, chosen: Int, onSelect: (Int
  * harder to read.
  */
 @Composable
-fun StepRow(text: String, done: Boolean, onChange: (Boolean) -> Unit) {
+fun StepRow(text: String, done: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
     val haptics = rememberHaptics()
     val color by animateColorAsState(if (done) Ink.dim else Ink.text, label = "step")
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .heightIn(min = Tap.min)
             .toggleable(value = done, role = Role.Checkbox) { haptics.toggle(it); onChange(it) },
@@ -1343,6 +1343,9 @@ class Haptics(private val view: View) {
     fun pickUp() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.GESTURE_START else HapticFeedbackConstants.LONG_PRESS)
     fun pass() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) HapticFeedbackConstants.SEGMENT_FREQUENT_TICK else HapticFeedbackConstants.CLOCK_TICK)
     fun drop() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.GESTURE_END else HapticFeedbackConstants.CLOCK_TICK)
+
+    /** A ticked step landing at the foot of its list, after the toggle that sent it. */
+    fun settle() = feel(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) HapticFeedbackConstants.SEGMENT_TICK else HapticFeedbackConstants.CLOCK_TICK)
 
     private fun feel(effect: Int) {
         view.performHapticFeedback(effect)
