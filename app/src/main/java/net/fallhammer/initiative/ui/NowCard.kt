@@ -232,7 +232,6 @@ internal fun NowCard(
     }
 }
 
-// The Now title's change: in, out, and how far it rises (a share of its height).
 /**
  * The Now card's steps, open ones first so the next thing to do is in view.
  * A ticked step dims where it is, holds a moment so the tick is seen, then
@@ -287,6 +286,7 @@ private fun NowSteps(item: Item, modifier: Modifier, onStep: (Int) -> Unit) {
 
 private const val STEP_HOLD_MS = 450L
 private const val STEP_SLIDE_MS = 300
+// The Now title's change: in, out, and how far it rises (a share of its height).
 private const val NOW_IN_MS = 260
 private const val NOW_OUT_MS = 120
 private const val NOW_RISE = 6

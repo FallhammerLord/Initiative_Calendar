@@ -160,7 +160,8 @@ class NowCardTest {
         }
         fun top(text: String) = compose.onNodeWithText(text).getUnclippedBoundsInRoot().top
         compose.onNodeWithText("find the forms").tap()
-        compose.mainClock.advanceTimeBy(100)
+        // Past a slide's length but inside the hold: still in place, so it's the hold that keeps it there.
+        compose.mainClock.advanceTimeBy(400)
         assertTrue("a ticked step should hold its place at first", top("find the forms") < top("sign them"))
         compose.mainClock.advanceTimeBy(2_000)
         assertTrue("then sink below the open one", top("sign them") < top("find the forms"))
