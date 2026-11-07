@@ -971,7 +971,16 @@ sleep 2
 wait_for "ater plants" || fail "a task added for them should list on their panel"
 expect_text "Just for Partner"
 shot pair-panel-for
+# The panel stays scrolled to the line it added on, so Close may be above the
+# fold: scroll back up to it (scroll_to only goes down).
+for _ in 1 2 3 4; do
+  see "Close" exact && break
+  adb shell input swipe 540 900 540 1700 300
+  sleep 1
+done
 tap Close exact
+
+
 wait_gone "Partner's day report" || fail "Close should shut their panel"
 pass "the pairmark opens their panel, with their day report"
 # A shared task from them, tomorrow: theirs to change, so it opens to be done, not edited.
