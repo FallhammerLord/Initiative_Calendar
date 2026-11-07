@@ -95,7 +95,13 @@ fun RecopyScreen(
     onNextWeek: (Item) -> Unit,
     onDrop: (Item) -> Unit,
     onStop: () -> Unit,
+    onChangeSeries: (Item) -> Unit = {},
+    onStopSeries: (Item) -> Unit = {},
 ) {
+    if (item.isTemplate) {
+        RecopySeries(item, onKeep, onChangeSeries, onStopSeries, onStop)
+        return
+    }
     Screen {
         Strip {
             Label(stringResource(R.string.recopy_label), Modifier.weight(1f))
@@ -118,8 +124,38 @@ fun RecopyScreen(
     }
 }
 
+/** A series whose last three times passed: one card for the whole series. */
 @Composable
-private fun Part(title: String, content: @Composable () -> Unit) {
+private fun RecopySeries(
+    item: Item,
+    onKeep: (Item) -> Unit,
+    onChange: (Item) -> Unit,
+    onStopSeries: (Item) -> Unit,
+    onStop: () -> Unit,
+) {
+    Screen {
+        Strip {
+            Label(stringResource(R.string.recopy_label), Modifier.weight(1f))
+            QuietButton(stringResource(R.string.recopy_stop), onStop)
+        }
+        Spacer(Modifier.height(Space.panel))
+        Card(Modifier.weight(1f).verticalScroll(rememberScrollState()), arrangement = Arrangement.spacedBy(Space.m)) {
+            Title(item.title)
+            Body(ruleText(item), color = Ink.dim)
+            Body(stringResource(R.string.recopy_series))
+        }
+        Spacer(Modifier.height(Space.m))
+        PrimaryButton(stringResource(R.string.recopy_keep), { onKeep(item) }, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(Space.s))
+        SecondaryButton(stringResource(R.string.recopy_series_change), { onChange(item) }, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(Space.s))
+        SecondaryButton(stringResource(R.string.recopy_series_stop), { onStopSeries(item) }, Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun Part(
+title: String, content: @Composable () -> Unit) {
     // Each part is a panel, so its words never sit on the background pattern.
     Spacer(Modifier.height(Space.panel))
     Card(inner = Space.l, arrangement = Arrangement.spacedBy(Space.inside)) {

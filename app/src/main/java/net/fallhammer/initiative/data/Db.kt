@@ -79,6 +79,8 @@ data class ItemRow(
     val theirDone: Boolean = false,
     /** Just for the other person: not on this board. */
     val forThem: Boolean = false,
+    /** A prep task's marker; see core's Item.markerId. */
+    val markerId: Long? = null,
 )
 
 /**
@@ -319,7 +321,7 @@ interface ItemDao {
 
 @Database(
     entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class, PeerRow::class, ShareRow::class, PeekRow::class],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class InitiativeDb : RoomDatabase() {
@@ -402,9 +404,16 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        /** Prep tasks: a task's link to the marker it gets you ready for. */
+        internal val ADD_PREP = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `markerId` INTEGER")
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE, ADD_SHARED)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE, ADD_SHARED, ADD_PREP)
                 .build()
                 .also { instance = it }
         }
@@ -449,9 +458,11 @@ fun Item.toRow() = ItemRow(
     owned = owned,
     theirDone = theirDone,
     forThem = forThem,
+    markerId = markerId,
 )
 
 fun ItemRow.toItem() = Item(
+
     id = id,
     title = title,
     notes = notes,
@@ -492,4 +503,5 @@ fun ItemRow.toItem() = Item(
     owned = owned,
     theirDone = theirDone,
     forThem = forThem,
+    markerId = markerId,
 )

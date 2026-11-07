@@ -173,7 +173,8 @@ fun EditScreen(
                             step.title,
                             { text -> steps = steps.toMutableList().also { it[i] = Steps.line(step.copy(title = text)) } },
                             singleLine = true,
-                            modifier = m.then(if (last) Modifier.focusRequester(newStep) else Modifier),
+                            modifier = m.then(if (last) Modifier.focusRequester(newStep) else Modifier).keepAboveKeyboard(),
+
                             // Enter on the last step starts the next, so a list goes in without leaving the keyboard.
                             onNext = if (last) ({ focusNewStep = true; steps = steps + Steps.line(Step("")) }) else null,
                         )

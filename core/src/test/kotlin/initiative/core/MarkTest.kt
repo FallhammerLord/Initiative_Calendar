@@ -33,7 +33,7 @@ class MarkTest {
         assertTrue(engine.ledger(listOf(halloween), day).isEmpty())
         val plan = Pass.plan(PassInput(items = listOf(halloween), states = emptyMap(), now = now), engine)
         assertTrue(plan.fired.isEmpty())
-        assertTrue(Recopy.queue(listOf(halloween)).isEmpty())
+        assertTrue(Recopy.queue(listOf(halloween), day).isEmpty())
     }
 
     @Test fun aSpanShowsOnEachOfItsDays() {

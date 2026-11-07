@@ -19,7 +19,9 @@ data class SharedLine(val title: String, val time: LocalDateTime?, val outcome: 
  * What a peek brought back: the other person's shared days, as of [at]. Read-only.
  * [report] is their day report for [at]'s day, when they share it with you.
  * [tasks] are the shared tasks they own, and [done] which shared times they've
- * done; see [SharedTasks].
+ * done; see [SharedTasks]. [syncBluetooth] and [syncWifi] say whether the sender
+ * has each always-on sync on for you, and [build] which build of Initiative
+ * it runs; null when the sender's build doesn't say.
  */
 data class Peek(
     val at: LocalDateTime,
@@ -27,6 +29,9 @@ data class Peek(
     val report: List<SharedLine>? = null,
     val tasks: List<Item> = emptyList(),
     val done: Map<String, LocalDateTime> = emptyMap(),
+    val syncBluetooth: Boolean? = null,
+    val syncWifi: Boolean? = null,
+    val build: Long? = null,
 ) {
     /** What they're probably doing at [time]: the shared entry whose time covers it, the latest started first. */
     fun probably(time: LocalDateTime): Shared? =
@@ -75,7 +80,43 @@ object Sharing {
         return (anchors + marks + tasks).sortedBy { it.shared.start }
     }
 
+    /** The next days the What they see list shows before Show the rest of the month. */
+    const val SEE_DAYS = 7L
+
+    /**
+     * One row of the What they see list: an entry, or a whole series at its next
+     * time, with its [series] template, so its tick covers every time.
+     */
+    data class SeeRow(val item: Item, val shared: Shared, val series: Item?)
+
+    /**
+     * The What they see list on a person's page. Only what's still to come: not
+     * over, not done or passed, not already shared as a task (it's on their board),
+     * and never-share items stay out. A series is one row. Ticked first, then
+     * soonest first, within the next [days] days (null for the whole month).
+     */
+    fun seeList(
+        shareable: List<Shareable>,
+        items: List<Item>,
+        ticked: Set<Long>,
+        now: LocalDateTime,
+        days: Long? = SEE_DAYS,
+    ): List<SeeRow> {
+        val templates = items.filter { it.isTemplate }.associateBy { it.id }
+        val until = days?.let { now.toLocalDate().plusDays(it + 1).atStartOfDay() }
+        val open = shareable.filter { s ->
+            s.shared.end.isAfter(now) && s.item.isOpen && !s.item.isShared && !s.item.neverShare &&
+                (until == null || s.shared.start.isBefore(until))
+        }
+        val rows = open.groupBy { it.item.templateId?.let { t -> "s$t" } ?: "i${it.item.id}" }.values.map { group ->
+            val first = group.minBy { it.shared.start }
+            SeeRow(first.item, first.shared, first.item.templateId?.let(templates::get))
+        }
+        return rows.sortedWith(compareBy<SeeRow>({ !isTicked(it.item, ticked) }, { it.shared.start }))
+    }
+
     /** What goes to one person: all of it, only what's ticked for them, or nothing. */
+
     fun outgoing(shareable: List<Shareable>, level: ShareLevel, ticked: Set<Long>): List<Shared> = when (level) {
         ShareLevel.EVERYTHING -> shareable.map { it.shared }
         ShareLevel.TICKED -> shareable.filter { isTicked(it.item, ticked) }.map { it.shared }
@@ -112,6 +153,8 @@ object PeekFormat {
     private const val REPORT = "REPORT"
     private const val TASK = "TASK"
     private const val DONE = "DONE"
+    private const val SYNC = "SYNC"
+    private const val BUILD = "BUILD"
     private const val NO_TIME = "-"
 
     private fun clean(text: String) = text.replace(TAB, ' ').replace('\n', ' ')
@@ -129,7 +172,11 @@ object PeekFormat {
         }
         peek.tasks.forEach { append("$TASK$TAB${SharedTasks.encode(it)}\n") }
         peek.done.forEach { (key, at) -> append("$DONE$TAB${clean(key)}$TAB$at\n") }
+        if (peek.syncBluetooth != null && peek.syncWifi != null) append("$SYNC$TAB${flag(peek.syncBluetooth)}$TAB${flag(peek.syncWifi)}\n")
+        peek.build?.let { append("$BUILD$TAB$it\n") }
     }
+
+    private fun flag(on: Boolean) = if (on) "1" else "0"
 
     /** The version a peek was written in; null when it isn't one. */
     fun version(text: String): Int? = text.lineSequence().firstOrNull()?.split(' ')?.takeIf { it.size == 2 && it[0] == HEAD }?.get(1)?.toIntOrNull()
@@ -144,6 +191,8 @@ object PeekFormat {
         var report: MutableList<SharedLine>? = null
         val tasks = mutableListOf<Item>()
         val done = mutableMapOf<String, LocalDateTime>()
+        var sync: Pair<Boolean, Boolean>? = null
+        var build: Long? = null
         lines.drop(2).forEach { line ->
             if (line.startsWith("$TASK$TAB")) {
                 SharedTasks.decode(line.removePrefix("$TASK$TAB"), at)?.let { tasks += it }
@@ -161,9 +210,12 @@ object PeekFormat {
                     }
                 }
                 parts[0] == DONE && parts.size >= 3 -> done[parts[1]] = LocalDateTime.parse(parts[2])
+                parts[0] == SYNC && parts.size >= 3 -> sync = (parts[1] == "1") to (parts[2] == "1")
+                parts[0] == BUILD && parts.size >= 2 -> build = parts[1].toLongOrNull()
                 // Anything else is from a later version: skipped.
             }
         }
-        Peek(at, items, report, tasks, done)
+        Peek(at, items, report, tasks, done, sync?.first, sync?.second, build)
+
     }.getOrNull()
 }

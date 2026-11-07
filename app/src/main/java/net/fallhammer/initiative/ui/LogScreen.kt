@@ -246,7 +246,7 @@ private fun Repeats(repeats: List<Pair<Item, Item?>>, onEdit: (Item) -> Unit, on
 
 /** How a series repeats, in words: "Weekdays · 2:30 PM", "Every week: Mon, Thu". */
 @Composable
-private fun ruleText(t: Item): String {
+internal fun ruleText(t: Item): String {
     val r = t.recurrence ?: return ""
     val base = stringResource(
         when {
@@ -427,7 +427,8 @@ private fun AddField(
         keyboardActions = KeyboardActions(onDone = { submit() }),
         trailingIcon = if (text.isBlank()) null else ({ QuietButton(stringResource(R.string.quick_add_button), ::submit, color = Ink.accent) }),
         colors = fieldColors(),
-        modifier = Modifier.fillMaxWidth().focusRequester(cursor),
+        modifier = Modifier.fillMaxWidth().focusRequester(cursor).keepAboveKeyboard(),
+
     )
     // Names used before, under the line.
     if (text.isNotBlank()) {

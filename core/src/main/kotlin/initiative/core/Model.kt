@@ -91,7 +91,14 @@ data class Item(
      * though it stays in this one's Log and day report.
      */
     val forThem: Boolean = false,
+    /**
+     * A prep task: the marker it gets you ready for (a birthday, a trip). It waits
+     * on the marker's page until the marker's heads-up opens; see [Prep]. For a
+     * repeating marker, the series' prep points at the marker's series.
+     */
+    val markerId: Long? = null,
 ) {
+
     val isTemplate: Boolean get() = recurrence != null
 
     /** Shared with someone, or was, and from them: theirs to change. */

@@ -32,6 +32,8 @@ class PairSync(
     private val repo: Repository,
     private val placement: Placement,
     private val prefs: Prefs,
+    /** This app's build number, sent so a person's page can say when the two builds differ. */
+    private val build: () -> Long? = { null },
     /** This phone's keys for a paired person (their ID, their row); from Android's key store. */
     private val keyOf: (String, Long) -> PairWire.PairKeys?,
 ) {
@@ -65,7 +67,10 @@ class PairSync(
             val tasks = shared.getValue(id)
             // Tasks shared with them are on their own board already, so they aren't on your line too.
             val seen = shareable.filter { it.item.pairId != id }
-            PeekFormat.encode(Peek(now, Sharing.outgoing(seen, level, theirs), day, tasks.tasks, tasks.done))
+            PeekFormat.encode(
+                Peek(now, Sharing.outgoing(seen, level, theirs), day, tasks.tasks, tasks.done, peer.syncBluetooth, peer.syncWifi, build()),
+            )
+
         } ?: return null
         val peer = peers.firstOrNull { it.id == got.peer } ?: return null
         // Different builds can't share tasks safely: said, so both can update.

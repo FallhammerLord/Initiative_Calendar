@@ -12,13 +12,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,12 +71,24 @@ fun MarkHud(
     clashes: List<Clashes.Clash> = emptyList(),
     today: LocalDate = LocalDate.now(),
     onClash: (Clashes.Clash) -> Unit = {},
+    /** Counts taps outside the markers; each new one closes the label and note. */
+    closes: Int = 0,
+    /** Opens a marker's page; true to start adding a prep task. */
+    onPage: (Item, Boolean) -> Unit = { _, _ -> },
+    /** Whether a marker has prep tasks, so its panel offers its page. */
+    hasPrep: (Item) -> Boolean = { false },
 ) {
     if (marks.isEmpty() && clashes.isEmpty()) return
     // Which marker's label is out, and whether its note is open; by a key that
     // holds for a series' later times too, which have no id yet.
     var open by rememberSaveable { mutableStateOf<String?>(null) }
     var note by rememberSaveable { mutableStateOf(false) }
+    var closed by rememberSaveable { mutableIntStateOf(closes) }
+    if (closes != closed) {
+        closed = closes
+        open = null
+        note = false
+    }
     fun keyOf(s: Marks.Shown) = "${s.item.id}:${s.item.templateId}:${s.item.start}"
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s)) {
         Row(horizontalArrangement = Arrangement.spacedBy(Space.xs), verticalAlignment = Alignment.CenterVertically) {
@@ -84,7 +99,7 @@ fun MarkHud(
                 val key = "clash:${clash.key}"
                 val out = open == key
                 val ahead = java.time.temporal.ChronoUnit.DAYS.between(today, clash.day).toInt().coerceAtLeast(0)
-                val named = stringResource(R.string.clash_label, clash.mine.title, clash.theirs.title)
+                val named = clashName(clash)
                 val label = if (ahead == 0) named else stringResource(R.string.mark_ahead, named, pluralStringResource(R.plurals.days, ahead, ahead))
                 Row(
                     Modifier
@@ -176,11 +191,20 @@ fun MarkHud(
                     style = Type.bodySmall,
                 )
                 if (item.notes.isNotBlank()) Body(item.notes, color = Ink.text, style = Type.bodySmall)
+                // Any marker can hand out prep tasks; one that has some opens its page.
+                if (item.id != 0L) {
+                    if (hasPrep(item)) {
+                        SecondaryButton(stringResource(R.string.mark_open_page), { note = false; open = null; onPage(item, false) }, Modifier.fillMaxWidth(), height = Tap.min)
+                    } else {
+                        SecondaryButton(stringResource(R.string.mark_add_prep), { note = false; open = null; onPage(item, true) }, Modifier.fillMaxWidth(), height = Tap.min)
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalAlignment = Alignment.CenterVertically) {
                     // A series' later time isn't made yet, so it can't be edited on its own.
                     if (item.id != 0L) SecondaryButton(stringResource(R.string.mark_edit), { note = false; open = null; onEdit(item) }, height = Tap.min)
                     QuietButton(stringResource(R.string.mark_close), { note = false; open = null })
                 }
+
             }
         }
     }

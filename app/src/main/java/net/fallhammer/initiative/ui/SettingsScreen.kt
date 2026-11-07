@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -232,9 +233,14 @@ fun SettingsScreen(
                 Spacer(Modifier.height(Space.s))
                 SecondaryButton(stringResource(R.string.update_open), { openReleases(context) }, Modifier.fillMaxWidth(), height = Tap.min)
             }
+            Spacer(Modifier.height(Space.panel))
         }
+        // Settings save as they change, so the bottom, where Save would be, closes the screen.
+        Body(stringResource(R.string.pair_saves), Modifier.fillMaxWidth().padding(bottom = Space.xs), style = Type.bodySmall)
+        PrimaryButton(stringResource(R.string.pair_done), onClose, Modifier.fillMaxWidth())
     }
 }
+
 
 /**
  * Opens the newest build's page in the browser. The app itself has no internet

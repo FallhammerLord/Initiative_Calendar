@@ -5,6 +5,7 @@ import initiative.core.SharedTasks
 import initiative.core.Learning
 import initiative.core.Parsed
 import initiative.core.Placement
+import initiative.core.Prep
 import initiative.core.Recurrence
 import initiative.core.Series
 import initiative.core.Status
@@ -47,6 +48,8 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
                 .filter { it.occurrenceDate !in existing }
         }
         if (fresh.isNotEmpty()) dao.insertAll(fresh.map { it.toRow() })
+        // A series' open time passes once its next time comes, so a missed one isn't carried.
+        Series.passing(all, today).forEach { update(it, it.copy(status = Status.MISSED, pinnedSlot = null, notBefore = null), note = PASSED_NOTE) }
     }
 
     /** Done, with every step ticked: "All done" covers them all. */
@@ -90,6 +93,41 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     suspend fun drop(item: Item, note: String) {
         update(item, item.copy(status = Status.DROPPED, pinnedSlot = null), note = note)
     }
+
+    /**
+     * Adds [task] as a prep task for [marker]. The first one gives a marker with no
+     * heads-up one of three days, so there are days to work in. For one time of a
+     * series of markers, the task repeats with the series, and this time's copy is
+     * made now (its window may already be open).
+     */
+    suspend fun addPrep(marker: Item, task: Item, now: LocalDateTime) {
+        val series = marker.templateId?.let { dao.byId(it)?.toItem() }?.takeIf { it.isTemplate }
+        val ready = Prep.withHeadsUp(marker)
+        if (ready != marker) {
+            update(marker, ready, note = "heads-up for prep")
+            series?.let { update(it, Prep.withHeadsUp(it), note = "heads-up for prep") }
+        }
+        val made = Prep.task(task, ready, series)
+        val id = dao.insert(made.toRow())
+        dao.insertEvent(EventRow(itemId = id, fromStatus = null, toStatus = made.status.name, at = now.toString(), note = "prep task"))
+        if (made.isTemplate) {
+            val first = made.earliestStart!!
+            made.copy(id = id).instancesBetween(first, first).firstOrNull()?.let { dao.insert(it.toRow()) }
+            ensureInstances(now)
+        }
+    }
+
+    /**
+     * A removed marker's open prep tasks stay as ordinary tasks. Returns them as
+     * they were, so Undo can put the link back.
+     */
+    suspend fun unlinkPrep(marker: Item): List<Item> {
+        val linked = Prep.of(dao.all().map { it.toItem() }, marker).filter { it.isOpen }
+
+        linked.forEach { update(it, it.copy(markerId = null), note = "marker removed") }
+        return linked
+    }
+
 
     /**
      * Remove on a time of a series, for this and later times: the series stops,
@@ -312,5 +350,9 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
 
         /** What Tomorrow writes in the event log; see Placement.tomorrow. */
         const val MOVED_NOTE = "Back tomorrow"
+
+        /** What a series' time writes in the event log when its next time comes. */
+        const val PASSED_NOTE = "passed: next time came"
+
     }
 }

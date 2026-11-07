@@ -125,7 +125,7 @@ When nothing needs doing, the Now card says **Free time**. An empty board is a v
 
 **Focus.** Hold the card for about two-thirds of a second, or, once on it, tap Focus. See Focus mode.
 
-**Weekly recopy.** Derived from Ken's old sticky-pad system: one list, recopied weekly, finished items simply fall off. Once a week the single card becomes "Recopy the list." It walks every open item, oldest first, one card at a time: Keep, Reschedule (later this week or next week), or Drop. Items skipped three or more times get a nudge to drop them or give them a real time.
+**Weekly recopy.** Derived from Ken's old sticky-pad system: one list, recopied weekly, finished items simply fall off. Once a week the single card becomes "Recopy the list." It walks every open one-off task, oldest first, one card at a time: Keep, Reschedule (later this week or next week), or Drop. Items skipped three or more times get a nudge to drop them or give them a real time. A repeating task comes back by itself, so it gets a card only when its last three times all passed: Keep, Change how it repeats, or Stop repeating.
 
 **Feel.** Acknowledge, never reward. Haptics answer touches only, through Android's named effects, so the phone's haptics setting applies: Done confirms; a step toggles, and a ticked one taps again softly as it lands below the open ones; Later, Tomorrow, tabs, and a picked day tick; a drag picks up, ticks past each entry, and settles, and "doesn't fit" is the one "no". Motion is short and only shows change: a new Now fades in and rises a little; a ticked step dims where it is, holds a moment so the tick is seen, then slides below the open ones. One flourish, in the Sci-fi look: All done sends a ring of light out across the hexagon grid from the Now card, once. No sounds, confetti, or anything that grows with use. Android's "Remove animations" turns all motion off.
 
@@ -557,7 +557,7 @@ After v0.1, built:
 - *Adding.* "halloween oct 31 all day", with "yearly" to repeat. The "anchor, float, or marker?" question offers Marker. In the edit form, Type has Marker, with its day, an optional last day, its icon, and how far ahead it shows.
 - *Elsewhere.* Plan ahead lists a marker first on each day it spans, as "All day"; the month grid marks its days with a dot beside the fixed-time diamond. The day report opens with "Today: Halloween".
 
-**Marker pages and prep tasks (planned).** A marker can hand out the work that gets you ready for it, like a quest giver; the work still goes through the board, never around it.
+**Marker pages and prep tasks.** A marker can hand out the work that gets you ready for it, like a quest giver; the work still goes through the board, never around it.
 - *Simple markers stay simple.* "It's 4th of July!" with no tasks works as now: bubble, label, note. It never needs a page.
 - *Its own page.* A marker with tasks has a page, opened from its panel: its days, its note, its heads-up days, and its tasks with plain ticks (no counts), and a line to add one. Any marker's panel offers **Add a prep task**, which is how a simple one gains a page.
 - *Tasks wait for the heads-up.* Before the heads-up window opens, a prep task lives only on the marker's page: not in Plan ahead, the forecast, or the dial. When the window opens, it joins the board as any task (on the dial, in the day's order, on Now), tagged "for Birthday", and Plan ahead lists it on its day. In the model: not before the window's first day, by the marker's day.
@@ -566,26 +566,28 @@ After v0.1, built:
 - *Removing the marker.* Its open prep tasks stay as ordinary tasks; Undo restores the link.
 - *Sharing.* The marker shares as markers do. Its tasks follow the usual sharing, and aren't shared with it automatically.
 - *One level.* Marker, then its tasks; each task can have steps, as every task can. A marker has no steps of its own: work kept on a page you have to open is work that waits for you to remember it, and the board exists so it doesn't.
-- *Needs.* A database change (a task's link to its marker), a mockup first, emulator steps, and a manual line.
+- *Built* with a database change (version 9: a task's link to its marker), emulator steps, and a manual line; no mockup first, by the owner's go to build the list.
 
 **Research basis.** The Log and subtasks follow the two adult ADHD treatment programs with trial evidence (Safren's CBT, JAMA 2010; Solanto's meta-cognitive therapy, Am J Psychiatry 2010): one calendar and one task list, a daily and weekly review, tasks broken into steps, and time estimates checked against actual time. They also follow Barkley's principle of putting time and information outside the head, at the point of use. Working memory is reliably weaker in ADHD (Kasper, Alderson and Hudec, 2012), so the Log keeps lists flat and taps few. Citations are from memory; check them before quoting.
 
-**Next: friction fixes (planned, from use).**
+**Friction fixes, from use (built).**
 
-1. *Add for them.* The keyboard covers the line on their panel. The panel shrinks to the space above the keyboard and scrolls to the line when it opens.
-2. *A person's page ends with Done.* Changes save as you go, so the bottom (where Save would be) gets **Done**, which closes the page, over a small line "Changes save as you go." Unpair moves into its own card above, "Stop sharing with Air", still asking first.
-3. *What they see: a fixed box.* About 7 rows tall, with its own scroll and scrollbar, inside the page's scroll.
-4. *A series is one row.* A repeating item shows once, with how it repeats ("Every Monday, 3:00 PM"), worded as the Log's Repeats list; its tick covers every time.
-5. *What goes in that list.* Leave out anything already over (sharing only looks ahead; today's past travels in the day report), done or removed items, shared tasks (already on their board), and never-share items. Tasks without a set time only for today. Ticked first, then soonest first. The next 7 days by default; **Show the rest of the month** opens the rest. Ticking still covers the month.
+1. *Add for them.* With the keyboard up, their panel shrinks to the room above it and scrolls so the line and its buttons stay in view.
+2. *A person's page ends with Done.* Changes save as you go, so the bottom has **Done**, under a small line "Changes save as you go." Unpair is its own card above, **Stop sharing with Air**, still asking first.
+3. *What they see: a fixed box.* About 7 rows tall, with its own scroll and scrollbar, inside the page's scroll (`ScrollBox` in Design.kt).
+4. *A series is one row.* A repeating item shows once, with how it repeats ("Every day · 3:00 PM"), worded as the Log's Repeats list; its tick covers every time.
+5. *What goes in that list.* Only what's still to come: nothing over, done, or passed; no tasks already shared (they're on their board); no never-share items. Tasks without a set time only for today. Ticked first, then soonest. The next 7 days, or the whole month with **Show the rest of the month**. Ticking still covers the month.
 6. *Marker taps.* First tap: the label. Second: the panel. A tap outside, or on the marker, closes it all; Close stays.
-7. *Marker pages and prep tasks.* See Markers above.
-8. *Fields above the keyboard, everywhere.* A new step's line in the edit form scrolls into view above the keyboard; check the Log's **+ Add** line at 200% font, and naming someone after pairing.
-9. *Just for them, kept short.* The panel's "Just for Air" list gets the fixed box of item 3, and a timed task just for them passes once its time is over (it never settles on your phone, since your alarms skip it), so it leaves the list.
-10. *Repeats, trimmed.* The Log's Repeats list shows running series; stopped ones leave it.
-11. *A double-booking that repeats is one.* Two series that overlap every day show as one bubble ("Double-booked: pickup and school run, daily") and one choice covering every time, not a bubble per day.
-12. *Settings ends with Done.* As a person's page: **Done** at the bottom, where Save would be; Update Initiative moves into the About card above it.
-13. *Questions that stay.* Check on the phone whether the ask chips ("anchor, float, or marker?") and "already repeats" should close with a tap outside, or stay until answered, as questions.
-14. *Sync you can see.* A person's page says whether each always-on sync works: "Air has it on too" or "Not on Air's phone yet" (each phone's settings travel in its peek), and "Bluetooth isn't allowed" when it isn't. When the two builds differ, the always-on sync says so on the page, since it has no screen to say it on.
+7. *Marker pages and prep tasks.* Built; see Markers above. A prep task's earliest start is the heads-up's first day and its deadline the marker's day, so the board's own rules keep it back until then. A repeating marker's prep is a series on the marker's rule, so each time brings fresh copies; its times can be edited "this and later" like any series.
+8. *Fields above the keyboard, everywhere.* A text field with the cursor scrolls itself into view as the keyboard rises (`keepAboveKeyboard()` in Design.kt): the edit form's steps, the Log's **+ Add** line, naming someone after pairing, and the marker page's line.
+9. *Just for them, kept short.* The panel's "Just for Air" list sits in the same fixed box, and a timed task just for them leaves the list once its time is over.
+10. *Repeats, trimmed.* The Log's Repeats list shows only series with a time still to come.
+11. *A double-booking that repeats is one.* Two series that overlap more than once show as one bubble ("Double-booked: pickup and school run, every day · 3:00 PM") and one choice: Keep both covers every time; Skip theirs skips every made time that overlaps (times beyond the three weeks made so far may ask again).
+12. *Settings ends with Done.* As a person's page; Update Initiative was already in the About card.
+13. *Questions that stay (open).* Check on the phone whether the ask chips ("anchor, float, or marker?") and "already repeats" should close with a tap outside, or stay until answered, as questions.
+14. *Sync you can see.* Each peek now carries whether its sender has each always-on sync on for you, and its build. A person's page says "Air has it on too." or "Not on Air's phone yet.", "Bluetooth isn't allowed." when it isn't, and when the two builds differ. A peek from an older build says nothing, so the page says nothing.
+15. *A repeat's time lasts until the next time.* An open time of a repeating task passes quietly once the series' next time begins (logged as passed, no counters). A daily task passes overnight; a weekly one waits up to six days. Not a time under way, not an anchor (its alarms settle it), and not a shared time from someone else. The backlog already built up passes on the first run.
+16. *Recopy walks one-off tasks only.* A series comes back by itself, so its times aren't walked. A series whose last three times all passed gets one card: Keep, Change how it repeats (its next time opens to edit; the walk goes on after), or Stop repeating. No "include in recopy" toggle for now: add one if a one-off that should never be walked turns up in use.
 
 Later, its own step: per-kind sharing ("Always share my appointments", "Always share my markers", ticks for tasks only), so the list is rarely needed.
 

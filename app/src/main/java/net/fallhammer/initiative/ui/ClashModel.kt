@@ -29,6 +29,8 @@ class ClashModel(
     private val edit: EditModel,
 ) {
     private val kept = MutableStateFlow<Set<String>>(emptySet())
+    private val latest: StateFlow<List<Item>> = items.stateIn(parts.scope, SharingStarted.Eagerly, emptyList())
+
 
     val clashes: StateFlow<List<Clashes.Clash>> = combine(items, clock, kept) { all, now, keep -> Clashes.find(all, now, keep) }
         .stateIn(parts.scope, SharingStarted.Eagerly, emptyList())
@@ -68,9 +70,12 @@ class ClashModel(
         close()
         parts.acted()
         parts.scope.launch {
-            parts.graph.repo.drop(clash.theirs, note = "double-booked: skipped")
-            parts.show(Flash(parts.text(R.string.clash_skipped), undo = clash.theirs))
+            // Two series' clash: every made time of theirs that overlaps one of yours.
+            val times = Clashes.theirTimes(latest.value, clash, LocalDateTime.now())
+            times.forEach { parts.graph.repo.drop(it, note = "double-booked: skipped") }
+            parts.show(Flash(parts.text(R.string.clash_skipped), undo = times.first(), undoAlso = times.drop(1)))
         }
+
     }
 
     fun moveMine() {

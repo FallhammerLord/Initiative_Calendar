@@ -167,9 +167,14 @@ fun PairScreen(
     onClose: () -> Unit,
     bluetoothReady: Boolean = true,
     onAskBluetooth: () -> Unit = {},
+    /** Every item, so a series' times show as one row with how it repeats. */
+    items: List<Item> = emptyList(),
+    /** This app's build number, to say when theirs differs. */
+    build: Long? = null,
 ) {
     var name by rememberSaveable(peer.id) { mutableStateOf(peer.nickname) }
     var unpairing by rememberSaveable(peer.id) { mutableStateOf(false) }
+    var wholeMonth by rememberSaveable(peer.id) { mutableStateOf(false) }
     val level = levelOf(peer)
     val palette = LocalLook.current.palette
     Screen {
@@ -227,18 +232,27 @@ fun PairScreen(
                 if (level != ShareLevel.NOTHING) {
                     Spacer(Modifier.height(Space.s))
                     Label(stringResource(R.string.pair_sees, peer.nickname))
-                    if (shareable.isEmpty()) Body(stringResource(R.string.pair_sees_none), style = Type.bodySmall)
-                    shareable.forEach { s ->
-                        val whenText = whenOf(s, now.toLocalDate())
-                        if (level == ShareLevel.TICKED) {
-                            CheckRow(s.shared.title, whenText, Sharing.isTicked(s.item, ticked)) { pairs.tick(peer.id, s.item, it) }
-                        } else {
-                            Column(Modifier.fillMaxWidth().heightIn(min = Tap.min).padding(vertical = Space.xs)) {
-                                Text(s.shared.title, style = Type.bodySmall, color = Ink.text)
-                                Text(whenText, style = Type.caption, color = Ink.dim)
+                    // Kept to the next 7 days unless asked; the ticks still cover the month.
+                    val rows = Sharing.seeList(shareable, items, ticked, now, if (wholeMonth) null else Sharing.SEE_DAYS)
+                    if (rows.isEmpty()) Body(stringResource(R.string.pair_sees_none), style = Type.bodySmall)
+                    ScrollBox {
+                        rows.forEach { row ->
+                            val whenText = row.series?.let { ruleText(it) } ?: whenOf(row.shared, now.toLocalDate())
+                            if (level == ShareLevel.TICKED) {
+                                CheckRow(row.shared.title, whenText, Sharing.isTicked(row.item, ticked)) { pairs.tick(peer.id, row.item, it) }
+                            } else {
+                                Column(Modifier.fillMaxWidth().heightIn(min = Tap.min).padding(vertical = Space.xs)) {
+                                    Text(row.shared.title, style = Type.bodySmall, color = Ink.text)
+                                    Text(whenText, style = Type.caption, color = Ink.dim)
+                                }
                             }
                         }
                     }
+                    QuietButton(
+                        stringResource(if (wholeMonth) R.string.pair_sees_week else R.string.pair_sees_month),
+                        { wholeMonth = !wholeMonth },
+                        color = Ink.accent,
+                    )
                 }
             }
             Spacer(Modifier.height(Space.panel))
@@ -258,17 +272,25 @@ fun PairScreen(
                     if (on && !bluetoothReady) onAskBluetooth()
                 }
                 Body(stringResource(R.string.pair_sync_bluetooth_hint, peer.nickname), style = Type.bodySmall)
+                if (peer.syncBluetooth) SyncState(peer.nickname, peek?.syncBluetooth, if (bluetoothReady) null else R.string.pair_sync_no_bluetooth)
                 if (peer.syncBluetooth && !bluetoothReady) {
                     QuietButton(stringResource(R.string.pair_sync_allow), onAskBluetooth, color = Ink.accent)
                 }
                 Spacer(Modifier.height(Space.s))
                 SettingSwitch(stringResource(R.string.pair_sync_wifi), peer.syncWifi) { pairs.setSyncWifi(peer, it) }
                 Body(stringResource(R.string.pair_sync_wifi_hint, peer.nickname), style = Type.bodySmall)
+                if (peer.syncWifi) SyncState(peer.nickname, peek?.syncWifi, null)
+                // The always-on sync has no screen of its own, so a build difference is said here.
+                val theirs = peek?.build
+                if ((peer.syncBluetooth || peer.syncWifi) && theirs != null && build != null && theirs != build) {
+                    Spacer(Modifier.height(Space.s))
+                    Body(stringResource(R.string.pair_build_differs, peer.nickname), style = Type.bodySmall, color = Ink.text)
+                }
             }
             Spacer(Modifier.height(Space.panel))
             Card(inner = Space.l) {
                 if (!unpairing) {
-                    SecondaryButton(stringResource(R.string.pair_unpair), { unpairing = true }, Modifier.fillMaxWidth(), height = Tap.min)
+                    SecondaryButton(stringResource(R.string.pair_stop_sharing, peer.nickname), { unpairing = true }, Modifier.fillMaxWidth(), height = Tap.min)
                 } else {
                     Body(stringResource(R.string.pair_unpair_ask, peer.nickname), color = Ink.text)
                     Spacer(Modifier.height(Space.s))
@@ -278,20 +300,37 @@ fun PairScreen(
                     }
                 }
             }
+            Spacer(Modifier.height(Space.panel))
         }
+        // Changes save as you go, so the bottom, where Save would be, closes the page.
+        Body(stringResource(R.string.pair_saves), Modifier.fillMaxWidth().padding(bottom = Space.xs), style = Type.bodySmall)
+        PrimaryButton(stringResource(R.string.pair_done), onClose, Modifier.fillMaxWidth())
     }
+}
+
+/** Whether an always-on sync works both ways: their setting comes in their peek. Unknown says nothing. */
+@Composable
+private fun SyncState(nickname: String, theirs: Boolean?, problem: Int?) {
+    val text = when {
+        problem != null -> stringResource(problem)
+        theirs == true -> stringResource(R.string.pair_sync_both, nickname)
+        theirs == false -> stringResource(R.string.pair_sync_not_yet, nickname)
+        else -> return
+    }
+    Body(text, style = Type.bodySmall, color = Ink.text)
 }
 
 /** When a shared entry is: its time today, or its day and time, or a marker's day. */
 @Composable
-private fun whenOf(s: Shareable, today: LocalDate): String {
-    val day = s.shared.start.toLocalDate()
+private fun whenOf(s: initiative.core.Shared, today: LocalDate): String {
+    val day = s.start.toLocalDate()
     return when {
-        s.shared.kind == Kind.MARK -> stringResource(R.string.pair_when_day, Formats.day(day))
-        day == today -> Formats.clock(s.shared.start)
-        else -> stringResource(R.string.pair_when, Formats.day(day), Formats.clock(s.shared.start))
+        s.kind == Kind.MARK -> stringResource(R.string.pair_when_day, Formats.day(day))
+        day == today -> Formats.clock(s.start)
+        else -> stringResource(R.string.pair_when, Formats.day(day), Formats.clock(s.start))
     }
 }
+
 
 private val BADGE = 32.dp
 private val LIGHT = 16.dp

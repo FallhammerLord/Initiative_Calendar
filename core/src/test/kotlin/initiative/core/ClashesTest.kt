@@ -20,7 +20,23 @@ class ClashesTest {
     private val dentist = anchor(1, "Dentist", 15)
     private val pickup = anchor(2, "School pickup", 15, theirs = true)
 
+    @Test fun twoSeriesThatOverlapEveryDayAreOneClash() {
+        val mine = anchor(10, "pickup", 15).copy(recurrence = Recurrence(Freq.DAILY))
+        val theirs = anchor(20, "school run", 15, theirs = true).copy(recurrence = Recurrence(Freq.DAILY))
+        val myTimes = mine.instancesBetween(day, day.plusDays(20)).mapIndexed { i, t -> t.copy(id = 100L + i) }
+        val theirTimes = theirs.instancesBetween(day, day.plusDays(20)).mapIndexed { i, t -> t.copy(id = 200L + i) }
+        val all = listOf(mine, theirs) + myTimes + theirTimes
+        val clash = Clashes.find(all, now).single()
+        assertEquals(mine, clash.series)
+        assertEquals(at(15), clash.at)
+        // Keeping both covers every time.
+        assertTrue(Clashes.find(all, now, setOf(clash.key)).isEmpty())
+        // Skipping theirs covers every made time, past the week shown.
+        assertEquals(21, Clashes.theirTimes(all, clash, now).size)
+    }
+
     @Test fun mineAgainstTheirsAtTheSameTimeClashes() {
+
         val clash = Clashes.find(listOf(dentist, pickup), now).single()
         assertEquals("Dentist", clash.mine.title)
         assertEquals("School pickup", clash.theirs.title)

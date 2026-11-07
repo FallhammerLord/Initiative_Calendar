@@ -1,9 +1,17 @@
 package net.fallhammer.initiative.ui
 
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.ui.composed
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -1298,7 +1306,52 @@ private const val DROPDOWN_MARK = "⌄"
 private val SWATCH = 22.dp
 private val CHOSEN_RING = 3.dp
 
+/**
+ * For a text field: while it has the cursor, it scrolls itself into view each
+ * time the keyboard rises or grows, so it never sits under the keyboard.
+ */
+fun Modifier.keepAboveKeyboard(): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    var focused by remember { mutableStateOf(false) }
+    val keyboard = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(keyboard, focused) { if (focused) requester.bringIntoView() }
+    bringIntoViewRequester(requester).onFocusChanged { focused = it.hasFocus }
+}
+
+/**
+ * A list in a fixed box about [rows] rows tall,
+ with its own scroll and a
+ * scrollbar along its right edge, inside a page that scrolls. Shorter lists
+ * take only the room they need.
+ */
+@Composable
+fun ScrollBox(modifier: Modifier = Modifier, rows: Int = BOX_ROWS, content: @Composable ColumnScope.() -> Unit) {
+    val state = rememberScrollState()
+    val thumb = Ink.dim
+    Box(
+        modifier
+            .fillMaxWidth()
+            .heightIn(max = Tap.row * rows)
+            .drawWithContent {
+                drawContent()
+                val max = state.maxValue
+                if (max <= 0 || max == Int.MAX_VALUE) return@drawWithContent
+                val view = size.height
+                val length = (view * view / (view + max)).coerceAtLeast(Tap.min.toPx() / 2)
+                val top = (view - length) * state.value / max
+                val width = BAR_WIDTH.toPx()
+                drawRoundRect(thumb, Offset(size.width - width, top), Size(width, length), CornerRadius(width / 2))
+            },
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(state).padding(end = Space.m), content = content)
+    }
+}
+
+private const val BOX_ROWS = 7
+private val BAR_WIDTH = 3.dp
+
 /** A setting ticked on or off, with a second line under its name. The whole row is one checkbox. */
+
 @Composable
 fun CheckRow(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val haptics = rememberHaptics()

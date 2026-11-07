@@ -150,6 +150,7 @@ fun ClashSheet(
 ) {
     val title = stringResource(R.string.clash_title)
     val name = sharedName(clash.theirs, peers)
+    val series = clash.series
     Box(
         Modifier
             .fillMaxSize()
@@ -171,8 +172,13 @@ fun ClashSheet(
                     Spacer(Modifier.width(Space.s))
                     Title(title, style = Type.heading)
                 }
+                if (series != null) {
+                    Spacer(Modifier.height(Space.inside))
+                    Body(stringResource(R.string.clash_every_time, ruleText(series)), style = Type.bodySmall, color = Ink.text)
+                }
                 Spacer(Modifier.height(Space.zone))
                 ClashRow(clash.mine, stringResource(R.string.clash_mine, Formats.wall(clash.mine.wall)))
+
                 Spacer(Modifier.height(Space.inside))
                 ClashRow(clash.theirs, stringResource(R.string.clash_theirs, name, Formats.wall(clash.theirs.wall)))
                 Spacer(Modifier.height(Space.inside))
@@ -203,3 +209,10 @@ private fun ClashRow(item: Item, whose: String) {
 private val CLASH_TIME = 84.dp
 private val BOX = Space.l
 private val BOX_EDGE = 2.dp
+
+/** A double-booking's name: "Double-booked: pickup and school run", with how two series repeat. */
+@Composable
+fun clashName(clash: Clashes.Clash): String {
+    val series = clash.series ?: return stringResource(R.string.clash_label, clash.mine.title, clash.theirs.title)
+    return stringResource(R.string.clash_label_series, clash.mine.title, clash.theirs.title, ruleText(series).replaceFirstChar { it.lowercase() })
+}

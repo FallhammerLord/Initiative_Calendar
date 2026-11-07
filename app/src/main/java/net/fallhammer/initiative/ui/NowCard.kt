@@ -71,6 +71,8 @@ internal fun NowCard(
     compact: Boolean,
     peers: List<PeerRow> = emptyList(),
     onOnIt: (Item) -> Unit = {},
+    /** The marker a prep task gets you ready for, to tag it: "for Birthday". */
+    forMarker: String? = null,
 ) {
     val board = ui.board
     val item = board?.now?.item
@@ -166,7 +168,9 @@ internal fun NowCard(
                     } else {
                         Body(board.now.reason)
                     }
+                    forMarker?.let { Body(stringResource(R.string.now_for, it), color = Ink.accent, style = Type.bodySmall) }
                 }
+
                 // A task back from a wait, waiting on this one: said in words as well as on its tab.
                 board.waits.firstOrNull { it.ready(ui.now) && it.id != item?.id }?.let { back ->
                     Body(

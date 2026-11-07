@@ -195,6 +195,10 @@
     <string name="recopy_drop">Drop</string>
     <string name="recopy_stop">Stop for now</string>
     <string name="recopy_finished">List recopied</string>
+    <string name="recopy_series">Still want this? Its last three times passed.</string>
+    <string name="recopy_series_change">Change how it repeats</string>
+    <string name="recopy_series_stop">Stop repeating</string>
+
 
     <!-- Backup -->
     <string name="section_backup">Backup</string>
@@ -237,6 +241,23 @@
     <string name="mark_more_mark">…</string>
     <string name="mark_edit">Edit</string>
     <string name="mark_close">Close</string>
+    <string name="mark_add_prep">Add a prep task</string>
+    <string name="mark_open_page">Prep tasks</string>
+    <string name="mark_page_back">Back</string>
+    <string name="mark_page_no_heads_up">No heads-up: it shows on its day.</string>
+    <string name="mark_page_heads_up">Shows %1$s ahead.</string>
+    <string name="mark_page_edit">Edit marker</string>
+    <string name="mark_page_tasks">Prep tasks</string>
+    <string name="mark_page_none">Nothing to get ready yet.</string>
+    <string name="mark_page_done">Done</string>
+    <string name="mark_page_waits">Joins the board %1$s</string>
+    <string name="mark_page_on_board">On the board</string>
+    <string name="mark_page_add_field">A prep task</string>
+    <string name="mark_page_add_hint">Each one joins the board when the heads-up opens.</string>
+    <string name="mark_page_add">Add</string>
+    <string name="prep_added">Added %1$s</string>
+    <string name="now_for">for %1$s</string>
+
     <string name="mark_all_day">All day</string>
     <string name="mark_span">%1$s to %2$s</string>
     <string name="report_marks">Today: %1$s</string>
@@ -426,6 +447,16 @@
     <string name="pair_share_heading">What you share with %1$s</string>
     <string name="pair_sees">What %1$s sees</string>
     <string name="pair_sees_none">Nothing in the next week yet.</string>
+    <string name="pair_sees_month">Show the rest of the month</string>
+    <string name="pair_sees_week">Show the next 7 days</string>
+    <string name="pair_saves">Changes save as you go.</string>
+    <string name="pair_done">Done</string>
+    <string name="pair_stop_sharing">Stop sharing with %1$s</string>
+    <string name="pair_sync_both">%1$s has it on too.</string>
+    <string name="pair_sync_not_yet">Not on %1$s\'s phone yet.</string>
+    <string name="pair_sync_no_bluetooth">Bluetooth isn\'t allowed.</string>
+    <string name="pair_build_differs">%1$s\'s phone has a different build of Initiative. Update both to the same one.</string>
+
     <string name="pair_back">Back</string>
     <string name="pair_nickname">Nickname</string>
     <string name="pair_color">Color</string>
@@ -438,7 +469,6 @@
     <string name="pair_show_mark">Their pairmark</string>
     <string name="pair_show_line">Their line on the dial</string>
     <string name="pair_share_report">Share my day report</string>
-    <string name="pair_unpair">Unpair</string>
     <string name="pair_unpair_ask">Unpair %1$s? You\'d pair again in person.</string>
     <string name="pair_unpair_yes">Unpair</string>
     <string name="pair_unpair_no">Keep</string>
@@ -493,6 +523,9 @@
     <string name="for_them_tag">For %1$s</string>
     <string name="clash_title">Double-booked</string>
     <string name="clash_label">Double-booked: %1$s and %2$s</string>
+    <string name="clash_label_series">Double-booked: %1$s and %2$s, %3$s</string>
+    <string name="clash_every_time">Both repeat: %1$s. Your choice covers every time.</string>
+
     <string name="clash_waitmark">Double-booked · %1$s</string>
     <string name="clash_open">Choose for %1$s</string>
     <string name="clash_mine">Yours · %1$s</string>
@@ -578,7 +611,9 @@
     <string name="manual_list_4">The dial</string>
     <string name="manual_list_4_does">The arc on Plan ahead is your day: appointments solid, tasks outlined, Now lit, the pointer at now.</string>
     <string name="manual_list_5">Markers</string>
-    <string name="manual_list_5_does">Bubbles under Plan ahead, for days like a birthday. Tap one for its name, again for its note.</string>
+    <string name="manual_list_5_does">Bubbles under Plan ahead, for days like a birthday. Tap one for its name, again for its panel. Tap outside to close it.</string>
+    <string name="manual_list_9">Prep tasks</string>
+    <string name="manual_list_9_does">A marker\'s panel offers Add a prep task: work that gets you ready for it. Each waits on the marker\'s page until its heads-up opens, then joins the board, tagged with the marker. A repeating marker brings them back each time.</string>
     <string name="manual_plan">Plan ahead</string>
     <string name="manual_plan_1">Open it</string>
     <string name="manual_plan_1_does">Tap the Plan ahead panel at the top of the board.</string>
@@ -635,8 +670,8 @@
     <string name="manual_pairs_4_does">Top left: their name and what they\'re doing. In grey, it\'s from an earlier Ping. Tap a tab to bring someone to the front; tap the front one for their panel: their day report and their month.</string>
     <string name="manual_pairs_5">The edge tab</string>
     <string name="manual_pairs_5_does">The small tab on the left edge, by the pairmarks. Tap it to fold them away, or pull them out again. A swipe from that edge is Back, so tap.</string>
-    <string name="manual_pairs_6">Unpair</string>
-    <string name="manual_pairs_6_does">On their page. It asks first.</string>
+    <string name="manual_pairs_6">Stop sharing</string>
+    <string name="manual_pairs_6_does">On their page, Stop sharing unpairs you. It asks first.</string>
     <string name="manual_pairs_7">Shared tasks</string>
     <string name="manual_pairs_7_does">In a task\'s form, Shared with picks who sees it. You each get a box to tick. Only whoever made it can change it; the other can do it, tick its steps, or set it aside for themselves. It syncs at each Ping.</string>
     <string name="manual_pairs_8">After unpairing</string>
@@ -646,7 +681,8 @@
     <string name="manual_pairs_10">Double-booked</string>
     <string name="manual_pairs_10_does">When one of yours and one of theirs share a time, a marker shows ahead and a bookmark on the day. Tap for Keep both, Skip theirs, or Move mine.</string>
     <string name="manual_pairs_11">Sync always</string>
-    <string name="manual_pairs_11_does">On their page: over Bluetooth, or at home over Wi-Fi. Works when both phones have it on. A quiet notification shows while it\'s on.</string>
+    <string name="manual_pairs_11_does">On their page: over Bluetooth, or at home over Wi-Fi. Works when both phones have it on; the page says whether theirs is. A quiet notification shows while it\'s on.</string>
+
     <string name="manual_looks">Looks</string>
     <string name="manual_looks_1">Theme</string>
     <string name="manual_looks_1_does">Chosen in Settings. Your colors lets you pick a color.</string>
@@ -681,5 +717,9 @@
     <string name="manual_around_6">Previously on</string>
     <string name="manual_around_6_does">After a day away, a recap of what passed, once.</string>
     <string name="manual_around_7">Recopy</string>
-    <string name="manual_around_7_does">Every week or two, a walk through your tasks, to keep, move, or drop each.</string>
+    <string name="manual_around_7_does">Every week or two, a walk through your one-off tasks, to keep, move, or drop each. A repeating task whose last three times passed gets one card: keep it, change how it repeats, or stop it.</string>
+    <string name="manual_around_10">Missed repeats</string>
+    <string name="manual_around_10_does">A repeating task\'s time stays until its next time comes, then passes quietly. A daily one passes overnight; a weekly one waits for next week.</string>
+    <string name="manual_around_11">Done</string>
+    <string name="manual_around_11_does">Settings and a person\'s page save as you go. Done closes them.</string>
 </resources>

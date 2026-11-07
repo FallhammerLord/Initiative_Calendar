@@ -34,6 +34,7 @@ class SettingsScreenTest {
     private var holidayLooks: Boolean? = null
     private var paired = false
     private var idle: Boolean? = null
+    private var closed = false
 
     private fun show(holidaysOn: Boolean = false, lookId: String = "scifi") {
         compose.setContent {
@@ -47,7 +48,7 @@ class SettingsScreenTest {
                     ornaments = true, onOrnaments = {}, idleFx = false, onIdleFx = { idle = it }, texture = 50, onTexture = {},
                     quiet = QuietSetting(), onQuiet = {}, lapseHours = 24, onLapseHours = {}, recopyDays = 7, onRecopyDays = {},
                     backup = BackupState(), onBackupFolder = {}, onBackUpNow = {}, onRestoreFile = {},
-                    onRestoreConfirm = {}, onRestoreCancel = {}, onClose = {},
+                    onRestoreConfirm = {}, onRestoreCancel = {}, onClose = { closed = true },
                 )
             }
         }
@@ -108,4 +109,12 @@ class SettingsScreenTest {
         show()
         compose.onNodeWithText("Update Initiative").performScrollTo().assertIsDisplayed()
     }
+
+    @Test fun doneClosesSettings() {
+        show()
+        compose.onNodeWithText("Changes save as you go.").assertIsDisplayed()
+        compose.onNodeWithText("Done").performSemanticsAction(SemanticsActions.OnClick)
+        org.junit.Assert.assertTrue(closed)
+    }
+
 }

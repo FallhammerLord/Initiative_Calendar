@@ -41,7 +41,7 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS, InitiativeDb.ADD_SIDE, InitiativeDb.ADD_SHARED)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS, InitiativeDb.ADD_SIDE, InitiativeDb.ADD_SHARED, InitiativeDb.ADD_PREP)
             .allowMainThreadQueries()
             .build()
         runBlocking {
@@ -61,6 +61,9 @@ class MigrationTest {
             assertEquals(true, dao.all().single().owned)
             assertEquals(false, dao.all().single().theirDone)
             assertEquals(false, dao.all().single().forThem)
+            // Version 9: not a prep task for any marker.
+            assertEquals(null, dao.all().single().markerId)
+
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
             // The pairs tables work: a person, a tick, and a peek.

@@ -1,6 +1,8 @@
 package initiative.core
 
 import java.time.DayOfWeek
+import java.time.LocalDate
+
 import java.time.LocalDateTime
 import java.time.temporal.TemporalAdjusters
 
@@ -16,9 +18,15 @@ object Recopy {
     fun due(lastRecopy: LocalDateTime?, now: LocalDateTime, days: Long = EVERY_DAYS): Boolean =
         lastRecopy != null && !now.isBefore(lastRecopy.plusDays(days))
 
-    /** Open floats, oldest first. Anchors already have their times. */
-    fun queue(items: List<Item>): List<Item> =
-        items.filter { !it.isTemplate && !it.isAnchor && !it.isMark && it.isOpen }.sortedBy { it.createdAt }
+    /**
+     * Open one-off floats, oldest first, then series gone stale (see [Series.stale]),
+     * one card each. Anchors already have their times; a series' times come back
+     * by themselves, so they aren't walked one by one.
+     */
+    fun queue(items: List<Item>, today: LocalDate): List<Item> =
+        items.filter { !it.isTemplate && it.templateId == null && !it.isAnchor && !it.isMark && it.isOpen && !it.forThem && !Prep.waiting(it, today) }
+
+            .sortedBy { it.createdAt } + Series.stale(items, today)
 
     /** Skipped often enough to suggest dropping it or giving it a real time. */
     fun nudge(item: Item): Boolean = item.skipCount >= NUDGE_SKIPS

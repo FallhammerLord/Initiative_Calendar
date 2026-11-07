@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,7 +43,8 @@ fun PairingScreen(
             QuietButton(stringResource(R.string.pairing_cancel), onClose)
         }
         Spacer(Modifier.height(Space.panel))
-        Card(inner = Space.l) {
+        // Scrolls, so the name field can rise above the keyboard.
+        Card(Modifier.verticalScroll(rememberScrollState()), inner = Space.l) {
             when (pairing) {
                 Pairing.Searching -> {
                     Body(stringResource(R.string.pairing_hold), color = Ink.text)
@@ -78,10 +81,11 @@ fun PairingScreen(
                         textStyle = Type.body.copy(color = Ink.text),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                         colors = fieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().keepAboveKeyboard(),
                     )
                     Spacer(Modifier.height(Space.s))
                     Body(stringResource(R.string.pairing_nothing_yet), style = Type.bodySmall)
+
                     Spacer(Modifier.height(Space.m))
                     PrimaryButton(stringResource(R.string.pairing_done), { onName(pairing.peer, name) }, Modifier.fillMaxWidth())
                 }
@@ -96,4 +100,5 @@ fun PairingScreen(
             }
         }
     }
+
 }

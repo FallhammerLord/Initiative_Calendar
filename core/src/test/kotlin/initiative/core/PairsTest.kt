@@ -37,7 +37,39 @@ class PairsTest {
         assertTrue(Sharing.outgoing(all, ShareLevel.NOTHING, setOf(1L, 2L)).isEmpty())
     }
 
+    @Test fun whatTheySeeIsOneRowPerSeriesTickedFirstAndOnlyWhatsAhead() {
+        val now = at(14)
+        val gym = Item(id = 10, title = "gym", kind = Kind.ANCHOR, start = at(18), end = at(19), recurrence = Recurrence(Freq.DAILY), createdAt = at(7))
+        val times = gym.instancesBetween(day, day.plusDays(20)).mapIndexed { i, t -> t.copy(id = 100L + i) }
+        val morning = Item(id = 6, title = "standup", kind = Kind.ANCHOR, start = at(9), end = at(9, 30), createdAt = at(7))
+        val shared = Item(id = 7, title = "groceries", kind = Kind.ANCHOR, start = at(16), end = at(17), uid = "u1", pairId = 1, createdAt = at(7))
+        val done = Item(id = 8, title = "call", kind = Kind.ANCHOR, start = at(17), end = at(17, 30), status = Status.DONE, createdAt = at(7))
+        val items = listOf(pickup, taxes, trip, farOff, gym, morning, shared, done) + times
+        val all = Sharing.shareable(items, engine.forecast(items, now), now)
+        val week = Sharing.seeList(all, items, ticked = setOf(4L), now = now)
+        assertEquals(listOf("trip", "taxes", "pick up the girls", "gym"), week.map { it.shared.title })
+        assertEquals(gym, week.last().series)
+        // The rest of the month adds nothing new here: the series stays one row.
+        assertEquals(4, Sharing.seeList(all, items, setOf(4L), now, days = null).size)
+        val later = Item(id = 9, title = "haircut", kind = Kind.ANCHOR, start = at(10).plusDays(12), end = at(11).plusDays(12), createdAt = at(7))
+        val more = items + later
+        val month = Sharing.shareable(more, engine.forecast(more, now), now)
+        assertFalse("haircut" in Sharing.seeList(month, more, emptySet(), now).map { it.shared.title })
+        assertTrue("haircut" in Sharing.seeList(month, more, emptySet(), now, days = null).map { it.shared.title })
+    }
+
+    @Test fun aPeekSaysWhichSyncsTheSenderHasOnAndItsBuild() {
+        val back = PeekFormat.decode(PeekFormat.encode(Peek(at(14), emptyList(), syncBluetooth = true, syncWifi = false, build = 42)))!!
+        assertEquals(true, back.syncBluetooth)
+        assertEquals(false, back.syncWifi)
+        assertEquals(42L, back.build)
+        // An older build says nothing: unknown, not off.
+        assertNull(PeekFormat.decode(PeekFormat.encode(Peek(at(14), emptyList())))!!.syncBluetooth)
+    }
+
     @Test fun probablyIsWhatCoversTheTime() {
+
+
         val peek = Peek(at(14), Sharing.outgoing(shareable(), ShareLevel.EVERYTHING, emptySet()))
         assertEquals("pick up the girls", peek.probably(at(15, 10))?.title)
         assertNull(peek.probably(day.plusDays(3).atTime(12, 0)), "a marker is context, not a doing")

@@ -59,7 +59,7 @@ class LapseTest {
         val old = float(1).copy(createdAt = at(0, 7))
         val new = float(2).copy(createdAt = at(0, 9))
         val anchor = Item(id = 3, title = "a", kind = Kind.ANCHOR, start = at(1, 9), createdAt = at(0, 1))
-        assertEquals(listOf(1L, 2L), Recopy.queue(listOf(new, anchor, old)).map { it.id })
+        assertEquals(listOf(1L, 2L), Recopy.queue(listOf(new, anchor, old), at(1, 9).toLocalDate()).map { it.id })
         assertTrue(Recopy.nudge(old.copy(skipCount = 3)))
     }
 

@@ -29,7 +29,12 @@ class AppGraph(context: Context) {
     val nearby = Nearby(context)
     val localNet = LocalNet(context)
     val pairKeys = PairKeys()
-    val pairSync = PairSync(dao, repo, placement, prefs, pairKeys::load)
+    private val app = context.applicationContext
+
+    /** This app's build number; read when first needed, off the main thread. */
+    val build: Long? by lazy { runCatching { app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode }.getOrNull() }
+    val pairSync = PairSync(dao, repo, placement, prefs, { build }, pairKeys::load)
+
 }
 
 val Context.graph: AppGraph get() = (applicationContext as InitiativeApp).graph

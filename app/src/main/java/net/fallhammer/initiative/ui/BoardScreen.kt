@@ -119,6 +119,7 @@ import initiative.core.Formats
 import initiative.core.Kind
 import initiative.core.Item
 import initiative.core.MarkKind
+import initiative.core.Prep
 import initiative.core.WallStrength
 import net.fallhammer.initiative.R
 import net.fallhammer.initiative.data.SetupStep
@@ -167,6 +168,11 @@ fun BoardScreen(vm: BoardViewModel) {
     val ticks by vm.pairs.ticks.collectAsStateWithLifecycle()
     val pairOpen by vm.pairOpen.collectAsStateWithLifecycle()
     val shareable by vm.shareable.collectAsStateWithLifecycle()
+    val allItems by vm.allItems.collectAsStateWithLifecycle()
+    val markPage by vm.markPage.collectAsStateWithLifecycle()
+
+    val buildNo by vm.build.collectAsStateWithLifecycle()
+
     val pairsShown by vm.pairs.shown.collectAsStateWithLifecycle()
     val pairFront by vm.pairFront.collectAsStateWithLifecycle()
     val pairing by vm.pairs.pairing.collectAsStateWithLifecycle()
@@ -221,6 +227,9 @@ fun BoardScreen(vm: BoardViewModel) {
     // Where the quick-add field sits, so a touch outside it can let it go.
     var fieldArea by remember { mutableStateOf(Rect.Zero) }
     var boardAt by remember { mutableStateOf(Offset.Zero) }
+    // A tap outside the markers closes an open label or note; see MarkHud.
+    var hudArea by remember { mutableStateOf(Rect.Zero) }
+    var hudCloses by rememberSaveable { mutableIntStateOf(0) }
 
     // Hiding the keyboard lets go of the text field, so it doesn't stay lit.
     val keyboardUp = WindowInsets.isImeVisible
@@ -232,7 +241,7 @@ fun BoardScreen(vm: BoardViewModel) {
             trayOpen >= 0 -> vm.closeTray()
             pairPanel >= 0 -> vm.closePairPanel()
             clashKey.isNotEmpty() -> vm.clash.close()
-            overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen || reportDay != null -> vm.back()
+            overlay != Overlay.NONE || recopyItem != null || draft != null || confirming != null || logOpen || reportDay != null || markPage >= 0 -> vm.back()
             expanded -> expanded = false
         }
     }
@@ -252,6 +261,7 @@ fun BoardScreen(vm: BoardViewModel) {
         val focusView = ui.focus
         val shownRecap = recap
         val walkItem = recopyItem
+        val pageMarker = allItems.firstOrNull { it.id == markPage && it.isMark && it.status != Status.DROPPED }
         val editing = draft
         val reportOn = reportDay
         // Each of these takes the board's place, so nothing hides underneath:
@@ -261,6 +271,20 @@ fun BoardScreen(vm: BoardViewModel) {
         Box(Modifier.fillMaxSize().then(if (overlay != Overlay.NONE) Modifier.clearAndSetSemantics { } else Modifier)) {
             if (shownRecap != null) {
                 RecapScreen(shownRecap, onKeep = vm.recap::keep, onDrop = vm.recap::drop, onDropAll = vm.recap::dropAll, onBack = vm.recap::close)
+            } else if (editing != null) {
+                // Above the recopy walk: "Change how it repeats" edits there, then the walk goes on.
+                EditScreen(editing, vm.edit, peers = peers, names = names, onForget = vm.names::forget, onUnforget = vm.names::unforget)
+            } else if (pageMarker != null) {
+                MarkPage(
+                    pageMarker,
+                    Prep.of(allItems, pageMarker),
+                    ui.now.toLocalDate(),
+                    onAdd = { vm.addPrep(pageMarker, it) },
+                    onTick = vm::setPrepDone,
+                    onEditTask = vm.edit::open,
+                    onEditMarker = vm.edit::open,
+                    onClose = vm::closeMarkPage,
+                )
             } else if (walkItem != null) {
                 RecopyScreen(
                     walkItem,
@@ -269,9 +293,10 @@ fun BoardScreen(vm: BoardViewModel) {
                     onNextWeek = vm.recopy::nextWeek,
                     onDrop = vm.recopy::drop,
                     onStop = vm.recopy::stop,
+                    onChangeSeries = { vm.recopy.changeSeries(it, vm.edit::open) },
+                    onStopSeries = vm.recopy::stopSeries,
                 )
-            } else if (editing != null) {
-                EditScreen(editing, vm.edit, peers = peers, names = names, onForget = vm.names::forget, onUnforget = vm.names::unforget)
+
             } else if (reportOn != null) {
                 ReportScreen(reportOn, reportLines, reportNotes, onNotes = vm::setReportNotes, onClose = vm::closeReport, marks = reportMarks)
             } else if (logOpen) {
@@ -308,6 +333,7 @@ fun BoardScreen(vm: BoardViewModel) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                                 if (!fieldArea.contains(down.position + boardAt)) focus.clearFocus()
+                                if (!hudArea.contains(down.position + boardAt)) hudCloses++
                             }
                         },
                 ) {
@@ -344,6 +370,8 @@ fun BoardScreen(vm: BoardViewModel) {
                             onFocus = vm::startFocus,
                             onEdit = vm.edit::open,
                             onStep = vm::toggleStep,
+                            forMarker = ui.board?.now?.item?.let { Prep.markerOf(allItems, it)?.title },
+
                             compact = keyboardUp,
                             onOnIt = vm::onIt,
                             peers = peers,
@@ -374,7 +402,12 @@ fun BoardScreen(vm: BoardViewModel) {
                               clashes = clashes,
                               today = ui.now.toLocalDate(),
                               onClash = vm.clash::open,
-                              modifier = Modifier.align(Alignment.TopStart).offset(y = -(Space.zone + BUBBLE / 2)).padding(start = Space.m),
+                              closes = hudCloses,
+                              onPage = { m, _ -> vm.openMarkPage(m) },
+                              hasPrep = { m -> Prep.of(allItems, m).isNotEmpty() },
+                              modifier = Modifier.align(Alignment.TopStart).offset(y = -(Space.zone + BUBBLE / 2)).padding(start = Space.m)
+                                  .onGloballyPositioned { hudArea = it.boundsInRoot() },
+
                           )
                       }
                     }
@@ -549,7 +582,9 @@ fun BoardScreen(vm: BoardViewModel) {
                 PairScreen(
                     openPeer, peeks[openPeer.id], ui.now, shareable, ticks[openPeer.id].orEmpty(), vm.pairs, onClose = vm::closePair,
                     bluetoothReady = bluetoothReady, onAskBluetooth = askBluetooth,
+                    items = allItems, build = buildNo,
                 )
+
             } else SettingsScreen(
                 unlock = unlock,
                 onBoardOnUnlock = vm.settings::setBoardOnUnlock,
@@ -728,7 +763,7 @@ private fun ClashMarks(clashes: List<Clashes.Clash>, onTap: (Clashes.Clash) -> U
                 key(clash.key) {
                     val ink = Ink.onAccent
                     val text = stringResource(R.string.clash_waitmark, Formats.clock(clash.at))
-                    val named = stringResource(R.string.clash_label, clash.mine.title, clash.theirs.title)
+                    val named = clashName(clash)
                     Row(
                         Modifier
                             .offset(x = Space.l)

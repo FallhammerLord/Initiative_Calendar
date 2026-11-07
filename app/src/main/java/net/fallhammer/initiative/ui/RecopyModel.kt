@@ -3,6 +3,7 @@ package net.fallhammer.initiative.ui
 import androidx.lifecycle.SavedStateHandle
 import initiative.core.Item
 import initiative.core.Recopy
+import initiative.core.occurrenceDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +61,7 @@ class RecopyModel(
     }
 
     fun start() {
-        val queue = Recopy.queue(current()).map { it.id }
+        val queue = Recopy.queue(current(), LocalDate.now()).map { it.id }
         parts.acted()
         if (queue.isEmpty()) finish() else walk(queue.toLongArray(), 0)
     }
@@ -88,7 +89,27 @@ class RecopyModel(
         next()
     }
 
+    /** A stale series: its next time opens to edit (this and later), and the walk goes on after. */
+    fun changeSeries(template: Item, open: (Item) -> Unit) {
+        val today = LocalDate.now()
+        val upcoming = current().filter { it.templateId == template.id && it.isOpen && it.occurrenceDate?.isBefore(today) == false }
+            .minByOrNull { it.occurrenceDate!! }
+        next()
+        if (upcoming != null) open(upcoming)
+
+    }
+
+    /** A stale series stops from today; its open times from today are taken off. */
+    fun stopSeries(template: Item) {
+        parts.scope.launch {
+            graph.repo.stopSeries(template, LocalDate.now())
+            parts.show(Flash(parts.text(R.string.series_stopped)))
+        }
+        next()
+    }
+
     /** Stop partway; the card stays until a walk is finished. */
+
     fun stop() = walk(LongArray(0), 0)
 
     private fun move(item: Item, to: LocalDateTime, note: String) {

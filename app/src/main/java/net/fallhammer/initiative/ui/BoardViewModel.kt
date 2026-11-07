@@ -23,6 +23,7 @@ import initiative.core.Shareable
 import initiative.core.Sharing
 import initiative.core.ReportLine
 import initiative.core.Status
+import initiative.core.instancesBetween
 import initiative.core.occurrenceDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -181,8 +182,19 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         val today = LocalDate.now()
         all.filter { it.isTemplate && it.status != Status.DROPPED }.sortedBy { it.title.lowercase() }.map { t ->
             t to all.filter { it.templateId == t.id && it.isOpen && it.occurrenceDate?.isBefore(today) == false }.minByOrNull { it.occurrenceDate!! }
+        }.filter { (t, next) ->
+            // Running: a time still to come, made or not. A series with none left has stopped.
+            next != null || t.instancesBetween(today, today.plusYears(1)).isNotEmpty()
         }
+
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Every item, for screens that show a series as one row. */
+    val allItems: StateFlow<List<Item>> = repo.items.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _build = MutableStateFlow<Long?>(null)
+    /** This app's build number, read off the main thread; a person's page says when theirs differs. */
+    val build: StateFlow<Long?> = _build.asStateFlow()
 
     private val _ask = MutableStateFlow<Parsed?>(null)
     /** A quick-add the parser couldn't place: "Anchor or float?" */
@@ -205,10 +217,16 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
     /** The paired person whose panel is open over the board; -1 when none is. Kept across a restart. */
     val pairPanel: StateFlow<Long> = saved.getStateFlow(PAIR_PANEL, -1L)
 
-    /** Tasks added just for a paired person, still to do: on their panel, never on this board. */
-    val forThem: StateFlow<List<Item>> = repo.items.map { all ->
-        all.filter { it.forThem && it.isOpen && it.templateId == null }.sortedWith(compareBy({ it.start == null }, { it.start }, { it.createdAt }))
+    /**
+     * Tasks added just for a paired person, still to do: on their panel, never on
+     * this board. A timed one passes once its time is over (it never settles here,
+     * since this phone's alarms skip it), so it leaves the list.
+     */
+    val forThem: StateFlow<List<Item>> = combine(repo.items, clock) { all, now ->
+        all.filter { it.forThem && it.isOpen && it.templateId == null && !(it.isAnchor && it.anchorEnd?.isAfter(now) == false) }
+            .sortedWith(compareBy({ it.start == null }, { it.start }, { it.createdAt }))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
 
     fun openPairPanel(id: Long) {
         saved[PAIR_PANEL] = id
@@ -257,7 +275,13 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 delay(TICK_MS - System.currentTimeMillis() % TICK_MS)
                 val now = LocalDateTime.now()
                 clock.value = now
+                // Past midnight with the board open: the new day's times are made, and missed ones pass.
+                if (instancesFor != now.toLocalDate()) {
+                    instancesFor = now.toLocalDate()
+                    repo.ensureInstances(now)
+                }
                 // A lapse or a due recopy shows even while the board stays open.
+
                 withContext(Dispatchers.IO) {
                     recap.load(graph.prefs, now)
                     recopy.load(graph.prefs, now)
@@ -317,6 +341,8 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
                 recap.load(prefs, now)
                 _focus.value = prefs.focus
                 launcher.load()
+                _build.value = graph.build
+
                 // The always-on syncs, if anyone has one on: started here while the board is in front.
                 SyncService.update(getApplication())
             }
@@ -543,6 +569,36 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         return true
     }
 
+    /** The marker whose page is open; -1 for none. Kept across a restart. */
+    val markPage: StateFlow<Long> = saved.getStateFlow(MARK_PAGE, -1L)
+
+    fun openMarkPage(marker: Item) {
+        if (marker.id != 0L) saved[MARK_PAGE] = marker.id
+    }
+
+    fun closeMarkPage() {
+        saved[MARK_PAGE] = -1L
+    }
+
+    /** A prep task for [marker], read as quick-add reads it, made a task. True when understood. */
+    fun addPrep(marker: Item, text: String): Boolean {
+        val parsed = Parser.parse(text, LocalDateTime.now()) ?: return false
+        acted()
+        viewModelScope.launch {
+            repo.addPrep(marker, parsed.item, LocalDateTime.now())
+            show(Flash(getApplication<Application>().getString(R.string.prep_added, parsed.item.title)))
+        }
+        return true
+    }
+
+    /** A prep task ticked on its marker's page: done, or back to open. */
+    fun setPrepDone(item: Item, done: Boolean) {
+        acted()
+        viewModelScope.launch {
+            if (done) repo.done(item, LocalDateTime.now()) else repo.putBack(item)
+        }
+    }
+
     fun answerFloat() {
         _ask.value?.let(::save)
         _ask.value = null
@@ -611,7 +667,10 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
             closeReport()
         } else if (edit.isOpen) {
             edit.cancel()
+        } else if (markPage.value >= 0) {
+            closeMarkPage()
         } else if (recopy.walking) {
+
             recopy.stop()
         } else if (confirming.value != null) {
             notYet()
@@ -786,6 +845,7 @@ class BoardViewModel(app: Application, private val saved: SavedStateHandle) : An
         const val OVERLAY = "overlay"
         const val PAIR = "pair"
         const val PAIR_FRONT = "pair_front"
+        const val MARK_PAGE = "mark_page"
         const val REPORT = "report"
         const val REPORT_NOTES = "report_notes"
         const val PICK_SLOT = "pick_slot"

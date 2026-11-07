@@ -243,13 +243,16 @@ class EditModel(
         if (old == null) return
         parts.acted()
         parts.scope.launch {
+            // A marker's open prep tasks stay, as ordinary tasks; Undo puts the link back.
+            val prep = if (old.isMark) graph.repo.unlinkPrep(old) else emptyList()
             if (later && old.templateId != null) {
                 val (before, off) = graph.repo.removeLater(old, LocalDateTime.now())
-                parts.show(Flash(parts.text(R.string.series_removed_later), undo = before.first(), undoAlso = before.drop(1), readd = off))
+                parts.show(Flash(parts.text(R.string.series_removed_later), undo = before.first(), undoAlso = before.drop(1) + prep, readd = off))
             } else {
                 graph.repo.drop(old, note = "edited: removed")
-                parts.show(Flash(parts.text(R.string.edit_removed), undo = old))
+                parts.show(Flash(parts.text(R.string.edit_removed), undo = old, undoAlso = prep))
             }
+
         }
     }
 

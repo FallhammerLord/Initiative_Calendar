@@ -63,7 +63,9 @@ object Log {
                     .mapNotNull { i -> i.occurrenceDate?.let { LogEntry(i, it, if (i.isMark) null else i.start, projected = true) } }
             }
         }
-        return (real + projected).sortedWith(ORDER)
+        // A prep task waits on its marker's page until the marker's heads-up opens.
+        return (real + projected).filter { !Prep.waiting(it.item, today) }.sortedWith(ORDER)
+
     }
 
     /** Each date from [from] to [to], with its entries, empty dates included. */

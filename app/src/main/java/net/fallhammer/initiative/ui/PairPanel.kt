@@ -16,6 +16,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.platform.LocalDensity
+
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -82,7 +89,9 @@ fun PairPanel(
             .fillMaxSize()
             .background(Ink.scrim)
             // A tap outside the panel closes it; taps on the panel stay there.
-            .pointerInput(Unit) { detectTapGestures { onClose() } },
+            .pointerInput(Unit) { detectTapGestures { onClose() } }
+            // With the keyboard up, the panel shrinks to the room above it.
+            .imePadding(),
     ) {
         Card(
             Modifier
@@ -270,7 +279,7 @@ private fun ForThem(name: String, items: List<Item>, now: LocalDateTime, onAdd: 
     if (items.isNotEmpty()) {
         Text(stringResource(R.string.pair_panel_for, name), style = Type.bodySmall, color = Ink.dim, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(Space.inside))
-        items.forEach { item ->
+        ScrollBox { items.forEach { item ->
             val time = item.start?.takeIf { item.isAnchor }?.let { if (it.toLocalDate() == now.toLocalDate()) Formats.clock(it) else Formats.day(it.toLocalDate()) }
                 ?: stringResource(R.string.report_any_time)
             Row(
@@ -280,7 +289,7 @@ private fun ForThem(name: String, items: List<Item>, now: LocalDateTime, onAdd: 
                 Text(time, style = Type.caption, color = Ink.dim, modifier = Modifier.width(TIME_COLUMN))
                 Text(item.title, style = Type.body, color = Ink.text, modifier = Modifier.weight(1f))
             }
-        }
+        } }
         Spacer(Modifier.height(Space.inside))
     }
     if (!adding) {
@@ -288,7 +297,11 @@ private fun ForThem(name: String, items: List<Item>, now: LocalDateTime, onAdd: 
         return
     }
     val cursor = remember { FocusRequester() }
+    val seen = remember { BringIntoViewRequester() }
     LaunchedEffect(Unit) { runCatching { cursor.requestFocus() } }
+    // As the keyboard rises, the panel scrolls so the line and its buttons stay in view.
+    val keyboard = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(keyboard) { seen.bringIntoView() }
     fun submit() {
         if (onAdd(text)) {
             text = ""
@@ -307,10 +320,12 @@ private fun ForThem(name: String, items: List<Item>, now: LocalDateTime, onAdd: 
         modifier = Modifier.fillMaxWidth().focusRequester(cursor),
     )
     Spacer(Modifier.height(Space.inside))
-    ActionRow(
-        Action(2f) { PrimaryButton(stringResource(R.string.pair_panel_add_go), ::submit, it) },
-        Action { QuietButton(stringResource(R.string.edit_cancel), { text = ""; adding = false }, it) },
-    )
+    Box(Modifier.bringIntoViewRequester(seen)) {
+        ActionRow(
+            Action(2f) { PrimaryButton(stringResource(R.string.pair_panel_add_go), ::submit, it) },
+            Action { QuietButton(stringResource(R.string.edit_cancel), { text = ""; adding = false }, it) },
+        )
+    }
 }
 
 private const val DAYS_A_WEEK = 7

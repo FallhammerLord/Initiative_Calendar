@@ -1027,10 +1027,12 @@ for _ in 1 2 3 4 5; do sync_running || break; sleep 1; done
 sync_running && fail "turning the sync off should stop it" || pass "turning the sync off stops it"
 # Sharing levels, ticks, and Unpair asking first are checked as a screen test
 # (PairScreenTest); here, only that Unpair works on the phone.
-scroll_to "Unpair" exact || fail "the page should end with Unpair"
+expect_text "Changes save as you go." || fail "the page should say changes save as you go"
+scroll_to "Stop sharing with Partner" exact || fail "the page should offer Stop sharing with Partner"
 shot pair-page-end
-tap "Unpair" exact
-scroll_to "Keep" exact || fail "Unpair should ask first"
+tap "Stop sharing with Partner" exact
+scroll_to "Keep" exact || fail "Stop sharing should ask first"
+
 tap "Unpair" exact
 wait_gone "What you share with Partner" || fail "Unpair should close the page"
 wait_gone "Partner, " || fail "Unpair should take them off the list"
@@ -1333,7 +1335,29 @@ shot marker-note
 tap Close exact
 wait_gone "Edit" exact || fail "Close should fold the marker's note"
 pass "a marker shows as a bubble, its label, and its note"
+# Its panel's Add a prep task opens the marker's page, cursor in the line. With
+# the heads-up the first task sets, today's marker has its window open, so the
+# task joins the board at once.
+tap "alloween, marker"
+tap "alloween, marker"
+wait_for "Add a prep task" exact || fail "a marker's panel should offer Add a prep task"
+tap "Add a prep task" exact
+wait_for "Nothing to get ready yet." exact || fail "Add a prep task should open the marker's page"
+adb shell input text "buy%scandy"
+adb shell input keyevent KEYCODE_ENTER
+wait_for "uy candy" || fail "a prep task should show on the marker's page"
+expect_text "On the board" exact
+hide_keyboard
+shot marker-page
+# Ticked off on the page, so it leaves the board and later steps keep their Now.
+tap "uy candy"
+sleep 1
+tap "Back" exact
+
+wait_gone "Nothing to get ready yet." exact
+pass "a marker's page adds a prep task"
 crash_check
+
 
 # --- The Log ----------------------------------------------------------------------
 # Plan ahead opens the Log on today. It zooms to Week, Month, and Year, and the

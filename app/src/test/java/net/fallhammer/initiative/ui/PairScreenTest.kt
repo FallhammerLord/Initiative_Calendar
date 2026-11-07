@@ -10,7 +10,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
+import initiative.core.Freq
 import initiative.core.Item
+import initiative.core.Peek
+import initiative.core.Recurrence
+import initiative.core.instancesBetween
+
 import initiative.core.Kind
 import initiative.core.ShareLevel
 import initiative.core.Shareable
@@ -87,14 +94,56 @@ class PairScreenTest {
 
     @Test fun unpairAsksFirst() {
         show()
-        compose.onNodeWithText("Unpair").performScrollTo().tap()
+        compose.onNodeWithText("Stop sharing with Partner").performScrollTo().tap()
         compose.onNodeWithText("Keep").performScrollTo().tap()
         assertEquals(false, unpaired)
-        compose.onNodeWithText("Unpair").performScrollTo().tap()
+        compose.onNodeWithText("Stop sharing with Partner").performScrollTo().tap()
         compose.onNodeWithText("pair again in person", substring = true).performScrollTo().assertIsDisplayed()
         // The question's own Unpair button: the only one left.
         compose.onNodeWithText("Unpair").performScrollTo().tap()
         assertTrue(unpaired && closed)
+    }
+
+    @Test fun doneClosesThePage() {
+        show()
+        compose.onNodeWithText("Changes save as you go.").assertIsDisplayed()
+        compose.onNodeWithText("Done").tap()
+        assertTrue(closed)
+    }
+
+    @Config(qualifiers = "w411dp-h891dp")
+    @Test fun aSeriesIsOneRowAndTheWeekCanOpenToTheMonth() {
+
+        val gym = Item(id = 20, title = "gym", kind = Kind.ANCHOR, start = now.plusHours(6), end = now.plusHours(7), recurrence = Recurrence(Freq.DAILY), createdAt = now)
+        val times = gym.instancesBetween(now.toLocalDate(), now.toLocalDate().plusDays(20)).mapIndexed { i, t -> t.copy(id = 200L + i) }
+        val haircut = Item(id = 30, title = "haircut", kind = Kind.ANCHOR, start = now.plusDays(12), end = now.plusDays(12).plusHours(1), createdAt = now)
+        val all = shareable + (times + haircut).map { Shareable(it, Shared(Kind.ANCHOR, it.title, it.start!!, it.end!!)) }
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                PairScreen(peer, null, now, all, ticked, edits, onClose = {}, items = listOf(gym) + times + haircut)
+            }
+        }
+        compose.onAllNodesWithText("gym").assertCountEquals(1)
+        compose.onNodeWithText("Every day", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("haircut").assertDoesNotExist()
+        compose.onNodeWithText("Show the rest of the month").performScrollTo().tap()
+        compose.onNodeWithText("haircut").performScrollTo().assertIsDisplayed()
+        // Ticking the series' row shares every time.
+        compose.onNodeWithText("gym").performScrollTo().tap()
+        assertEquals(setOf(20L), ticked)
+    }
+
+    @Test fun syncSaysWhetherTheyHaveItOnToo() {
+        peer = peer.copy(syncWifi = true, syncBluetooth = true)
+        val peek = Peek(now, emptyList(), syncBluetooth = false, syncWifi = true, build = 7)
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                PairScreen(peer, peek, now, shareable, ticked, edits, onClose = {}, build = 8)
+            }
+        }
+        compose.onNodeWithText("Partner has it on too.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Not on Partner's phone yet.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("different build", substring = true).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun syncAlwaysTurnsOnForEachWay() {
