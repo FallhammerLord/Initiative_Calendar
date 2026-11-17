@@ -9,6 +9,7 @@ import initiative.core.Prep
 import initiative.core.Recurrence
 import initiative.core.Series
 import initiative.core.Status
+import initiative.core.Tidy
 import initiative.core.instancesBetween
 import initiative.core.occurrenceDate
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +51,24 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         if (fresh.isNotEmpty()) dao.insertAll(fresh.map { it.toRow() })
         // A series' open time passes once its next time comes, so a missed one isn't carried.
         Series.passing(all, today).forEach { update(it, it.copy(status = Status.MISSED, pinnedSlot = null, notBefore = null), note = PASSED_NOTE) }
+        tidy(now)
+    }
+
+    /**
+     * Removed and passed items go for good a month on (see core's Tidy), with
+     * their history; a series forgets skipped dates already past.
+     */
+    private suspend fun tidy(now: LocalDateTime) {
+        val all = dao.all().map { it.toItem() }
+        // Removed or passed before this was kept (a restored old backup): from now.
+        all.filter { it.settledAt == null && Tidy.keptUntil(it, now.toLocalDate()) != null }
+            .forEach { dao.update(it.copy(settledAt = now).toRow()) }
+        val sweep = Tidy.sweep(dao.all().map { it.toItem() }, now.toLocalDate())
+        sweep.pruned.forEach { (_, after) -> dao.update(after.toRow()) }
+        if (sweep.gone.isEmpty()) return
+        dao.deleteItems(sweep.gone.map { it.id })
+        dao.deleteOrphanEvents()
+        dao.deleteOrphanAlarms()
     }
 
     /** Done, with every step ticked: "All done" covers them all. */
@@ -143,6 +162,24 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     }
 
     /**
+     * Remove on a time of a series, for every time: the series stops, and all its
+     * times go but the done ones, which are the record. Returns what Undo needs:
+     * the series as it was, and the times taken off.
+     */
+    suspend fun removeEvery(item: Item): Pair<Item?, List<Item>> {
+        val template = item.templateId?.let { dao.byId(it)?.toItem() }
+        if (template == null) {
+            drop(item, note = "edited: removed")
+            return item to emptyList()
+        }
+        update(template, template.copy(status = Status.DROPPED), note = "series removed")
+        val off = dao.all().map { it.toItem() }.filter { it.templateId == template.id && it.status != Status.DONE }
+        if (off.isNotEmpty()) dao.deleteItems(off.map { it.id })
+        off.forEach { dao.clearAlarm(it.id) }
+        return template to off
+    }
+
+    /**
      * A series stops from [from] on: it makes no more times, and its open times
      * from then are taken off (done and passed ones stay). Returns the times taken off.
      */
@@ -161,8 +198,17 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
         if (items.isNotEmpty()) dao.insertAll(items.map { it.toRow() })
     }
 
-    /** Off the ledger for good: the item and its history. Undo can put the item back. */
+    /**
+     * Off the ledger for good: the item and its history. Undo can put the item back.
+     * A time still to come of a running series is skipped on the series, so it
+     * isn't made again.
+     */
     suspend fun deleteForGood(item: Item) {
+        val template = item.templateId?.let { dao.byId(it)?.toItem() }?.takeIf { it.isTemplate && it.status != Status.DROPPED }
+        val day = item.occurrenceDate
+        if (template != null && day != null && !day.isBefore(java.time.LocalDate.now())) {
+            dao.update(template.copy(skipDates = template.skipDates + day).toRow())
+        }
         dao.deleteItems(listOf(item.id))
         dao.deleteEventsOf(item.id)
         dao.clearAlarm(item.id)
@@ -330,7 +376,9 @@ class Repository(private val dao: ItemDao, private val placement: Placement) {
     }
 
     suspend fun update(old: Item, new: Item, note: String = "") {
-        dao.update(new.toRow())
+        // Removed or passed: from when, so search keeps it a month from then.
+        val settles = old.status != new.status && (new.status == Status.DROPPED || new.status == Status.MISSED)
+        dao.update((if (settles) new.copy(settledAt = LocalDateTime.now()) else new).toRow())
         if (old.status != new.status || note.isNotEmpty()) {
             dao.insertEvent(
                 EventRow(

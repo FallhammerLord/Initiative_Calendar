@@ -42,7 +42,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import initiative.core.Effort
 import initiative.core.Formats
 import initiative.core.Freq
 import initiative.core.Item
@@ -82,10 +81,13 @@ fun EditScreen(
     val paired = peers.isNotEmpty()
     val context = LocalContext.current
     val rule by edit.rule.collectAsStateWithLifecycle()
-    val later by edit.later.collectAsStateWithLifecycle()
     val dupe by edit.dupe.collectAsStateWithLifecycle()
-    // Remove on a time of a series asks which: just this time, or this and later.
+    val scopeAsk by edit.scopeAsk.collectAsStateWithLifecycle()
+    // Remove on a time of a series asks which: just this time, this and later, or every time.
     var asking by rememberSaveable(draft.id) { mutableStateOf(false) }
+    // Which line's choices are open, if any, and whether More is unfolded.
+    var openLine by rememberSaveable(draft.id) { mutableStateOf<String?>(null) }
+    var moreOpen by rememberSaveable(draft.id) { mutableStateOf(false) }
     // Keyed by the item, so opening another item starts fresh; saved across a restart.
     // Kept with its cursor, so a picked name leaves the cursor after it.
     var title by rememberSaveable(draft.id, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(draft.title)) }
@@ -136,28 +138,6 @@ fun EditScreen(
             }
             Spacer(Modifier.height(Space.s))
             Field(stringResource(R.string.edit_notes), notes, { notes = it }, singleLine = false)
-            // Once anyone is paired: keep this one home, whatever is shared.
-            if (paired) {
-                Spacer(Modifier.height(Space.s))
-                SettingSwitch(stringResource(R.string.edit_never_share), draft.neverShare) { on -> edit.change { it.copy(neverShare = on) } }
-                // A shared task: both see it and each has a box. Set for a one-off, or a whole series,
-                // never one time of a series alone.
-                if (draft.templateId == null || later) {
-                    Spacer(Modifier.height(Space.s))
-                    val choices = listOf(stringResource(R.string.edit_only_me)) + peers.map { it.nickname }
-                    val at = peers.indexOfFirst { it.id == draft.pairId }.let { if (it < 0) 0 else it + 1 }
-                    ChoiceRow(stringResource(R.string.edit_shared_with), choices, at) { i ->
-                        edit.change {
-                            if (i == 0) it.copy(uid = null, pairId = null, forThem = false) else it.copy(uid = it.uid ?: SharedTasks.newUid(), pairId = peers[i - 1].id)
-                        }
-                    }
-                    // Shared, it can be theirs alone: it goes to them and stays off this board.
-                    peers.firstOrNull { it.id == draft.pairId }?.let { peer ->
-                        Spacer(Modifier.height(Space.s))
-                        SettingSwitch(stringResource(R.string.edit_for_them, peer.nickname), draft.forThem) { on -> edit.change { it.copy(forThem = on) } }
-                    }
-                }
-            }
             // A marker is context, not work: no steps.
             if (!draft.isMark) Part {
                 Text(stringResource(R.string.edit_steps), style = Type.bodySmall, color = Ink.text)
@@ -217,131 +197,149 @@ fun EditScreen(
                     height = Tap.min,
                 )
             }
+            // Each setting is a line with its value; a tap opens its choices under it, one at a time.
+            fun toggle(line: String) { openLine = if (openLine == line) null else line }
+            val start = draft.start
             Part {
-                val kinds = listOf(Kind.ANCHOR, Kind.FLOAT, Kind.MARK)
-                ChoiceRow(
-                    stringResource(R.string.edit_type),
-                    listOf(stringResource(R.string.edit_anchor), stringResource(R.string.edit_float), stringResource(R.string.edit_marker)),
-                    kinds.indexOf(draft.kind),
-                ) { edit.setKind(kinds[it]) }
-            }
-
-            Part {
+                if (draft.isMark && start != null) {
+                    SettingLine(stringResource(R.string.edit_line_day), Formats.day(start.toLocalDate()), { pickDate(start.toLocalDate(), edit::setMarkDay) }, first = true)
+                    DateLine(
+                        stringResource(R.string.edit_line_until),
+                        draft.end?.let { Formats.day(it.toLocalDate()) },
+                        stringResource(R.string.edit_line_one_day),
+                        open = openLine == UNTIL,
+                        onOpen = { toggle(UNTIL) },
+                        onPick = { pickDate((draft.end ?: start).toLocalDate()) { d -> openLine = null; edit.setMarkUntil(d) } },
+                        onClear = { openLine = null; edit.setMarkUntil(null) },
+                    )
+                    val icons = MarkIcon.entries
+                    SettingLine(stringResource(R.string.edit_icon), stringResource(iconName(draft.icon)), { toggle(ICON) }, open = openLine == ICON) {
+                        PickRow(icons.map { stringResource(iconName(it)) }, icons.indexOf(draft.icon)) { i -> edit.change { it.copy(icon = icons[i]) } }
+                    }
+                    val ahead = (HEADS_UP + draft.headsUpDays).distinct().sorted()
+                    val aheadLabel = @Composable { n: Int -> if (n == 0) stringResource(R.string.edit_heads_up_none) else pluralStringResource(R.plurals.days, n, n) }
+                    SettingLine(stringResource(R.string.edit_heads_up), aheadLabel(draft.headsUpDays), { toggle(AHEAD) }, open = openLine == AHEAD) {
+                        PickRow(ahead.map { aheadLabel(it) }, ahead.indexOf(draft.headsUpDays)) { i -> edit.change { it.copy(leadMinutes = ahead[i] * MINUTES_A_DAY) } }
+                    }
+                } else if (draft.isAnchor && start != null) {
+                    SettingLine(stringResource(R.string.edit_line_date), Formats.day(start.toLocalDate()), { pickDate(start.toLocalDate(), edit::setDate) }, first = true)
+                    SettingLine(stringResource(R.string.edit_line_starts), Formats.clock(start), { pickTime(start.toLocalTime(), edit::setStart) })
+                    val end = draft.end
+                    SettingLine(
+                        stringResource(R.string.edit_line_ends),
+                        end?.let { Formats.clock(it) } ?: stringResource(R.string.edit_line_no_end),
+                        { pickTime((end ?: draft.anchorEnd ?: start).toLocalTime(), edit::setEnd) },
+                    )
+                } else {
+                    val lengths = (DURATIONS + draft.durationMinutes).distinct().sorted()
+                    SettingLine(stringResource(R.string.edit_duration), minutes(draft.durationMinutes), { toggle(LENGTH) }, open = openLine == LENGTH, first = true) {
+                        PickRow(lengths.map { minutes(it) }, lengths.indexOf(draft.durationMinutes)) { i -> edit.change { it.copy(durationMinutes = lengths[i]) } }
+                    }
+                    DateLine(
+                        stringResource(R.string.edit_line_due),
+                        draft.deadline?.let { Formats.day(it) },
+                        stringResource(R.string.edit_line_no_due),
+                        open = openLine == DUE,
+                        onOpen = { toggle(DUE) },
+                        onPick = { pickDate(draft.deadline ?: LocalDate.now()) { d -> openLine = null; edit.change { it.copy(deadline = d) } } },
+                        onClear = { openLine = null; edit.change { it.copy(deadline = null) } },
+                    )
+                    DateLine(
+                        stringResource(R.string.edit_line_first),
+                        draft.earliestStart?.let { Formats.day(it) },
+                        stringResource(R.string.edit_line_any_day),
+                        open = openLine == FIRST,
+                        onOpen = { toggle(FIRST) },
+                        onPick = { pickDate(draft.earliestStart ?: LocalDate.now()) { d -> openLine = null; edit.change { it.copy(earliestStart = d) } } },
+                        onClear = { openLine = null; edit.change { it.copy(earliestStart = null) } },
+                    )
+                }
                 // The usual rules, plus the item's own when it's something else (say, every other Tuesday).
                 val presets = REPEATS.map { it.second }.let { if (rule in it) it else it + rule }
                 val labels = REPEATS.map { stringResource(it.first) } + if (presets.size > REPEATS.size) listOf(stringResource(R.string.repeat_custom)) else emptyList()
-                ChoiceRow(stringResource(R.string.edit_repeat), labels, presets.indexOf(rule)) { edit.setRule(presets[it]) }
-                if (draft.templateId != null) {
-                    if (rule == edit.originalRule) {
-                        ChoiceRow(
-                            stringResource(R.string.edit_scope),
-                            listOf(stringResource(R.string.scope_this), stringResource(R.string.scope_later)),
-                            if (later) 1 else 0,
-                        ) { edit.setLater(it == 1) }
-                    } else {
+                SettingLine(stringResource(R.string.edit_repeat), labels[presets.indexOf(rule).coerceAtLeast(0)], { toggle(REPEAT) }, open = openLine == REPEAT, changed = rule != edit.originalRule) {
+                    PickRow(labels, presets.indexOf(rule)) { edit.setRule(presets[it]) }
+                    // A change to how a series repeats covers this time and later.
+                    if (draft.templateId != null && rule != edit.originalRule) {
+                        Spacer(Modifier.height(Space.inside))
                         Body(stringResource(R.string.edit_repeat_hint), style = Type.bodySmall)
                     }
                 }
             }
 
-            val start = draft.start
-            if (draft.isMark && start != null) {
-                // A marker: its day or days, its icon, and how far ahead it shows.
-                Part {
-                    PickButton(stringResource(R.string.edit_mark_on, Formats.day(start.toLocalDate()))) {
-                        pickDate(start.toLocalDate(), edit::setMarkDay)
-                    }
-                    DateLine(
-                        set = draft.end?.let { stringResource(R.string.edit_mark_until, Formats.day(it.toLocalDate())) },
-                        unset = stringResource(R.string.edit_mark_one_day),
-                        onPick = { pickDate((draft.end ?: start).toLocalDate()) { d -> edit.setMarkUntil(d) } },
-                        onClear = { edit.setMarkUntil(null) },
-                    )
-                }
-                Part {
-                    val icons = MarkIcon.entries
-                    ChoiceRow(stringResource(R.string.edit_icon), icons.map { stringResource(iconName(it)) }, icons.indexOf(draft.icon)) { i ->
-                        edit.change { it.copy(icon = icons[i]) }
-                    }
-                }
-                Part {
-                    val ahead = (HEADS_UP + draft.headsUpDays).distinct().sorted()
-                    ChoiceRow(
-                        stringResource(R.string.edit_heads_up),
-                        ahead.map { if (it == 0) stringResource(R.string.edit_heads_up_none) else pluralStringResource(R.plurals.days, it, it) },
-                        ahead.indexOf(draft.headsUpDays),
-                    ) { i -> edit.change { it.copy(leadMinutes = ahead[i] * MINUTES_A_DAY) } }
-                }
-            } else if (draft.isAnchor && start != null) {
-                Part {
-                    PickButton(stringResource(R.string.edit_date, Formats.day(start.toLocalDate()))) {
-                        pickDate(start.toLocalDate(), edit::setDate)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
-                        PickButton(stringResource(R.string.edit_starts, Formats.clock(start)), Modifier.weight(1f)) {
-                            pickTime(start.toLocalTime(), edit::setStart)
-                        }
-                        val end = draft.end
-                        PickButton(
-                            if (end != null) stringResource(R.string.edit_ends, Formats.clock(end)) else stringResource(R.string.edit_set_end),
-                            Modifier.weight(1f),
-                        ) { pickTime((end ?: draft.anchorEnd ?: start).toLocalTime(), edit::setEnd) }
-                    }
-                }
-                Part {
-                    val walls = WallStrength.entries
-                    ChoiceRow(stringResource(R.string.edit_wall), walls.map(Formats::wall), walls.indexOf(draft.wall)) { i ->
-                        edit.change { it.copy(wall = walls[i]) }
-                    }
-                }
-                Part {
-                    val leads = (LEADS + draft.leadMinutes).distinct().sorted()
-                    ChoiceRow(stringResource(R.string.edit_lead), leads.map { minutes(it) }, leads.indexOf(draft.leadMinutes)) { i ->
-                        edit.change { it.copy(leadMinutes = leads[i]) }
-                    }
-                }
-            } else {
-                Part {
-                    val lengths = (DURATIONS + draft.durationMinutes).distinct().sorted()
-                    ChoiceRow(stringResource(R.string.edit_duration), lengths.map { minutes(it) }, lengths.indexOf(draft.durationMinutes)) { i ->
-                        edit.change { it.copy(durationMinutes = lengths[i]) }
-                    }
-                }
-                Part {
-                    val priorities = Priority.entries
-                    val labels = listOf(R.string.priority_auto, R.string.priority_low, R.string.priority_normal, R.string.priority_high)
-                    ChoiceRow(stringResource(R.string.edit_priority), labels.map { stringResource(it) }, priorities.indexOf(draft.priority)) { i ->
-                        edit.change { it.copy(priority = priorities[i]) }
-                    }
-                }
-                Part {
-                    val efforts = Effort.entries
-                    val labels = listOf(R.string.effort_quick, R.string.effort_focus)
-                    ChoiceRow(stringResource(R.string.edit_effort), labels.map { stringResource(it) }, efforts.indexOf(draft.effort)) { i ->
-                        edit.change { it.copy(effort = efforts[i]) }
-                    }
-                }
-                Part {
-                    DateLine(
-                        set = draft.deadline?.let { stringResource(R.string.edit_deadline, Formats.day(it)) },
-                        unset = stringResource(R.string.edit_no_deadline),
-                        onPick = { pickDate(draft.deadline ?: LocalDate.now()) { d -> edit.change { it.copy(deadline = d) } } },
-                        onClear = { edit.change { it.copy(deadline = null) } },
-                    )
-                    DateLine(
-                        set = draft.earliestStart?.let { stringResource(R.string.edit_after, Formats.day(it)) },
-                        unset = stringResource(R.string.edit_no_after),
-                        onPick = { pickDate(draft.earliestStart ?: LocalDate.now()) { d -> edit.change { it.copy(earliestStart = d) } } },
-                        onClear = { edit.change { it.copy(earliestStart = null) } },
-                    )
-                }
-            }
-
-            if (!draft.isMark) Part {
+            // The rarely changed settings, folded away. The line names any moved off its default.
+            Part {
+                val priorities = Priority.entries
+                val priorityLabels = listOf(R.string.priority_auto, R.string.priority_low, R.string.priority_normal, R.string.priority_high).map { stringResource(it) }
                 val policies = MissPolicy.entries
-                val labels = listOf(R.string.miss_reroll, R.string.miss_drop, R.string.miss_ask)
-                ChoiceRow(stringResource(R.string.edit_missed), labels.map { stringResource(it) }, policies.indexOf(draft.missPolicy)) { i ->
-                    edit.change { it.copy(missPolicy = policies[i]) }
+                val policyLabels = listOf(R.string.miss_reroll, R.string.miss_drop, R.string.miss_ask).map { stringResource(it) }
+                val walls = WallStrength.entries
+                val peer = peers.firstOrNull { it.id == draft.pairId }
+                val changes = buildList {
+                    if (!draft.isMark && !draft.isAnchor && draft.priority != Priority.AUTO) add(stringResource(R.string.edit_more_priority, priorityLabels[priorities.indexOf(draft.priority)]))
+                    if (draft.isAnchor && draft.wall != WallStrength.FIRM) add(stringResource(R.string.edit_more_wall, Formats.wall(draft.wall)))
+                    if (draft.isAnchor && draft.leadMinutes != Item.DEFAULT_LEAD) add(stringResource(R.string.edit_more_lead, minutes(draft.leadMinutes)))
+                    if (!draft.isMark && draft.missPolicy != MissPolicy.REROLL) add(policyLabels[policies.indexOf(draft.missPolicy)])
+                    if (peer != null) add(stringResource(R.string.edit_more_shared, peer.nickname))
+                    if (draft.neverShare) add(stringResource(R.string.edit_more_never))
+                }
+                val hint = when {
+                    draft.isMark -> if (paired) R.string.edit_more_marker else R.string.edit_more_marker_solo
+                    draft.isAnchor -> if (paired) R.string.edit_more_anchor else R.string.edit_more_anchor_solo
+                    else -> if (paired) R.string.edit_more_task else R.string.edit_more_task_solo
+                }
+                SettingLine(
+                    stringResource(R.string.edit_more),
+                    changes.joinToString(" · ").ifEmpty { null },
+                    { moreOpen = !moreOpen; openLine = null },
+                    open = moreOpen,
+                    changed = changes.isNotEmpty(),
+                    first = true,
+                    hint = if (moreOpen) null else stringResource(hint),
+                ) {
+                    val kinds = listOf(Kind.ANCHOR, Kind.FLOAT, Kind.MARK)
+                    val kindLabels = listOf(stringResource(R.string.edit_anchor), stringResource(R.string.edit_float), stringResource(R.string.edit_marker))
+                    SettingLine(stringResource(R.string.edit_type), kindLabels[kinds.indexOf(draft.kind)], { toggle(TYPE) }, open = openLine == TYPE, first = true) {
+                        PickRow(kindLabels, kinds.indexOf(draft.kind)) { edit.setKind(kinds[it]) }
+                    }
+                    if (draft.isAnchor) {
+                        SettingLine(stringResource(R.string.edit_wall), Formats.wall(draft.wall), { toggle(WALL) }, open = openLine == WALL, changed = draft.wall != WallStrength.FIRM) {
+                            PickRow(walls.map(Formats::wall), walls.indexOf(draft.wall)) { i -> edit.change { it.copy(wall = walls[i]) } }
+                        }
+                        val leads = (LEADS + draft.leadMinutes).distinct().sorted()
+                        SettingLine(stringResource(R.string.edit_lead), minutes(draft.leadMinutes), { toggle(LEAD) }, open = openLine == LEAD, changed = draft.leadMinutes != Item.DEFAULT_LEAD) {
+                            PickRow(leads.map { minutes(it) }, leads.indexOf(draft.leadMinutes)) { i -> edit.change { it.copy(leadMinutes = leads[i]) } }
+                        }
+                    } else if (!draft.isMark) {
+                        SettingLine(stringResource(R.string.edit_priority), priorityLabels[priorities.indexOf(draft.priority)], { toggle(PRIORITY) }, open = openLine == PRIORITY, changed = draft.priority != Priority.AUTO) {
+                            PickRow(priorityLabels, priorities.indexOf(draft.priority)) { i -> edit.change { it.copy(priority = priorities[i]) } }
+                        }
+                    }
+                    if (!draft.isMark) {
+                        SettingLine(stringResource(R.string.edit_missed), policyLabels[policies.indexOf(draft.missPolicy)], { toggle(MISSED) }, open = openLine == MISSED, changed = draft.missPolicy != MissPolicy.REROLL) {
+                            PickRow(policyLabels, policies.indexOf(draft.missPolicy)) { i -> edit.change { it.copy(missPolicy = policies[i]) } }
+                        }
+                    }
+                    // Once anyone is paired: who it's shared with, and keeping this one home. A shared
+                    // task: both see it and each has a box. For a time of a series, sharing covers the series.
+                    if (paired) {
+                        val choices = listOf(stringResource(R.string.edit_only_me)) + peers.map { it.nickname }
+                        val at = peers.indexOfFirst { it.id == draft.pairId }.let { if (it < 0) 0 else it + 1 }
+                        SettingLine(stringResource(R.string.edit_shared_with), choices[at], { toggle(SHARE) }, open = openLine == SHARE, changed = at != 0) {
+                            PickRow(choices, at) { i ->
+                                edit.change {
+                                    if (i == 0) it.copy(uid = null, pairId = null, forThem = false) else it.copy(uid = it.uid ?: SharedTasks.newUid(), pairId = peers[i - 1].id)
+                                }
+                            }
+                            // Shared, it can be theirs alone: it goes to them and stays off this board.
+                            peer?.let { p ->
+                                Spacer(Modifier.height(Space.inside))
+                                SettingSwitch(stringResource(R.string.edit_for_them, p.nickname), draft.forThem) { on -> edit.change { it.copy(forThem = on) } }
+                            }
+                        }
+                        LineRule()
+                        SettingSwitch(stringResource(R.string.edit_never_share), draft.neverShare) { on -> edit.change { it.copy(neverShare = on) } }
+                    }
                 }
             }
             Spacer(Modifier.height(Space.l))
@@ -357,10 +355,18 @@ fun EditScreen(
                 Action { SecondaryButton(stringResource(R.string.dupe_keep), { edit.answerDupe(replace = false) }, it) },
                 onCancel = edit::cancelDupe,
             )
+            // Saving a change to one time of a series.
+            scopeAsk -> Question(
+                stringResource(R.string.scope_ask),
+                Action { SecondaryButton(stringResource(R.string.scope_this), { edit.answerScope(later = false) }, it) },
+                Action { SecondaryButton(stringResource(R.string.scope_later), { edit.answerScope(later = true) }, it) },
+                onCancel = edit::cancelScope,
+            )
             asking -> Question(
                 stringResource(R.string.remove_which),
-                Action { SecondaryButton(stringResource(R.string.remove_this), { edit.remove(later = false) }, it) },
-                Action { SecondaryButton(stringResource(R.string.remove_later), { edit.remove(later = true) }, it) },
+                Action { SecondaryButton(stringResource(R.string.remove_this), { edit.remove(RemoveScope.THIS) }, it) },
+                Action { SecondaryButton(stringResource(R.string.remove_later), { edit.remove(RemoveScope.LATER) }, it) },
+                Action { SecondaryButton(stringResource(R.string.remove_every), { edit.remove(RemoveScope.EVERY) }, it) },
                 onCancel = { asking = false },
             )
             // A marker can't be done: it only informs.
@@ -436,18 +442,29 @@ private fun Field(
     )
 }
 
-/** A button that opens a date or time picker, labelled with the current value. */
+/**
+ * An optional date as a line. Unset, a tap opens the date picker; set, a tap
+ * opens Change and Clear under it.
+ */
 @Composable
-private fun PickButton(label: String, modifier: Modifier = Modifier.fillMaxWidth(), onClick: () -> Unit) {
-    SecondaryButton(label, onClick, modifier, height = Tap.min)
-}
-
-/** An optional date: the value with Clear, or a button to set one. */
-@Composable
-private fun DateLine(set: String?, unset: String, onPick: () -> Unit, onClear: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        PickButton(set ?: unset, Modifier.weight(1f), onPick)
-        if (set != null) QuietButton(stringResource(R.string.edit_clear), onClear)
+private fun DateLine(
+    label: String,
+    value: String?,
+    unset: String,
+    open: Boolean,
+    onOpen: () -> Unit,
+    onPick: () -> Unit,
+    onClear: () -> Unit,
+) {
+    if (value == null) {
+        SettingLine(label, unset, onPick)
+        return
+    }
+    SettingLine(label, value, onOpen, open = open, changed = true) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Space.s), modifier = Modifier.fillMaxWidth()) {
+            SecondaryButton(stringResource(R.string.edit_line_change), onPick, Modifier.weight(1f))
+            QuietButton(stringResource(R.string.edit_clear), onClear)
+        }
     }
 }
 
@@ -479,6 +496,21 @@ private val WIDEST_WAIT = DURATIONS.map { Formats.countdown(Duration.ofMinutes(i
 
 /** How far ahead a marker can show, in days. */
 private val HEADS_UP = listOf(0, 1, 2, 3, 7)
+
+// The form's lines that open, as saved in which one is open.
+private const val UNTIL = "until"
+private const val ICON = "icon"
+private const val AHEAD = "ahead"
+private const val LENGTH = "length"
+private const val DUE = "due"
+private const val FIRST = "first"
+private const val REPEAT = "repeat"
+private const val TYPE = "type"
+private const val WALL = "wall"
+private const val LEAD = "lead"
+private const val PRIORITY = "priority"
+private const val MISSED = "missed"
+private const val SHARE = "share"
 
 /** A marker icon's name, as the edit form lists it. */
 internal fun iconName(icon: MarkIcon): Int = when (icon) {

@@ -81,6 +81,10 @@ data class ItemRow(
     val forThem: Boolean = false,
     /** A prep task's marker; see core's Item.markerId. */
     val markerId: Long? = null,
+    /** A series' times deleted for good, as ISO dates joined by commas; see core's Item.skipDates. */
+    val skipDates: String = "",
+    /** When it was removed or passed; see core's Tidy. */
+    val settledAt: String? = null,
 )
 
 /**
@@ -237,6 +241,13 @@ interface ItemDao {
     @Query("DELETE FROM events WHERE itemId = :id")
     suspend fun deleteEventsOf(id: Long)
 
+    /** History of items no longer on the ledger, tidied away with them. */
+    @Query("DELETE FROM events WHERE itemId NOT IN (SELECT id FROM items)")
+    suspend fun deleteOrphanEvents()
+
+    @Query("DELETE FROM alarms WHERE itemId NOT IN (SELECT id FROM items)")
+    suspend fun deleteOrphanAlarms()
+
     /** Forgets an anchor's alarm progress, so the ladder runs again for a new time. */
     @Query("DELETE FROM alarms WHERE itemId = :id")
     suspend fun clearAlarm(id: Long)
@@ -321,7 +332,7 @@ interface ItemDao {
 
 @Database(
     entities = [ItemRow::class, EventRow::class, RunRow::class, AlarmRow::class, PeerRow::class, ShareRow::class, PeekRow::class],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class InitiativeDb : RoomDatabase() {
@@ -411,9 +422,25 @@ abstract class InitiativeDb : RoomDatabase() {
             }
         }
 
+        /**
+         * Tidying up: a series' skipped dates, and when an item was removed or passed.
+         * Items already removed or passed take that from their last event, so search
+         * keeps them a month from when it happened, not from today.
+         */
+        internal val ADD_TIDY = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `skipDates` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `items` ADD COLUMN `settledAt` TEXT")
+                db.execSQL(
+                    "UPDATE `items` SET `settledAt` = (SELECT MAX(`at`) FROM `events` WHERE `events`.`itemId` = `items`.`id`) " +
+                        "WHERE `status` IN ('DROPPED', 'MISSED')",
+                )
+            }
+        }
+
         fun get(context: Context): InitiativeDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, InitiativeDb::class.java, "initiative.db")
-                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE, ADD_SHARED, ADD_PREP)
+                .addMigrations(ADD_ALARMS, ADD_STEPS, ADD_WAITS, ADD_MARKS, ADD_PAIRS, ADD_SIDE, ADD_SHARED, ADD_PREP, ADD_TIDY)
                 .build()
                 .also { instance = it }
         }
@@ -459,6 +486,8 @@ fun Item.toRow() = ItemRow(
     theirDone = theirDone,
     forThem = forThem,
     markerId = markerId,
+    skipDates = skipDates.sorted().joinToString(","),
+    settledAt = settledAt?.toString(),
 )
 
 fun ItemRow.toItem() = Item(
@@ -504,4 +533,6 @@ fun ItemRow.toItem() = Item(
     theirDone = theirDone,
     forThem = forThem,
     markerId = markerId,
+    skipDates = skipDates.split(",").filter { it.isNotEmpty() }.map(LocalDate::parse).toSet(),
+    settledAt = settledAt?.let(LocalDateTime::parse),
 )

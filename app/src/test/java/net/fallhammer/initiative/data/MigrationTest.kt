@@ -41,7 +41,7 @@ class MigrationTest {
         }
 
         val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
-            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS, InitiativeDb.ADD_SIDE, InitiativeDb.ADD_SHARED, InitiativeDb.ADD_PREP)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS, InitiativeDb.ADD_SIDE, InitiativeDb.ADD_SHARED, InitiativeDb.ADD_PREP, InitiativeDb.ADD_TIDY)
             .allowMainThreadQueries()
             .build()
         runBlocking {
@@ -63,6 +63,9 @@ class MigrationTest {
             assertEquals(false, dao.all().single().forThem)
             // Version 9: not a prep task for any marker.
             assertEquals(null, dao.all().single().markerId)
+            // Version 10: nothing skipped, and an open item was never removed or passed.
+            assertEquals("", dao.all().single().skipDates)
+            assertEquals(null, dao.all().single().settledAt)
 
             dao.putAlarm(AlarmRow(itemId = 1, ackedAt = null, snoozes = 1, snoozedUntil = null, lastRung = 2))
             assertNotNull(dao.alarm(1))
@@ -76,6 +79,33 @@ class MigrationTest {
             assertEquals(false, dao.peers().single().syncWifi)
             val second = dao.insert(dao.all().single().copy(id = 0, title = "taxes", titleKey = "taxes"))
             assertEquals(2L, second)
+        }
+        room.close()
+    }
+
+    @Test
+    fun version10TakesWhenARemovedItemWentFromItsLastEvent() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "migration-tidy-test.db"
+        context.deleteDatabase(name)
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name).apply { parentFile?.mkdirs() }, null).use { db ->
+            V1_TABLES.forEach(db::execSQL)
+            db.execSQL(
+                "INSERT INTO items (title, titleKey, notes, kind, wall, leadMinutes, partnerAlert, durationMinutes, " +
+                    "priority, effort, skipCount, recInterval, recDays, missPolicy, status, createdAt) VALUES " +
+                    "('gym', 'gym', '', 'FLOAT', 'FIRM', 15, 0, 30, 'AUTO', 'QUICK', 0, 1, '', " +
+                    "'REROLL', 'DROPPED', '2026-10-01T09:00')",
+            )
+            db.execSQL("INSERT INTO events (itemId, fromStatus, toStatus, at, note) VALUES (1, NULL, 'PENDING', '2026-10-01T09:00', 'created')")
+            db.execSQL("INSERT INTO events (itemId, fromStatus, toStatus, at, note) VALUES (1, 'PENDING', 'DROPPED', '2026-10-12T18:30', 'edited: removed')")
+            db.version = 1
+        }
+        val room = Room.databaseBuilder(context, InitiativeDb::class.java, name)
+            .addMigrations(InitiativeDb.ADD_ALARMS, InitiativeDb.ADD_STEPS, InitiativeDb.ADD_WAITS, InitiativeDb.ADD_MARKS, InitiativeDb.ADD_PAIRS, InitiativeDb.ADD_SIDE, InitiativeDb.ADD_SHARED, InitiativeDb.ADD_PREP, InitiativeDb.ADD_TIDY)
+            .allowMainThreadQueries()
+            .build()
+        runBlocking {
+            assertEquals("2026-10-12T18:30", room.items().all().single().settledAt)
         }
         room.close()
     }

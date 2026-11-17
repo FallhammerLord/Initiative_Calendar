@@ -69,6 +69,9 @@ private val PARTS = listOf(
             R.string.manual_plan_4 to R.string.manual_plan_4_does,
             R.string.manual_plan_5 to R.string.manual_plan_5_does,
             R.string.manual_plan_6 to R.string.manual_plan_6_does,
+            R.string.manual_plan_7 to R.string.manual_plan_7_does,
+            R.string.manual_plan_8 to R.string.manual_plan_8_does,
+            R.string.manual_plan_9 to R.string.manual_plan_9_does,
         ),
     ),
     Part(

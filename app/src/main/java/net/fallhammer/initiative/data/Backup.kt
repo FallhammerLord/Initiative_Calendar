@@ -153,7 +153,7 @@ object Backup {
         .set("steps", r.steps).set("waitUntil", r.waitUntil).set("workedMinutes", r.workedMinutes).set("icon", r.icon)
         .set("neverShare", r.neverShare).set("side", r.side)
         .set("uid", r.uid).set("pairId", r.pairId).set("owned", r.owned).set("theirDone", r.theirDone).set("forThem", r.forThem)
-        .set("markerId", r.markerId)
+        .set("markerId", r.markerId).set("skipDates", r.skipDates).set("settledAt", r.settledAt)
 
     fun itemRow(o: JSONObject) = ItemRow(
         id = o.getLong("id"),
@@ -199,6 +199,9 @@ object Backup {
         forThem = o.optBoolean("forThem", false),
         // Backups from before prep tasks: no task belongs to a marker.
         markerId = if (o.isNull("markerId") || !o.has("markerId")) null else o.getLong("markerId"),
+        // Backups from before tidying: nothing skipped, and removed items kept from the restore on.
+        skipDates = o.optString("skipDates", ""),
+        settledAt = if (o.isNull("settledAt") || !o.has("settledAt")) null else o.getString("settledAt"),
     )
 
 

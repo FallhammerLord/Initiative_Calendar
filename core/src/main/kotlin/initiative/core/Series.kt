@@ -9,7 +9,7 @@ import java.time.LocalDate
 object Series {
     /** The template after a "this and later" edit of [edited], one of its instances. */
     fun from(template: Item, edited: Item, rule: Recurrence): Item =
-        fresh(edited, rule, edited.occurrenceDate ?: template.seriesStart).copy(id = template.id, createdAt = template.createdAt)
+        fresh(edited, rule, edited.occurrenceDate ?: template.seriesStart).copy(id = template.id, createdAt = template.createdAt, skipDates = template.skipDates)
 
     /** A new template for a one-off [item] that starts repeating, from [joinDate]. */
     fun start(item: Item, rule: Recurrence, today: LocalDate): Item =
@@ -41,7 +41,7 @@ object Series {
                 val after = date.plusDays(1)
                 val sibling = dates[item.templateId].orEmpty().any { !it.isBefore(after) && !it.isAfter(today) }
                 val rule = templates[item.templateId]?.takeIf { it.status != Status.DROPPED }?.let { t ->
-                    t.recurrence?.occurrences(t.seriesStart, after, today)?.isNotEmpty() == true
+                    t.recurrence?.occurrences(t.seriesStart, after, today)?.any { it !in t.skipDates } == true
                 } == true
                 sibling || rule
             }
@@ -76,5 +76,7 @@ item: Item, rule: Recurrence, first: LocalDate): Item = item.copy(
         steps = Steps.fresh(item.steps),
         waitUntil = null,
         workedMinutes = 0,
+        skipDates = emptySet(),
+        settledAt = null,
     )
 }

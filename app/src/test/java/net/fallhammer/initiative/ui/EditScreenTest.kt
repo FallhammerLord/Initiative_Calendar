@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -46,6 +45,13 @@ class EditScreenTest {
 
     private fun SemanticsNodeInteraction.tap() = performSemanticsAction(SemanticsActions.OnClick)
 
+    // A choice under an open line; the line itself also says the chosen one.
+    private fun choice(text: String) = compose.onNode(
+        androidx.compose.ui.test.hasText(text) and androidx.compose.ui.test.SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.Role, androidx.compose.ui.semantics.Role.RadioButton,
+        ),
+    )
+
     private val day = LocalDate.of(2026, 10, 19)
     private val scope = CoroutineScope(Dispatchers.Unconfined)
     private val parts = BoardParts(ApplicationProvider.getApplicationContext<Application>(), scope, show = {}, acted = {})
@@ -71,7 +77,9 @@ class EditScreenTest {
 
     @Test fun aTaskCanBeSharedWithSomeonePaired() {
         show(dentist, listOf(air))
-        compose.onNodeWithText("Shared with").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Shared with").assertDoesNotExist()
+        compose.onNodeWithText("More").performScrollTo().tap()
+        compose.onNodeWithText("Shared with").performScrollTo().tap()
         compose.onNodeWithText("Air").performScrollTo().tap()
         val shared = edit.draft.value!!
         assertEquals(7L, shared.pairId)
@@ -79,15 +87,26 @@ class EditScreenTest {
         // Shared, it can be just for them: off this board.
         compose.onNodeWithText("Just for Air, not on my board").performScrollTo().tap()
         assertTrue(edit.draft.value!!.forThem)
-        compose.onNodeWithText("Only me").performScrollTo().tap()
+        // The line now says who, and More names it once folded.
+        choice("Only me").performScrollTo().tap()
         assertEquals(null, edit.draft.value!!.uid)
         assertEquals(false, edit.draft.value!!.forThem)
         compose.onNodeWithText("Just for Air, not on my board").assertDoesNotExist()
     }
 
-    @Test fun oneTimeOfASeriesCantBeSharedAlone() {
-        show(gym, listOf(air))
-        compose.onNodeWithText("Shared with").assertDoesNotExist()
+    @Test fun aChangeToOneTimeOfASeriesAsksOnSave() {
+        show(gym)
+        // Nothing changed: no question.
+        compose.onNodeWithText("Starts").performScrollTo().assertIsDisplayed()
+        edit.change { it.copy(wall = initiative.core.WallStrength.HARD) }
+        compose.onNodeWithText("Save").tap()
+        compose.onNodeWithText("Save changes to").assertIsDisplayed()
+        compose.onNodeWithText("This time").assertIsDisplayed()
+        compose.onNodeWithText("This and later").assertIsDisplayed()
+        // The question's own Cancel, below the form's.
+        compose.onAllNodesWithText("Cancel")[1].tap()
+        compose.onNodeWithText("Save changes to").assertDoesNotExist()
+        assertTrue(edit.isOpen)
     }
 
     @Test fun aTaskFromThemIsShownNotEdited() {
@@ -109,9 +128,50 @@ class EditScreenTest {
     @Test fun offersTheFormsParts() {
         show(dentist)
         compose.onNodeWithText("dentist").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Type").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Add a step").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Starts").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Repeats").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Remove").assertIsDisplayed()
+        // The rare ones are folded under More.
+        compose.onNodeWithText("Type").assertDoesNotExist()
+        compose.onNodeWithText("Wall").assertDoesNotExist()
+        compose.onNodeWithText("More").performScrollTo().tap()
+        compose.onNodeWithText("Type").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Wall").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun aTaskHasNoEffortAndOneLineOpensAtATime() {
+        val laundry = Item(id = 4, title = "laundry", kind = Kind.FLOAT, durationMinutes = 30, createdAt = day.atTime(6, 0))
+        val edit = EditModel(parts, SavedStateHandle()) { listOf(laundry) }
+        edit.open(laundry)
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                val draft by edit.draft.collectAsStateWithLifecycle()
+                draft?.let { EditScreen(it, edit) }
+            }
+        }
+        compose.onNodeWithText("Effort").assertDoesNotExist()
+        compose.onNodeWithText("Quick").assertDoesNotExist()
+        compose.onNodeWithText("How long").performScrollTo().tap()
+        compose.onNodeWithText("45m").performScrollTo().tap()
+        assertEquals(45, edit.draft.value!!.durationMinutes)
+        // Opening Repeats folds How long.
+        compose.onNodeWithText("Repeats").performScrollTo().tap()
+        compose.onNodeWithText("1h 30m").assertDoesNotExist()
+        compose.onNodeWithText("Every day").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun moreNamesWhatWasChanged() {
+        val laundry = Item(id = 4, title = "laundry", kind = Kind.FLOAT, priority = initiative.core.Priority.HIGH, createdAt = day.atTime(6, 0))
+        val edit = EditModel(parts, SavedStateHandle()) { listOf(laundry) }
+        edit.open(laundry)
+        compose.setContent {
+            InitiativeTheme(Looks.SciFi) {
+                val draft by edit.draft.collectAsStateWithLifecycle()
+                draft?.let { EditScreen(it, edit) }
+            }
+        }
+        compose.onNodeWithText("High priority").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun aStepIsOneLineWithAWaitAndARemove() {
@@ -136,6 +196,8 @@ class EditScreenTest {
 
     @Test fun everyDayMakesItRepeat() {
         show(dentist)
+        compose.onNodeWithText("Every day").assertDoesNotExist()
+        compose.onNodeWithText("Repeats").performScrollTo().tap()
         compose.onNodeWithText("Every day").performScrollTo().tap()
         assertEquals(Recurrence(Freq.DAILY), edit.rule.value)
     }
@@ -145,8 +207,8 @@ class EditScreenTest {
         compose.onNodeWithText("Remove").tap()
         compose.onNodeWithText("Remove which?").assertIsDisplayed()
         compose.onNodeWithText("Just this time").assertIsDisplayed()
-        // The scope row says it too: the question adds the second.
-        compose.onAllNodesWithText("This and later").assertCountEquals(2)
+        compose.onNodeWithText("This and later").assertIsDisplayed()
+        compose.onNodeWithText("Every time").assertIsDisplayed()
     }
 
     @Test fun cancelClosesWithoutSaving() {

@@ -33,7 +33,7 @@ object Report {
      * they now sit on a later day, so the Log alone wouldn't show them here.
      */
     fun of(items: List<Item>, date: LocalDate, today: LocalDate, movedOn: List<Item> = emptyList()): List<ReportLine> {
-        val lines = Log.entries(items, date, date, today)
+        val lines = Log.entries(items, date, date, today, passed = true)
             .filter { !it.projected && it.item.status != Status.DROPPED && !it.item.isMark }
             .map { e ->
                 val outcome = when (e.item.status) {

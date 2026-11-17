@@ -97,6 +97,13 @@ data class Item(
      * repeating marker, the series' prep points at the marker's series.
      */
     val markerId: Long? = null,
+    /**
+     * A series' times deleted for good, never made again: a calendar's exception
+     * dates. Kept on the series; dates already past are tidied away.
+     */
+    val skipDates: Set<LocalDate> = emptySet(),
+    /** When it was removed or passed; search keeps it for [Tidy.KEEP_DAYS] after. */
+    val settledAt: LocalDateTime? = null,
 ) {
 
     val isTemplate: Boolean get() = recurrence != null

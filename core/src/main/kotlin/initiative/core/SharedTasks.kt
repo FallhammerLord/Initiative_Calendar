@@ -131,6 +131,7 @@ object SharedTasks {
             recurrence = def.recurrence,
             missPolicy = def.missPolicy,
             icon = def.icon,
+            skipDates = def.skipDates,
             steps = steps,
         )
     }
@@ -207,6 +208,7 @@ object SharedTasks {
             "icon" to item.icon.name,
             "rec" to item.recurrence?.let { r -> "${r.freq.name},${r.interval},${r.days.joinToString("+") { it.name }}" }.orEmpty(),
             "steps" to item.steps.joinToString(STEP_SEP.toString()) { Steps.line(it.copy(done = false)) },
+            "skip" to item.skipDates.sorted().joinToString("+"),
         )
         return f.entries.joinToString(TAB.toString()) { (k, v) -> "$k=${esc(v)}" }
     }
@@ -240,6 +242,7 @@ object SharedTasks {
             icon = opt("icon")?.let(MarkIcon::valueOf) ?: MarkIcon.FLAG,
             recurrence = rec,
             steps = opt("steps")?.split(STEP_SEP)?.map(Steps::parse).orEmpty(),
+            skipDates = opt("skip")?.split('+')?.map(LocalDate::parse)?.toSet().orEmpty(),
             createdAt = now,
             owned = false,
         )

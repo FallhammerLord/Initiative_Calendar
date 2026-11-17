@@ -82,7 +82,7 @@ val Item.seriesStart: LocalDate
 fun Item.instancesBetween(from: LocalDate, to: LocalDate): List<Item> {
     val rule = recurrence ?: return emptyList()
     val first = seriesStart
-    return rule.occurrences(first, from, to).map { date ->
+    return rule.occurrences(first, from, to).filter { it !in skipDates }.map { date ->
         val shift = ChronoUnit.DAYS.between(first, date)
         copy(
             id = 0,
@@ -101,6 +101,8 @@ fun Item.instancesBetween(from: LocalDate, to: LocalDate): List<Item> {
             waitUntil = null,
             workedMinutes = 0,
             createdAt = date.atStartOfDay(),
+            skipDates = emptySet(),
+            settledAt = null,
         )
     }
 }

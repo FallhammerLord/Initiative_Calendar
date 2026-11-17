@@ -10,7 +10,14 @@ import java.time.temporal.TemporalAdjusters
  * done; null for a task with no set time. [projected] marks a later time of a
  * series that hasn't been made yet, shown so far-off plans are visible.
  */
-data class LogEntry(val item: Item, val date: LocalDate, val time: LocalDateTime?, val projected: Boolean = false)
+data class LogEntry(
+    val item: Item,
+    val date: LocalDate,
+    val time: LocalDateTime?,
+    val projected: Boolean = false,
+    /** In search, for a removed or passed item: the last day it's kept; see [Tidy]. */
+    val keptUntil: LocalDate? = null,
+)
 
 /**
  * The Log: every item by date, past and coming, for planning beyond today.
@@ -38,9 +45,14 @@ object Log {
         else -> item.pinnedSlot?.takeIf { it.toLocalDate() == date }
     }
 
-    /** Everything from [from] to [to], inclusive, in date and time order. */
-    fun entries(items: List<Item>, from: LocalDate, to: LocalDate, today: LocalDate): List<LogEntry> {
-        val real = items.flatMap { i ->
+    /**
+     * Everything still planned or done from [from] to [to], inclusive, in date and
+     * time order. Removed and passed items stay out: the plan isn't the trash.
+     * Search still finds them, for [Tidy.KEEP_DAYS]. The day report asks for
+     * [passed] ones too: what became of each thing is the report's point.
+     */
+    fun entries(items: List<Item>, from: LocalDate, to: LocalDate, today: LocalDate, passed: Boolean = false): List<LogEntry> {
+        val real = items.filter { it.status != Status.DROPPED && (passed || it.status != Status.MISSED) }.flatMap { i ->
             val span = i.markDays
             // A marker shows on each day it spans.
             if (span != null && !i.isTemplate) {
@@ -83,7 +95,7 @@ object Log {
         if (q.isEmpty()) return emptyList()
         val found = items
             .filter { i -> q in i.title.lowercase() || q in i.notes.lowercase() || i.steps.any { q in it.title.lowercase() } }
-            .mapNotNull { i -> dateOf(i, today)?.let { LogEntry(i, it, timeOf(i, it)) } }
+            .mapNotNull { i -> dateOf(i, today)?.let { LogEntry(i, it, timeOf(i, it), keptUntil = Tidy.keptUntil(i, today)) } }
         val (coming, past) = found.partition { it.date >= today }
         return coming.sortedWith(ORDER) + past.sortedWith(ORDER).reversed()
     }

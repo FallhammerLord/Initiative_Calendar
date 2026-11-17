@@ -52,13 +52,15 @@ class LogScreenTest {
     private val dentist = Item(id = 1, title = "dentist call", kind = Kind.ANCHOR, start = day.atTime(15, 0), end = day.atTime(15, 30), wall = WallStrength.HARD, createdAt = day.atTime(7, 0))
     private val landlord = Item(id = 2, title = "call landlord", kind = Kind.FLOAT, status = Status.DONE, doneAt = day.atTime(9, 0), createdAt = day.atTime(7, 0))
 
+    private val gym = Item(id = 3, title = "gym", kind = Kind.FLOAT, status = Status.DROPPED, earliestStart = day, settledAt = day.atTime(8, 0), createdAt = day.atTime(7, 0))
+
     private var closed = false
     private var added: Pair<String, LocalDate>? = null
 
     @After fun stop() = scope.cancel()
 
     private fun show() {
-        val log = LogModel(parts, SavedStateHandle(), flowOf(listOf(dentist, landlord)), MutableStateFlow(day.atTime(12, 0)))
+        val log = LogModel(parts, SavedStateHandle(), flowOf(listOf(dentist, landlord, gym)), MutableStateFlow(day.atTime(12, 0)))
         log.show()
         compose.setContent {
             InitiativeTheme(Looks.SciFi) {
@@ -116,6 +118,16 @@ class LogScreenTest {
         compose.onNode(hasSetTextAction()).performTextInput("landlord")
         waitFor("call landlord · done")
         compose.onNodeWithText("call landlord · done").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun aRemovedItemLeavesTheDayButSearchFindsItForAMonth() {
+        show()
+        waitFor("dentist call")
+        compose.onNodeWithText("gym", substring = true).assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).performTextInput("gym")
+        waitFor("gym · removed")
+        compose.onNodeWithText("gym · removed").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Kept until Wed, Nov 18").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun backToBoardCloses() {

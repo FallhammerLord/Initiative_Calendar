@@ -27,8 +27,8 @@ import java.time.LocalTime
  * screen and handed over on Save.
  *
  * For a repeating item, the draft also holds how it repeats and whether the
- * edit covers this time only or this and later times. A change to how it
- * repeats always covers this and later.
+ * edit covers this time only or this and later times, asked on Save. A change
+ * to how it repeats, or to sharing, always covers this and later.
  */
 class EditModel(
     private val parts: BoardParts,
@@ -75,6 +75,7 @@ class EditModel(
 
     fun cancel() {
         cancelDupe()
+        cancelScope()
         set(null)
     }
 
@@ -165,7 +166,38 @@ class EditModel(
                 return
             }
         }
+        // One time of a series, changed: this time, or this and later? A change to how it
+        // repeats, or to sharing (one time can't be shared alone), is this and later already.
+        if (old != null && old.templateId != null && _rule.value == originalRule && edited(d, title, notes, steps) != old) {
+            val sharing = d.uid != old.uid || d.pairId != old.pairId || d.forThem != old.forThem
+            if (sharing) {
+                setLater(true)
+            } else {
+                pending = Triple(title, notes, steps)
+                _scopeAsk.value = true
+                return
+            }
+        }
         commit(title, notes, steps, replace = null)
+    }
+
+    private val _scopeAsk = MutableStateFlow(false)
+
+    /** Saving a change to one time of a series: the form asks This time or This and later. */
+    val scopeAsk: StateFlow<Boolean> = _scopeAsk.asStateFlow()
+
+    /** The answer to "Save changes to": [later] covers this and later times. */
+    fun answerScope(later: Boolean) {
+        val (title, notes, steps) = pending ?: return
+        _scopeAsk.value = false
+        pending = null
+        setLater(later)
+        commit(title, notes, steps, replace = null)
+    }
+
+    fun cancelScope() {
+        _scopeAsk.value = false
+        pending = null
     }
 
     /** The answer to "already repeats": [replace] stops that series from today first. */
@@ -233,10 +265,11 @@ class EditModel(
     }
 
     /**
-     * Off the board, with Undo. For a time of a series, [later] also stops the
-     * series and takes off its later times; Undo puts it all back.
+     * Off the board, with Undo. For a time of a series, [scope] LATER also stops
+     * the series and takes off its later times; EVERY takes off every time but the
+     * done ones. Undo puts it all back.
      */
-    fun remove(later: Boolean = false) {
+    fun remove(scope: RemoveScope = RemoveScope.THIS) {
         val d = _draft.value ?: return
         val old = current().firstOrNull { it.id == d.id }
         set(null)
@@ -245,7 +278,10 @@ class EditModel(
         parts.scope.launch {
             // A marker's open prep tasks stay, as ordinary tasks; Undo puts the link back.
             val prep = if (old.isMark) graph.repo.unlinkPrep(old) else emptyList()
-            if (later && old.templateId != null) {
+            if (scope == RemoveScope.EVERY && old.templateId != null) {
+                val (series, off) = graph.repo.removeEvery(old)
+                parts.show(Flash(parts.text(R.string.series_removed_every), undo = series, undoAlso = prep, readd = off))
+            } else if (scope == RemoveScope.LATER && old.templateId != null) {
                 val (before, off) = graph.repo.removeLater(old, LocalDateTime.now())
                 parts.show(Flash(parts.text(R.string.series_removed_later), undo = before.first(), undoAlso = before.drop(1) + prep, readd = off))
             } else {
@@ -297,3 +333,6 @@ class EditModel(
         }.getOrNull()
     }
 }
+
+/** Which times Remove takes, on one time of a series. */
+enum class RemoveScope { THIS, LATER, EVERY }

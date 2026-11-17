@@ -490,6 +490,18 @@ fun DrawScope.arrowDown(color: Color) {
     )
 }
 
+/** A setting line's mark: a chevron pointing right, or down while its choices are open. */
+fun DrawScope.lineMark(open: Boolean, color: Color) {
+    val w = size.width
+    val h = size.height
+    val path = if (open) {
+        Path().apply { moveTo(w * 0.2f, h * 0.35f); lineTo(w / 2, h * 0.68f); lineTo(w * 0.8f, h * 0.35f) }
+    } else {
+        Path().apply { moveTo(w * 0.35f, h * 0.2f); lineTo(w * 0.68f, h / 2); lineTo(w * 0.35f, h * 0.8f) }
+    }
+    drawPath(path, color, style = Stroke(w * GLYPH_STROKE * 1.4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}
+
 /** A tick, for a box that's ticked. */
 fun DrawScope.tick(color: Color) {
     val w = size.width

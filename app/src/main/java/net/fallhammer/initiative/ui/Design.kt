@@ -70,6 +70,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -1184,6 +1188,98 @@ fun ChoiceRow(label: String?, options: List<String>, chosen: Int, onSelect: (Int
         }
     }
 }
+
+/**
+ * One setting as a line: its name, its value, and a mark pointing right, or down
+ * while open. With [choices], a tap opens them under the line; without, a tap
+ * runs [onClick] (a date or time picker). [changed] shows the value in the
+ * accent, for a setting moved off its default. [first] leaves off the rule
+ * above, for the top line of a panel. The whole line is one button for TalkBack.
+ */
+@Composable
+fun SettingLine(
+    label: String,
+    value: String?,
+    onClick: () -> Unit,
+    open: Boolean = false,
+    changed: Boolean = false,
+    first: Boolean = false,
+    hint: String? = null,
+    choices: (@Composable () -> Unit)? = null,
+) {
+    val haptics = rememberHaptics()
+    val opens = choices != null
+    val state = if (!opens) null else stringResource(if (open) R.string.line_open else R.string.line_closed)
+    val mark = if (open) Ink.text else Ink.accent
+    if (!first) LineRule()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Tap.row)
+            .clickable(role = Role.Button) { haptics.tick(); onClick() }
+            .semantics(mergeDescendants = true) { if (state != null) stateDescription = state },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(vertical = Space.xs)) {
+            Text(label, style = Type.body, color = Ink.text, fontWeight = if (open) FontWeight.Bold else FontWeight.Normal)
+            if (hint != null) Text(hint, style = Type.caption, color = Ink.dim)
+        }
+        if (value != null) {
+            Spacer(Modifier.width(Space.m))
+            Text(value, style = Type.bodySmall, color = if (changed) Ink.accent else Ink.dim, textAlign = TextAlign.End, fontWeight = if (changed) FontWeight.Bold else FontWeight.Normal)
+        }
+        Spacer(Modifier.width(Space.m))
+        Box(Modifier.size(LINE_MARK).drawBehind { lineMark(open && opens, mark) })
+    }
+    if (open && choices != null) {
+        Column(Modifier.fillMaxWidth().padding(bottom = Space.m)) { choices() }
+    }
+}
+
+/**
+ * Pick-one choices under an open [SettingLine]. The chosen one is ticked and
+ * outlined in the accent, so the screen's one filled button stays its primary.
+ * Each is a radio button for TalkBack; they wrap onto more lines when they don't fit.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun PickRow(options: List<String>, chosen: Int, onSelect: (Int) -> Unit) {
+    val haptics = rememberHaptics()
+    val shape = LocalLook.current.buttonShape
+    val accent = Ink.accent
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Space.s),
+        verticalArrangement = Arrangement.spacedBy(Space.s),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
+    ) {
+        options.forEachIndexed { i, option ->
+            val on = i == chosen
+            val blink = rememberBlink()
+            OutlinedButton(
+                onClick = { blink.play(); haptics.tick(); onSelect(i) },
+                modifier = Modifier.heightIn(min = Tap.min).tapFx(blink, shape).semantics { role = Role.RadioButton; selected = on },
+                shape = shape,
+                border = BorderStroke(if (on) PICKED_LINE else Hairline, if (on) Ink.accent else Ink.frame),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Ink.surface, contentColor = Ink.text),
+                contentPadding = ButtonPadding,
+            ) {
+                if (on) {
+                    Box(Modifier.size(PICK_TICK).drawBehind { tick(accent) })
+                    Spacer(Modifier.width(Space.xs))
+                }
+                ButtonText(option, color = Ink.text, weight = if (on) FontWeight.Bold else FontWeight.Normal)
+            }
+        }
+    }
+}
+
+/** The rule between two setting lines in a panel. */
+@Composable
+fun LineRule() = HorizontalDivider(thickness = Hairline, color = Ink.frame)
+
+private val LINE_MARK = 20.dp
+private val PICK_TICK = 18.dp
+private val PICKED_LINE = 2.dp
 
 /**
  * One step of an item, ticked on or off. The whole row is one checkbox for

@@ -1162,11 +1162,13 @@ shot after-recopy
 crash_check
 
 # --- Edit form ---------------------------------------------------------------------
-# Tap the Now title to edit. "Type" marks the form; lower fields scroll off screen. Rename, Save, then Remove with Undo, then Back to cancel.
+# Tap the Now title to edit. "Repeats" marks the form (its line, under the item's times);
+# lower lines scroll off screen. Rename, make it repeat, Save; then a change to one
+# time asks which times; More opens the rare settings; Remove with Undo; Back cancels.
 
 home
 tap "dentist" exact
-wait_for Type exact || fail "edit form didn't open"
+wait_for Repeats exact || fail "edit form didn't open"
 expect_text "Remove"
 shot edit-form
 xy=$(find_node "dentist" field) || fail "no title field holding 'dentist'"
@@ -1189,19 +1191,52 @@ for _ in 1 2 3; do
 done
 wait_for "dentist call" field 2 || fail "couldn't rename in the title field"
 hide_keyboard
+# Each setting is a line with its value; a tap opens its choices under it.
+scroll_to Repeats exact || fail "the edit form should have a Repeats line"
+tap Repeats exact
+scroll_to "Every day" exact || fail "Repeats should open its choices"
 tap "Every day" exact
 shot edit-repeat
 tap Save exact
 expect_text "Saved"
 expect_text "dentist call"
-wait_gone Type exact || fail "edit form still open after Save"
+wait_gone Repeats exact || fail "edit form still open after Save"
 pass "Save renames the item, makes it repeat, and returns to the board"
+
+# One time of the series, changed: Save asks this time, or this and later.
+tap "dentist call" exact
+wait_for Repeats exact || fail "edit form didn't open"
+scroll_to "How long" exact || fail "a task's form should have How long"
+tap "How long" exact
+scroll_to "45m" exact || fail "How long should open its choices"
+tap "45m" exact
+tap Save exact
+wait_for "Save changes to" exact || fail "Save on one time of a series should ask which times"
+expect_text "This and later"
+shot save-which
+tap "This time" exact
+expect_text "Saved"
+wait_gone Repeats exact || fail "edit form still open after This time"
+pass "Save on one time of a series asks which times, and This time saves it"
+
+# The rare settings fold under More, and its line names any that were changed.
+tap "dentist call" exact
+wait_for Repeats exact || fail "edit form didn't open"
+scroll_to More exact || fail "the edit form should end with More"
+tap More exact
+scroll_to "If it's missed" exact || fail "More should open the rare settings"
+expect_text "Priority"
+shot edit-more
+adb shell input keyevent KEYCODE_BACK
+wait_gone Repeats exact || fail "Back should close the edit form"
+pass "More opens the rare settings"
 
 tap "dentist call" exact
 expect_text "Remove"
 # It repeats now, so Remove asks which: this time, or this and later.
 tap Remove exact
 wait_for "Remove which?" exact || fail "Remove on a repeating item should ask which"
+expect_text "Every time"
 shot remove-which
 tap "This and later" exact
 expect_text "Removed, and later times"
@@ -1211,9 +1246,9 @@ expect_text "dentist call"
 pass "Remove on a series takes this and later times, and Undo puts it all back"
 
 tap "dentist call" exact
-wait_for Type exact || fail "edit form didn't open"
+wait_for Repeats exact || fail "edit form didn't open"
 adb shell input keyevent KEYCODE_BACK
-wait_gone Type exact || fail "Back should close the edit form"
+wait_gone Repeats exact || fail "Back should close the edit form"
 expect_text "dentist call"
 pass "Back closes the edit form without saving"
 crash_check
@@ -1226,7 +1261,7 @@ crash_check
 
 home
 tap "dentist call" exact
-wait_for Type exact || fail "edit form didn't open"
+wait_for Repeats exact || fail "edit form didn't open"
 tap "Add a step" exact
 adb shell input text "find%sthe%snumber"
 wait_for "find the number" field 3 || wait_for "Find the number" field 3 || fail "couldn't type the first step"
@@ -1240,6 +1275,9 @@ wait_for "make the call" field 3 || wait_for "Make the call" field 3 || fail "co
 hide_keyboard
 shot edit-steps
 tap Save exact
+# dentist call repeats: the change is for this time.
+wait_for "Save changes to" exact || fail "Save on one time of a series should ask which times"
+tap "This time" exact
 expect_text "Saved"
 expect_text "ind the number"
 expect_text "ake the call"
@@ -1300,11 +1338,14 @@ crash_check
 
 home
 tap "dentist call" exact
-wait_for Type exact || fail "edit form didn't open"
+wait_for Repeats exact || fail "edit form didn't open"
 tap "Add a wait after step 1" exact
 wait_for "Wait 15m after step 1, change" exact 3 || fail "a tap should set a 15-minute wait on the step"
 shot edit-wait
 tap Save exact
+# dentist call repeats: the change is for this time.
+wait_for "Save changes to" exact || fail "Save on one time of a series should ask which times"
+tap "This time" exact
 expect_text "Saved"
 # The first step is still ticked from the steps check: untick it (its wait shows), then tick it again.
 tap "ind the number"

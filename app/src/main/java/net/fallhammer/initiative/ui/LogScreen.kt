@@ -373,6 +373,8 @@ private fun EntryText(entry: LogEntry, title: String, modifier: Modifier = Modif
             style = Type.bodySmall.copy(fontWeight = if (item.isAnchor) FontWeight.Bold else FontWeight.Normal),
             color = if (item.isOpen) Ink.text else Ink.dim,
         )
+        // Removed or passed, found in search: how long it's kept before it goes for good.
+        entry.keptUntil?.let { Text(stringResource(R.string.log_kept, Formats.day(it)), style = Type.caption, color = Ink.dim) }
         // Just for someone paired: theirs to do, kept here for the record.
         if (item.forThem) {
             val name = LocalPeers.current.firstOrNull { it.id == item.pairId }?.nickname ?: stringResource(R.string.shared_someone)
